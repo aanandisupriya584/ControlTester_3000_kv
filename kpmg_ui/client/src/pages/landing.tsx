@@ -6,7 +6,10 @@ import {
   ArrowRight,
   BookOpen,
   ChevronDown,
+  ClipboardCheck,
+  Cog,
   Database,
+  Eye,
   FileBarChart,
   FilePenLine,
   FileSearch,
@@ -18,6 +21,7 @@ import {
   ShieldCheck,
   TestTube,
   Workflow,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -210,6 +214,14 @@ const HERO_SUMMARY = [
   },
 ];
 
+const AGENTIC_COMMAND_NODES = [
+  { label: "Detect", icon: Eye, className: "left-[6%] top-[34%]" },
+  { label: "Automate", icon: Cog, className: "left-[17%] top-[-18%]" },
+  { label: "Assess", icon: ShieldCheck, className: "right-[17%] top-[-18%]" },
+  { label: "Comply", icon: ClipboardCheck, className: "right-[7%] bottom-[13%]" },
+  { label: "Act", icon: Zap, className: "left-1/2 bottom-[-18%] -translate-x-1/2" },
+];
+
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
@@ -262,24 +274,65 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <header className="landing-hero relative overflow-hidden">
+      <header className="landing-hero agentic-landing-hero relative overflow-hidden">
+        <div className="agentic-hero-backdrop pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute inset-0 agentic-grid" />
+          <div className="absolute inset-0 agentic-orbit-field">
+            <span className="agentic-ring agentic-ring-one" />
+            <span className="agentic-ring agentic-ring-two" />
+            <span className="agentic-ring agentic-ring-three" />
+            <span className="agentic-beam agentic-beam-left" />
+            <span className="agentic-beam agentic-beam-right" />
+            <span className="agentic-beam agentic-beam-low-left" />
+            <span className="agentic-beam agentic-beam-low-right" />
+            {Array.from({ length: 18 }).map((_, index) => (
+              <span key={index} className={`agentic-spark agentic-spark-${index + 1}`} />
+            ))}
+          </div>
+        </div>
         <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-10 px-8 pb-18 pt-10 lg:grid-cols-[minmax(0,1.6fr)_380px] lg:px-14 lg:pb-20">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-3 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#00B8F5] animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ACEAFF]">Landing point to the agentic solutions</span>
             </div>
-            <h1 className="max-w-4xl text-[44px] font-bold leading-[1.02] tracking-[-0.02em] text-white sm:text-[56px]">
-              Automate. Detect. Act. Your agentic insight & command centre for control risk and regulatory exposure.
-            </h1>
-            <p className="mt-6 max-w-2xl text-[15px] leading-7 text-[#E4EEFB]">
-              TRACE deploys autonomous agents across your control environment — continuously surfacing imminent risks,
-              closing regulatory gaps before they escalate, and generating audit-ready evidence at machine speed.
-              Move into any workspace to orchestrate testing, assessment, and reporting through a single agentic operating shell.
-            </p>
-            <p className="mt-8 text-[12px] font-semibold uppercase tracking-[0.22em] text-[#C8D8F0]">
-              Select a workspace below to begin
-            </p>
+            <div className="agentic-command-stage relative min-h-[390px] overflow-visible px-3 py-5 sm:min-h-[430px] sm:px-6">
+              <div className="relative z-10 mx-auto flex max-w-[720px] flex-col items-center text-center">
+                <h1 className="agentic-command-title text-[48px] font-black leading-[0.95] text-white sm:text-[62px] lg:text-[70px]">
+                  <span>Automate.</span>
+                  <span>Detect.</span>
+                  <span className="agentic-act-word">Act.</span>
+                </h1>
+                <p className="mt-5 text-[11px] font-bold uppercase text-[#AFC3F7]" style={{ letterSpacing: "0.32em" }}>
+                  Your Agentic Control Center
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setLocation("/")}
+                  className="mt-5 h-12 rounded-[8px] border border-[#55C8FF]/55 bg-transparent px-7 text-[15px] font-bold text-white shadow-[0_0_30px_rgba(0,110,255,0.34)] hover:bg-white/8"
+                >
+                  Enter Workspace
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="pointer-events-none absolute inset-x-0 bottom-4 z-0 mx-auto h-[178px] max-w-[680px]">
+                <div className="agentic-core absolute left-1/2 top-[42%] h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full">
+                  <span className="agentic-core-arrow" />
+                </div>
+                {AGENTIC_COMMAND_NODES.map((node) => {
+                  const Icon = node.icon;
+                  return (
+                    <div key={node.label} className={`agentic-node absolute ${node.className}`}>
+                      <div className="agentic-node-disc">
+                        <Icon className="h-7 w-7 text-[#DFF8FF]" />
+                      </div>
+                      <p>{node.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <aside className="kpmg-summary-panel rounded-[18px] p-6 text-white self-start mt-1">
@@ -376,6 +429,221 @@ export default function LandingPage() {
         </div>
       </main>
       <Footer />
+      <style>{`
+        .agentic-hero-backdrop {
+          z-index: 1;
+          overflow: hidden;
+        }
+
+        .agentic-hero-backdrop::before {
+          content: "";
+          position: absolute;
+          inset: -18% -8% -10% -8%;
+          background:
+            radial-gradient(circle at 48% 68%, rgba(0, 184, 245, 0.28), transparent 32%),
+            radial-gradient(circle at 18% 52%, rgba(30, 73, 226, 0.24), transparent 26%),
+            radial-gradient(circle at 82% 44%, rgba(30, 73, 226, 0.20), transparent 30%),
+            radial-gradient(circle at 72% 72%, rgba(0, 184, 245, 0.12), transparent 26%);
+          animation: commandGlow 5.8s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        .agentic-command-stage {
+          isolation: isolate;
+        }
+
+        .agentic-grid {
+          background-image:
+            linear-gradient(rgba(0, 184, 245, 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 184, 245, 0.08) 1px, transparent 1px);
+          background-size: 34px 34px;
+          mask-image: linear-gradient(180deg, black, black 76%, transparent);
+          opacity: 0.30;
+        }
+
+        .agentic-command-title {
+          letter-spacing: 0;
+          text-shadow: 0 0 20px rgba(0, 184, 245, 0.22), 0 14px 50px rgba(0, 0, 0, 0.55);
+        }
+
+        .agentic-command-title span {
+          display: block;
+          animation: commandWordIn 700ms ease-out both;
+        }
+
+        .agentic-command-title span:nth-child(2) {
+          animation-delay: 140ms;
+        }
+
+        .agentic-command-title span:nth-child(3) {
+          animation-delay: 280ms;
+        }
+
+        .agentic-act-word {
+          color: #1479ff;
+          text-shadow: 0 0 18px rgba(18, 109, 255, 0.7), 0 0 56px rgba(0, 184, 245, 0.36);
+        }
+
+        .agentic-orbit-field {
+          overflow: hidden;
+        }
+
+        .agentic-ring {
+          position: absolute;
+          left: 50%;
+          bottom: 72px;
+          border: 1px solid rgba(0, 184, 245, 0.30);
+          border-radius: 999px;
+          transform: translateX(-50%);
+          box-shadow: 0 0 32px rgba(0, 115, 255, 0.22), inset 0 0 24px rgba(0, 184, 245, 0.10);
+          animation: orbitPulse 4.6s ease-in-out infinite;
+        }
+
+        .agentic-ring-one { width: 260px; height: 72px; }
+        .agentic-ring-two { width: 560px; height: 172px; bottom: 44px; animation-delay: 520ms; }
+        .agentic-ring-three { width: min(1040px, 86vw); height: 260px; bottom: 4px; animation-delay: 980ms; }
+
+        .agentic-beam {
+          position: absolute;
+          height: 1px;
+          width: 44%;
+          bottom: 184px;
+          background: linear-gradient(90deg, transparent, rgba(0, 184, 245, 0.75), transparent);
+          box-shadow: 0 0 16px rgba(0, 184, 245, 0.55);
+          transform-origin: center;
+          animation: beamFlow 3.8s linear infinite;
+        }
+
+        .agentic-beam-left { left: 8%; transform: rotate(18deg); }
+        .agentic-beam-right { right: 8%; transform: rotate(-18deg); animation-delay: 900ms; }
+        .agentic-beam-low-left { left: 9%; bottom: 118px; transform: rotate(-12deg); animation-delay: 500ms; }
+        .agentic-beam-low-right { right: 9%; bottom: 118px; transform: rotate(12deg); animation-delay: 1300ms; }
+
+        .agentic-core {
+          background: radial-gradient(circle, rgba(74, 245, 255, 0.9), rgba(18, 109, 255, 0.22) 42%, transparent 72%);
+          box-shadow: 0 0 46px rgba(0, 184, 245, 0.78), inset 0 0 22px rgba(255, 255, 255, 0.18);
+          animation: corePulse 2.8s ease-in-out infinite;
+        }
+
+        .agentic-core-arrow {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 28px;
+          height: 28px;
+          border-left: 4px solid #9EFFFF;
+          border-top: 4px solid #9EFFFF;
+          transform: translate(-50%, -36%) rotate(45deg);
+          filter: drop-shadow(0 0 12px rgba(158, 255, 255, 0.85));
+        }
+
+        .agentic-node {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 9px;
+          text-transform: uppercase;
+          color: #8DBAFF;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          animation: nodeFloat 4.8s ease-in-out infinite;
+        }
+
+        .agentic-node:nth-child(2n) {
+          animation-delay: 800ms;
+        }
+
+        .agentic-node-disc {
+          display: grid;
+          place-items: center;
+          width: 70px;
+          height: 70px;
+          border: 1px solid rgba(72, 167, 255, 0.58);
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(30, 73, 226, 0.50), rgba(2, 10, 24, 0.86) 70%);
+          box-shadow: 0 0 22px rgba(18, 109, 255, 0.52), inset 0 0 18px rgba(0, 184, 245, 0.22);
+        }
+
+        .agentic-spark {
+          position: absolute;
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: #00B8F5;
+          box-shadow: 0 0 14px rgba(0, 184, 245, 0.95);
+          animation: sparkDrift 4.2s ease-in-out infinite;
+        }
+
+        .agentic-spark-1 { left: 9%; top: 60%; }
+        .agentic-spark-2 { left: 18%; top: 48%; animation-delay: 300ms; }
+        .agentic-spark-3 { left: 29%; top: 76%; animation-delay: 600ms; }
+        .agentic-spark-4 { left: 38%; top: 63%; animation-delay: 900ms; }
+        .agentic-spark-5 { left: 49%; top: 82%; animation-delay: 1200ms; }
+        .agentic-spark-6 { left: 57%; top: 67%; animation-delay: 1500ms; }
+        .agentic-spark-7 { left: 72%; top: 52%; animation-delay: 1800ms; }
+        .agentic-spark-8 { left: 84%; top: 65%; animation-delay: 2100ms; }
+        .agentic-spark-9 { left: 91%; top: 44%; animation-delay: 2400ms; }
+        .agentic-spark-10 { left: 13%; top: 82%; animation-delay: 2700ms; }
+        .agentic-spark-11 { left: 24%; top: 35%; animation-delay: 3000ms; }
+        .agentic-spark-12 { left: 35%; top: 48%; animation-delay: 3300ms; }
+        .agentic-spark-13 { left: 44%; top: 58%; animation-delay: 3600ms; }
+        .agentic-spark-14 { left: 62%; top: 42%; animation-delay: 3900ms; }
+        .agentic-spark-15 { left: 77%; top: 76%; animation-delay: 4200ms; }
+        .agentic-spark-16 { left: 88%; top: 84%; animation-delay: 4500ms; }
+        .agentic-spark-17 { left: 5%; top: 42%; animation-delay: 4800ms; }
+        .agentic-spark-18 { left: 69%; top: 83%; animation-delay: 5100ms; }
+
+        @keyframes commandWordIn {
+          from { opacity: 0; transform: translateY(18px); filter: blur(8px); }
+          to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        @keyframes commandGlow {
+          0%, 100% { transform: scale(1); opacity: 0.88; }
+          50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        @keyframes orbitPulse {
+          0%, 100% { opacity: 0.36; transform: translateX(-50%) scale(1); }
+          50% { opacity: 0.85; transform: translateX(-50%) scale(1.04); }
+        }
+
+        @keyframes beamFlow {
+          0%, 100% { opacity: 0.2; filter: saturate(1); }
+          45% { opacity: 0.9; filter: saturate(1.6); }
+        }
+
+        @keyframes corePulse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.08); }
+        }
+
+        @keyframes nodeFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+
+        @keyframes sparkDrift {
+          0%, 100% { opacity: 0.22; transform: translate(0, 0) scale(0.8); }
+          50% { opacity: 1; transform: translate(10px, -8px) scale(1.28); }
+        }
+
+        @media (max-width: 640px) {
+          .agentic-command-title {
+            font-size: 44px;
+          }
+
+          .agentic-node-disc {
+            width: 54px;
+            height: 54px;
+          }
+
+          .agentic-node {
+            font-size: 9px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

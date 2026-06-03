@@ -598,7 +598,7 @@ body, p, span, li {
 
 .kpmg-summary-panel {
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(180deg, rgba(18, 47, 95, 0.82) 0%, rgba(24, 61, 124, 0.72) 100%);
+  background: transparent;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 22px 44px -34px rgba(0, 0, 0, 0.45);

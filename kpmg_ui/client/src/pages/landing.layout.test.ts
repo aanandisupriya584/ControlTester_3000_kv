@@ -36,6 +36,12 @@ assert.match(
 
 assert.match(
   landingSource,
-  /Select a workspace below to begin/,
-  "Landing page should preserve the workspace-entry call to action above the module directory",
+  /agentic-command-stage/,
+  "Landing page should replace the hero written copy with the animated agentic command center stage",
+);
+
+assert.match(
+  landingSource,
+  /Enter Workspace/,
+  "Landing page should show the animated command center workspace-entry CTA",
 );
