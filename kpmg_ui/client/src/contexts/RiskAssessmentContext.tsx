@@ -137,6 +137,7 @@ interface Ctx {
   fetchAssessments: () => Promise<void>;
   selectAssessment: (a: RiskAssessment | null) => void;
   createAssessment: (data: RiskAssessmentCreate) => Promise<RiskAssessment>;
+  deleteAssessment: (raId: string) => Promise<void>;
   fetchSections: () => Promise<void>;
   submitResponse: (
     raId: string,
@@ -201,6 +202,13 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     const ra: RiskAssessment = await r.json();
     setAssessments(prev => [ra, ...prev]);
     return ra;
+  }, []);
+
+  const deleteAssessment = useCallback(async (raId: string): Promise<void> => {
+    const r = await fetch(`/api/risk-assessment/${raId}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("Failed to delete assessment");
+    setAssessments(prev => prev.filter(a => a.id !== raId));
+    setSelectedAssessment(prev => prev?.id === raId ? null : prev);
   }, []);
 
   const fetchSections = useCallback(async () => {
@@ -336,7 +344,7 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     <RiskAssessmentContext.Provider value={{
       assessments, selectedAssessment, sections, residualResults,
       isLoading, isAnalyzing, isGeneratingReport, error, report,
-      fetchAssessments, selectAssessment, createAssessment,
+      fetchAssessments, selectAssessment, createAssessment, deleteAssessment,
       fetchSections, submitResponse, submitResponseBatch, analyzeAssessment,
       addHumanRisk, applyControl, fetchResidual,
       suggestControls, generateReport,

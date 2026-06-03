@@ -68,12 +68,14 @@ function CiaAxis({
   const rangeLabel = min === max ? `${max}` : `${min}–${max}`;
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-1 w-36">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+    // Keep each CIA axis fully inside its card by placing label/range above a full-width score grid.
+    <div className="min-w-0 space-y-2">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-1">
+        <span className="truncate text-sm font-medium text-slate-700">{label}</span>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" className="text-slate-400 hover:text-slate-600">
+            <button type="button" className="flex-shrink-0 text-slate-400 hover:text-slate-600">
               <Info className="h-3.5 w-3.5" />
             </button>
           </TooltipTrigger>
@@ -85,9 +87,11 @@ function CiaAxis({
             ))}
           </TooltipContent>
         </Tooltip>
+        </div>
+        <span className="flex-shrink-0 text-xs font-semibold text-slate-500">{rangeLabel}</span>
       </div>
       <div
-        className="flex gap-1 select-none"
+        className="grid w-full min-w-0 grid-cols-5 gap-1 select-none"
         onMouseLeave={handleMouseUp}
         onMouseUp={handleMouseUp}
       >
@@ -101,9 +105,9 @@ function CiaAxis({
               disabled={readOnly}
               onMouseDown={() => handleMouseDown(n)}
               onMouseEnter={() => handleMouseEnter(n)}
-              className={`w-8 h-8 rounded border text-xs font-medium transition-all ${
+              className={`h-9 w-full min-w-0 rounded border text-xs font-medium transition-all ${
                 inRange
-                  ? `${SCORE_STYLE[max]} ${isEndpoint ? "ring-2 ring-offset-1 ring-current" : "opacity-70"}`
+                  ? `${SCORE_STYLE[max]} ${isEndpoint ? "shadow-[inset_0_0_0_2px_currentColor]" : "opacity-70"}`
                   : "border-slate-300 text-slate-500 hover:border-slate-400"
               } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
             >
@@ -112,7 +116,6 @@ function CiaAxis({
           );
         })}
       </div>
-      <span className="text-xs font-semibold text-slate-500 w-8 text-right">{rangeLabel}</span>
     </div>
   );
 }
@@ -146,10 +149,11 @@ export default function CiaRatingWidget({
                           "text-red-700     bg-red-100     border-red-300";
 
   return (
-    <div className="space-y-3 p-4 rounded-lg border border-slate-200 bg-slate-50">
-      <div className="flex items-center justify-between">
+    // Keep the CIA rating card responsive inside narrow dialogs and mobile panels.
+    <div className="w-full min-w-0 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">CIA Rating</p>
-        <div className={`text-xs px-2 py-0.5 rounded border font-semibold ${bandColor}`}>
+        <div className={`w-fit text-xs px-2 py-0.5 rounded border font-semibold ${bandColor}`}>
           {total}/15 · {band}
         </div>
       </div>

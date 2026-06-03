@@ -7,7 +7,9 @@ function read(relativePath: string) {
 }
 
 const source = read("client/src/pages/risk-assessment.tsx");
+const appSource = read("client/src/App.tsx");
 const contextSource = read("client/src/contexts/RiskAssessmentContext.tsx");
+const ciaWidgetSource = read("client/src/components/CiaRatingWidget.tsx");
 
 assert.doesNotMatch(
   source,
@@ -37,6 +39,18 @@ assert.match(
   "Risk Assessment should preserve section loading through the existing context endpoint",
 );
 
+assert.match(
+  appSource,
+  /\/risk-assessment\/new/,
+  "Risk Assessment should expose a standalone create-assessment route",
+);
+
+assert.match(
+  ciaWidgetSource,
+  /grid w-full min-w-0 grid-cols-5/,
+  "CIA rating widget should keep score buttons responsive in dialogs",
+);
+
 for (const handler of [
   "createAssessment",
   "submitResponseBatch",
@@ -55,16 +69,23 @@ for (const handler of [
 
 for (const marker of [
   'data-risk-assessment-page="true"',
-  'data-risk-assessment-rail="true"',
-  'data-risk-assessment-dashboard="true"',
+  'data-risk-assessment-new="true"',
+  'risk-create-animated-bg',
+  'data-risk-assessment-context-strip="true"',
+  'data-risk-assessment-progress-ring="true"',
+  'data-risk-assessment-feature-cards="true"',
   'data-risk-assessment-create="true"',
+  'data-risk-assessment-scope-asset-scroll="true"',
   'data-risk-assessment-stepper="true"',
+  'data-risk-assessment-step-tooltip="true"',
   'data-risk-assessment-questionnaire="true"',
   'data-risk-assessment-analysis="true"',
   'data-risk-assessment-risks="true"',
   'data-risk-assessment-controls="true"',
   'data-risk-assessment-residual="true"',
   'data-risk-assessment-report="true"',
+  'data-risk-assessment-report-preview="true"',
+  'data-risk-assessment-report-download="true"',
 ]) {
   assert.match(
     source,
@@ -74,7 +95,12 @@ for (const marker of [
 }
 
 for (const label of [
-  "Assessment Dashboard",
+  "Risk Assessment Workspace",
+  "New Assessment",
+  "HowItWorks",
+  "ACTIVE ASSESSMENTS",
+  "HIGH / CRITICAL RISKS",
+  "DRAFT ASSESSMENTS",
   "Create New Assessment",
   "Application Response Capture",
   "Running Risk Analysis",
@@ -82,9 +108,11 @@ for (const label of [
   "Apply Controls To Risks",
   "Residual Risk Review",
   "Risk Assessment Report",
-  "Define Assessment Scope",
-  "Run The Questionnaire",
-  "Review And Report",
+  "View Report",
+  "Download PDF",
+  "Workflow Summary",
+  "Completion checklist",
+  "Risk Review",
 ]) {
   assert.match(
     source,
@@ -93,11 +121,28 @@ for (const label of [
   );
 }
 
+for (const removed of [
+  /data-risk-assessment-rail="true"/,
+  /data-risk-assessment-dashboard="true"/,
+  /Assessment Dashboard/,
+]) {
+  assert.doesNotMatch(
+    source,
+    removed,
+    "Risk Assessment landing should not include the removed session rail or dashboard",
+  );
+}
+
 for (const forbidden of [
   /trace-workbench-shell/,
   /trace-workbench-layout/,
   /rightTab/,
   /No assessments yet\. Create one to get started\./,
+  /placeholder="Add evidence notes or observations \(optional\)"/,
+  /placeholder="Add supporting detail or evidence notes"/,
+  /Evidence notes added/,
+  /View Generated Report/,
+  /assessments\.slice\(0,\s*6\)/,
 ]) {
   assert.doesNotMatch(
     source,

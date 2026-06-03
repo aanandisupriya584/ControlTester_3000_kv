@@ -119,6 +119,11 @@ function Router() {
         <div className="h-full min-h-0 overflow-hidden">
           <ControlsAssuranceNewPage />
         </div>
+      ) : location === "/risk-assessment/new" ? (
+        // Route the Risk Assessment create flow to its own page while reusing the existing module state/provider.
+        <div className="h-full min-h-0 overflow-hidden">
+          <RiskAssessmentPage />
+        </div>
       ) : location.startsWith("/controls-assurance/") ? (
         <div className="h-full min-h-0 overflow-hidden">
           <ControlsAssuranceDetailPage />

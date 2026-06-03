@@ -1630,3 +1630,470 @@ Verification:
 
 Next recommended step:
 - Continue reviewing the create-case flow for other fields that should be inferred or moved to a later workflow step.
+
+Update:
+- Redesigned the Risk Assessment create experience to match the eye-catching TRACE workspace direction.
+- Added a prominent dark command header for create mode with visible workflow tabs: `Create`, `Scope`, `Questionnaire`, `Analyse`, `Risks`, `Controls`, `Residual`, and `Report`.
+- Existing assessment sessions now use `Scope` as a distinct tab before questionnaire capture.
+- Added richer create metadata fields in the frontend: assessment owner, reviewer, business unit, assessment period, and framework.
+- Kept the backend API unchanged; the extra create metadata is appended into the existing assessment description so current create/list/report flows continue to work.
+- Added searchable Asset Registry selection with CIA score chips, owner chips, and criticality badges.
+- Added a readiness checklist and selected-asset summary to the create screen.
+- Fixed the assessment application count so ad hoc applications merged into `asset_ids` are not double-counted.
+
+Verification:
+- `npm run check`
+- `npm run build` passed with existing PostCSS `from` and large-chunk warnings.
+- Captured live UI screenshot: `output/risk-assessment-redesign-create.png`.
+
+Update:
+- Re-applied the Risk Assessment workflow redesign to match the provided `risk_ass.PNG` reference more directly.
+- Selected-assessment workflow mode now hides the internal sessions rail and uses the full page width.
+- Added a compact workflow context header with current assessment, asset, stage, status, risk level, circular progress, and summary.
+- Added a horizontal workflow stepper with `Create`, `Assets`, `Questionnaire`, `Risk Review`, `Findings`, `Final Report`, and `Audit Output`.
+- Questionnaire now includes an instruction strip, right-side guidance/checklist panel, and cleaner segmented `Yes` / `No` controls.
+- Backend flow and submit/analyze/report calls remain unchanged.
+
+Verification:
+- `npm run check`
+
+Update:
+- Added a shared TRACE top-ribbon universal search before the `Sign Out` button.
+- Search matches application page names plus available records from assets, issues, controls, controls documents, regulatory obligations/documents, framework elements/documents, risk assessments, control testing sessions, validation queue items, and uplift cases.
+- Matching is tolerant of partial or typo-heavy input such as `asses regisr`.
+- Pressing Enter opens the best match; clicking a result opens the relevant module page.
+
+Verification:
+- `npm run check`
+
+Update:
+- Reworked the Risk Assessment main page to follow the provided `risk_ass.PNG` reference.
+- Kept the existing KPMG | TRACE shell and Risk Assessment heading section unchanged.
+- Restored `How It Works` as the first main-page section.
+- Replaced the prior landing/dashboard surface with a light workflow workspace using context strip, stepper, guidance, checklist, and recent assessment list.
+- Restyled the questionnaire view to match the reference layout: top workflow summary, horizontal stepper, instruction strip, accordion question sections, yes/no controls, notes box, and right-side guidance/checklist panel.
+- Kept `New Assessment` available and preserved the existing create, submit, analyze, control, residual, and report behavior.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Redesigned the legacy Control Testing UI surface to match the provided enterprise SaaS reference while preserving the current ControlTestingContext and `/audit/*` flow.
+- Added a slow KPMG blue header glow, subtle network particles, sequential workflow fade-ins, flowing connector pulses, and a dark blue upload card with a soft hover glow and non-interactive upload visual.
+- Opened the Control Testing `How It Works` flow by default, enlarged the process cards/step nodes, and adjusted the page spacing to 20px side padding with a tight 5px bottom gap.
+- Added neutral `HowItWorks` class hooks so page-specific animation styling does not affect other modules.
+
+Verification:
+- `node --import tsx .\client\src\control-testing.enterprise-animation.test.ts`
+- `node --import tsx .\client\src\control-testing.scroll-shell.test.ts`
+- `npm run check`
+
+Update:
+- Limited the Risk Assessment create-flow `Applications In Scope` Asset Registry list to one visible application card.
+- Added vertical scrolling inside the list when more than one registry application is available.
+- Stretched the right-side Submitted Progress column so its bottom edge aligns with the Applications In Scope panel.
+- Upgraded the standalone New Assessment page background with a professional animated blueprint treatment: drifting grid, soft mesh lighting, scan sheen, thin data tracks, and subtle signal nodes behind the form panels.
+- Restyled the New Assessment `Ad Hoc Applications` panel with a KPMG blue/black glass background while preserving its controls.
+- Applied the same KPMG blue/black glass treatment to the `Applications In Scope` panel, including readable registry asset rows and selected states.
+- Updated the New Assessment `Assessment Title` and `Description` fields with black glass backgrounds and blue focus states.
+- Converted the New Assessment `Assessment Setup` summary box to a KPMG blue-black glass surface.
+- Refined the New Assessment `Submitted Progress` circular bar to a thinner ring with white 0% state and greener progress coloring as completion increases.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Replaced only the `/landing` hero written copy area with an animated agentic command-center visual.
+- Preserved the existing top nav, landing chip, Solutions Overview summary panel, module directory sections, and footer.
+- The command text, `Enter Workspace` CTA, and capability nodes remain in the left hero area while the orbit/grid/pulse backdrop now spans the hero background behind the Solutions Overview panel too.
+- Repositioned the `Automate` and `Assess` capability cells parallel to the `Your Agentic Control Center` label so they no longer overlap the lower moving cells.
+- Made the Solutions Overview panel background transparent so the hero animation remains visible behind it while preserving the panel border and text layout.
+
+Verification:
+- `node client/src/pages/landing.layout.test.ts`
+- `npm run check`
+
+Update:
+- Added shared responsive shell rules for the whole authenticated application.
+- On tablet/mobile widths, the fixed left sidebar becomes a compact horizontal top rail and page content takes full width.
+- Added global safeguards so common page containers, media, code blocks, and table-heavy content shrink or scroll instead of forcing horizontal overflow.
+
+Verification:
+- `node --import tsx .\client\src\components\app-layout.sidebar.test.ts`
+- `npm run check`
+
+Update:
+- Changed incomplete Risk Assessment workflow connector segments to pure white while completed segments remain green.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Refined Risk Assessment workflow connector coloring.
+- Connector segments now turn green only when the destination step is also complete, so the line into pending `Audit Output` stays non-green.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Improved workflow connector visibility on the blue gradient background.
+- Completed connector segments now turn green after each completed step.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added an eye-catching KPMG-compatible blue gradient background to the Risk Assessment workflow rail.
+- Updated workflow icon, label, and connector colors for contrast on the dark blue background.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added a `Cancel` button before `Generate Report` on the Risk Assessment report step.
+- Cancel returns users to the previous residual review screen.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Reverted the standalone existing-assessment route behavior for Risk Assessment.
+- `Recent Assessments` rows now open inline on the Risk Assessment landing page again.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Existing Risk Assessment rows now open on standalone routed pages at `/risk-assessment/{assessment_id}`.
+- Clicking a `Recent Assessments` row navigates away from the landing view and loads the selected assessment workflow on its own page URL.
+- Direct browser loads of `/risk-assessment/{assessment_id}` fetch the assessment by id if it is not already in context.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Strengthened the Risk Assessment workflow box border and added a more visible soft shadow effect.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Wrapped the Risk Assessment workflow stepper in its own bordered white box with spacing and a subtle shadow.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Changed the Risk Assessment workflow header from sky-blue to the same dark KPMG/TRACE navy as the `Recent Assessments` header.
+- Updated header text colors for contrast on the dark background.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added a sky-blue background to the Risk Assessment workflow header row above the context strip and stepper.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Re-aligned the `Recent Assessments` card bottom with the right-side checklist stack.
+- Kept the enlarged dark header and light assessment rows while letting the row list stretch and scroll inside the card.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Increased the `Recent Assessments` header row height to roughly double its previous size.
+- Enlarged the header icon and title spacing to match the taller header.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Updated the `Recent Assessments` card so only its header uses the KPMG/TRACE navy background.
+- Removed the stretched empty row area after short assessment lists by returning the list to natural height with a capped internal scroll for long lists.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Reverted the last `Recent Assessments` navy row styling change.
+- Restored the light row background, original dividers, text colors, arrow styling, and prior row height.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Restyled only the Risk Assessment `Recent Assessments` row area with the KPMG/TRACE navy background.
+- Increased row height so short lists feel fuller and remaining space after the last row blends with the row area instead of looking blank.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Increased the visual width/weight of each `Recent Assessments` row.
+- Rows now use larger horizontal padding, a wider right-side status/action column, and a clearer circular open action for better balance.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Adjusted Risk Assessment landing alignment so the `Recent Assessments` card stretches to match the right-side guidance/checklist stack ending.
+- The assessment list remains internally scrollable for larger assessment counts.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Made the Risk Assessment `Recent Assessments` list responsive for larger session counts.
+- Removed the six-assessment render limit and added an internal capped scroll area, so 1-3 assessments keep the current compact height while long lists can be browsed inside the box.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Reverted the last Risk Assessment workflow width/layout change.
+- Restored the previous centered `max-w-[1460px]` page container and the earlier fixed responsive context-strip column layout.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Changed Risk Assessment report PDF download from browser print flow to direct file download.
+- Added `GET /risk-assessment/{ra_id}/report/pdf`, which renders the stored markdown report with ReportLab and returns an `application/pdf` attachment.
+- Updated the report popup `Download PDF` action to fetch the PDF blob and save it directly on the user's device.
+
+Verification:
+- `python -m pytest api/tests/test_risk_assessment_pdf.py -q`
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Reverted Risk Assessment report PDF behavior back to the browser print-to-PDF flow.
+- Removed the direct PDF backend endpoint and its test because the direct device download path was not working reliably in the app.
+- The visible `Download PDF` button in the report popup now opens the printable report document again.
+
+Verification:
+- `python -m py_compile api/routers/risk_assessment.py`
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Made the Risk Assessment workspace use the full available app width instead of stopping at a fixed `1460px` cap.
+- Updated the workflow context strip to auto-fit its summary boxes so rows fill the available width and do not leave a large blank area after the last box.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Updated Risk Assessment workflow completed steps to keep their original step icons visible.
+- Completion is now shown by the blue completed circle state instead of replacing the step icon with a checkmark.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Replaced numbered workflow step icons in Risk Assessment with compatible Lucide icons for create, assets, questionnaire, risk review, findings, final report, and audit output.
+- Added hover animation and step-summary tooltips to each workflow icon.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Reduced the visual thickness of the Risk Assessment progress ring by enlarging the white center area.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Updated the Risk Assessment workflow progress ring color logic.
+- In-progress workflow states render in KPMG blue; completed 100% states render green.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Fixed CIA rating overflow in the ad hoc application popup.
+- CIA score buttons now use a full-width responsive grid inside the card, and the range number stays in the label row.
+- Replaced the selected score outer ring with an inset highlight so selected numbers do not spill outside the box.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Made the Risk Assessment ad hoc application popup responsive across mobile/tablet/desktop.
+- The popup now sizes from the viewport, keeps header/footer fixed, scrolls the body cleanly, and stacks form/CIA panels until wide desktop.
+- Updated `CiaRatingWidget` so CIA labels, score buttons, and range values stack without overflow on narrow screens.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Changed the Risk Assessment workflow stepper to use the full available width on desktop.
+- This reduces the empty space after `Audit Output` while preserving horizontal scrolling on smaller screens.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Updated the Risk Assessment workflow stepper so labels such as `Create`, `Assets`, and `Questionnaire` sit below their circular icons.
+- Preserved the horizontal connector line through the icon row.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Centered the `Progress` label and positioned the circular progress indicator directly below it in the Risk Assessment context strip.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Made the Risk Assessment progress ring larger and moved the progress state text inside the circle.
+- Completed progress now reads `100% Complete` inside the circular indicator.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Increased the Risk Assessment progress ring again and changed the progress cell to a horizontal layout.
+- `Complete` / `In-Progress` now sits beside the circular percentage so the progress section feels more filled.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Enlarged and centered the Risk Assessment circular progress indicator so the progress cell uses its space better.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Updated the Risk Assessment progress cell so the status text sits below the circular progress bar.
+- Progress now reads `Complete` at 100%, and `In-Progress` below 100%.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Swapped `Progress` and `Status` placement in the Risk Assessment context strip.
+- `Progress` now appears before `Risk Level`, and `Status` appears in the previous progress position.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Moved the Risk Assessment report `Download PDF` action into the report popup header so it is visible immediately.
+- Renamed the reopen action from `View Generated Report` to `View Report`.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added a `Download PDF` action to the Risk Assessment generated report popup.
+- The action opens a print-ready report document using the rendered markdown preview so users can save the report as a PDF locally.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Moved Risk Assessment generated report preview out of the main workflow page.
+- `Generate Report` now opens the formatted markdown in a focused dialog popup styled like the ad hoc entry modal.
+- Added a `View Generated Report` action for already-generated reports without rendering the full report inline.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Removed the per-question notes/placeholder textarea from the Risk Assessment questionnaire.
+- Questionnaire rows now show only the requested Yes/No answer boxes for each question.
+- Updated questionnaire guidance/checklist text so it no longer asks users to add evidence notes.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added a standalone Risk Assessment create route at `/risk-assessment/new`.
+- Updated `New Assessment` actions to navigate to the dedicated create page instead of only opening the setup form inline.
+- The standalone create page now opens directly on the assessment details/setup form, with Cancel returning to `/risk-assessment`.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Capped Risk Assessment progress values at 100% in both the workflow header and setup progress card.
+- Updated the workflow header progress cell to show a compact circular graph alongside the `% Complete` label.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Restored the three requested Risk Assessment KPI boxes directly after `How It Works`.
+- Cards now show active assessments, high/critical risks, and draft assessments using live assessment/risk/asset counts.
+- Matched the reference card treatment with separate white boxes, colored top accents, large count typography, and pill summaries.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Added concise intent comments to today's UI changes so future edits show why the code exists before the implementation.
+- Covered the shared top-ribbon universal search and the Risk Assessment reference-style/responsive workflow sections.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Improved Risk Assessment responsiveness across mobile/tablet/desktop widths.
+- Context strip now wraps through 1, 2, 4, and wide-desktop column layouts instead of forcing one dense row.
+- Workflow stepper now scrolls horizontally within its own container on small screens.
+- Main workspace, questionnaire, guidance/checklist panel, assessment rows, question rows, and action buttons now stack on smaller viewports and expand on wider screens.
+
+Verification:
+- `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`

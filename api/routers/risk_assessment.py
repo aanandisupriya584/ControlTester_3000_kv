@@ -170,6 +170,10 @@ class MongoRiskAssessmentStore:
         doc = self._col.find_one({"_id": ra_id})
         return self._to_ra(doc) if doc else None
 
+    def delete(self, ra_id: str) -> bool:
+        result = self._col.delete_one({"_id": ra_id})
+        return result.deleted_count == 1
+
     def add_response(self, ra_id: str, response: dict) -> bool:
         result = self._col.update_one(
             {"_id": ra_id},
@@ -780,6 +784,12 @@ def get_assessment(ra_id: str):
     return ra
 
 
+@router.delete("/{ra_id}", status_code=204)
+def delete_assessment(ra_id: str):
+    if not get_store().delete(ra_id):
+        raise HTTPException(404, "Assessment not found")
+
+
 @router.post("/{ra_id}/respond", status_code=201)
 def submit_response(ra_id: str, body: ResponseSubmit):
     ra = get_store().get(ra_id)
@@ -1112,3 +1122,4 @@ def get_report(ra_id: str):
     if not ra.report_markdown:
         raise HTTPException(404, "No report generated yet. Call POST /{ra_id}/generate-report first.")
     return {"assessment_id": ra_id, "report_markdown": ra.report_markdown}
+
