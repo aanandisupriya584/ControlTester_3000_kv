@@ -186,8 +186,18 @@ function sectionProgress(
   answers: Record<string, Record<string, Record<string, LocalAnswer>>>,
   assetId: string,
   section: Section,
+  savedResponses: RiskAssessment["responses"] = [],
 ) {
-  return Object.values(answers[assetId]?.[section.id] ?? {}).length;
+  const answeredQuestionIds = new Set<string>();
+  for (const response of savedResponses) {
+    if (response.asset_id === assetId && response.section_id === section.id && response.answer) {
+      answeredQuestionIds.add(response.question_id);
+    }
+  }
+  for (const questionId of Object.keys(answers[assetId]?.[section.id] ?? {})) {
+    answeredQuestionIds.add(questionId);
+  }
+  return answeredQuestionIds.size;
 }
 
 function getAssessmentRiskSummary(assessment: RiskAssessment | null) {
@@ -1111,6 +1121,7 @@ export default function RiskAssessmentPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, Record<string, Record<string, LocalAnswer>>>>({});
   const [submittingQa, setSubmittingQa] = useState(false);
+  const [submittedQuestionnaireAssetIds, setSubmittedQuestionnaireAssetIds] = useState<Set<string>>(new Set());
   const [showReportDialog, setShowReportDialog] = useState(false);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
 
@@ -1127,6 +1138,10 @@ export default function RiskAssessmentPage() {
     selectAssessment(null);
     setWizardStep(0);
   }, [isCreatePage]);
+
+  useEffect(() => {
+    setSubmittedQuestionnaireAssetIds(new Set());
+  }, [selectedAssessment?.id]);
 
   useEffect(() => {
     if (wizardStep !== 2 || !selectedAssessment || isAnalyzing) return;
@@ -1181,6 +1196,11 @@ export default function RiskAssessmentPage() {
         selectedAssessment.status === "complete"),
   );
   const hasFindingsReady = hasRisksIdentified;
+  const hasQuestionnaireSubmitted = Boolean(
+    selectedAssessment &&
+      selectedAssessment.asset_ids.length > 0 &&
+      selectedAssessment.asset_ids.every((assetId) => isAssetQuestionnaireSubmitted(assetId)),
+  );
   const hasReportPrerequisites = Boolean(
     selectedAssessment &&
       (selectedAssessment.status === "controls_applied" ||
@@ -1192,7 +1212,7 @@ export default function RiskAssessmentPage() {
   const completedWorkflowSteps: Record<WorkflowStepLabel, boolean> = {
     Create: Boolean(selectedAssessment),
     Assets: hasAssetsInScope,
-    Questionnaire: hasRisksIdentified,
+    Questionnaire: hasQuestionnaireSubmitted || hasRisksIdentified,
     "Risk Review": hasFindingsReady,
     Findings: hasReportPrerequisites,
     "Final Report": Boolean(currentReport || selectedAssessment?.status === "complete"),
@@ -1294,8 +1314,64 @@ export default function RiskAssessmentPage() {
   }
 
   function answeredCount(assetId: string) {
-    const assetAnswers = answers[assetId] ?? {};
-    return Object.values(assetAnswers).flatMap((sectionAnswer) => Object.values(sectionAnswer)).length;
+    const answeredQuestionIds = new Set<string>();
+    for (const response of selectedAssessment?.responses ?? []) {
+      if (response.asset_id === assetId && response.answer) {
+        answeredQuestionIds.add(`${response.section_id}:${response.question_id}`);
+      }
+    }
+    for (const [sectionId, sectionAnswers] of Object.entries(answers[assetId] ?? {})) {
+      for (const questionId of Object.keys(sectionAnswers)) {
+        answeredQuestionIds.add(`${sectionId}:${questionId}`);
+      }
+    }
+    return answeredQuestionIds.size;
+  }
+
+  function hasQuestionAnswer(assetId: string, sectionId: string, questionId: string) {
+    return Boolean(getQuestionAnswer(assetId, sectionId, questionId));
+  }
+
+  function getQuestionAnswer(assetId: string, sectionId: string, questionId: string): LocalAnswer | null {
+    const localAnswer = answers[assetId]?.[sectionId]?.[questionId];
+    if (localAnswer?.answer) return localAnswer;
+    const savedResponse = selectedAssessment?.responses.find(
+      (response) =>
+        response.asset_id === assetId &&
+        response.section_id === sectionId &&
+        response.question_id === questionId &&
+        response.answer,
+    );
+    if (!savedResponse) return null;
+    return {
+      answer: savedResponse.answer,
+      details: savedResponse.details ?? "",
+    };
+  }
+
+  function isAssetQuestionnaireComplete(assetId: string) {
+    return (
+      currentTotalQuestions > 0 &&
+      sections.every((section) =>
+        section.questions.every((question) => hasQuestionAnswer(assetId, section.id, question.id)),
+      )
+    );
+  }
+
+  function isAssetQuestionnaireSubmitted(assetId: string) {
+    const savedQuestionIds = new Set(
+      (selectedAssessment?.responses ?? [])
+        .filter((response) => response.asset_id === assetId && response.answer)
+        .map((response) => `${response.section_id}:${response.question_id}`),
+    );
+    const savedComplete = currentTotalQuestions > 0 && savedQuestionIds.size >= currentTotalQuestions;
+    return isAssetQuestionnaireComplete(assetId) && (submittedQuestionnaireAssetIds.has(assetId) || savedComplete);
+  }
+
+  function firstIncompleteQuestionnaireSection(assetId: string) {
+    return sections.find((section) =>
+      section.questions.some((question) => !hasQuestionAnswer(assetId, section.id, question.id)),
+    );
   }
 
   async function handleCreate() {
@@ -1340,23 +1416,39 @@ export default function RiskAssessmentPage() {
 
   async function handleSubmitQa() {
     if (!selectedAssessment || !currentAssetId) return;
+    if (!isAssetQuestionnaireComplete(currentAssetId)) {
+      const incompleteSection = firstIncompleteQuestionnaireSection(currentAssetId);
+      setExpandedSection(incompleteSection?.id ?? sections[0]?.id ?? null);
+      toast({
+        title: "Please complete all the questions",
+        description: "Answer every questionnaire item before continuing to the next step.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmittingQa(true);
 
     try {
       const responses = sections.flatMap((section) =>
         section.questions.map((question) => {
-          const local = answers[currentAssetId]?.[section.id]?.[question.id];
+          const local = getQuestionAnswer(currentAssetId, section.id, question.id);
           return {
             asset_id: currentAssetId,
             section_id: section.id,
             question_id: question.id,
-            answer: (local?.answer ?? "na") as AnswerType,
+            answer: local!.answer,
             details: local?.details ?? "",
           };
         }),
       );
 
       await submitResponseBatch(selectedAssessment.id, responses);
+      setSubmittedQuestionnaireAssetIds((prev) => {
+        const next = new Set(prev);
+        next.add(currentAssetId);
+        return next;
+      });
 
       if (qaAssetIdx < selectedAssessment.asset_ids.length - 1) {
         setQaAssetIdx((prev) => prev + 1);
@@ -1485,9 +1577,17 @@ export default function RiskAssessmentPage() {
       </div>
 
       <main className="relative z-10 mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10">
-        {!isCreatePage ? (
+        {!isCreatePage && !selectedAssessment ? (
           <>
-            {/* Keep How It Works first on the landing page so users see the assessment process before entering the workspace. */}
+            <RiskAssessmentFeatureCards
+              activeAssessments={activeAssessments}
+              highCriticalRisks={highCriticalRisks}
+              drafts={draftAssessments}
+              totalAssessments={assessments.length}
+              totalRisks={allRisks.length}
+              assetCount={assets.length}
+            />
+
             <HowItWorks
               defaultOpen
               steps={[
@@ -1511,24 +1611,12 @@ export default function RiskAssessmentPage() {
                 },
               ]}
             />
-
-            {/* Place the requested three KPI boxes immediately after How It Works before the main workspace begins. */}
-            <RiskAssessmentFeatureCards
-              activeAssessments={activeAssessments}
-              highCriticalRisks={highCriticalRisks}
-              drafts={draftAssessments}
-              totalAssessments={assessments.length}
-              totalRisks={allRisks.length}
-              assetCount={assets.length}
-            />
           </>
         ) : null}
 
         <div className="min-w-0 space-y-6">
             {!selectedAssessment ? (
-              /* This landing workspace replaces the old dashboard while preserving New Assessment access. */
               <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
-                {/* Match the workflow header background to the dark KPMG/TRACE treatment used by Recent Assessments. */}
                 <div className="flex flex-col items-stretch justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-5 sm:flex-row sm:items-center sm:px-6">
                   <div className="min-w-0">
                     <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/48">Assessment</p>
@@ -1548,10 +1636,8 @@ export default function RiskAssessmentPage() {
                   currentStage={workflowLabelForAssessmentStatus(landingAssessment?.status)}
                 />
 
-                {/* Stack guidance below the main content until there is enough horizontal room. */}
                 <div className="grid gap-5 bg-[#F7F9FC] p-3 sm:p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
                   <div className="flex h-full min-w-0 flex-col">
-                    {/* Keep this card sized to its own five-row list so the scroll area ends at the box bottom. */}
                     <div className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#D8E0ED] bg-white">
                       <div className="flex min-h-[128px] flex-col items-start justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-8 sm:flex-row sm:items-center sm:px-6">
                         <div className="flex min-w-0 items-center gap-4">
@@ -1594,7 +1680,6 @@ export default function RiskAssessmentPage() {
                                   {assessmentAppCount(assessment)} application{assessmentAppCount(assessment) === 1 ? "" : "s"} - Updated {formatDate(assessment.updated_at)}
                                 </p>
                               </button>
-                              {/* Give status/action its own wider column so each assessment row looks balanced. */}
                               <div className="flex w-full items-center justify-between gap-4 lg:justify-end">
                                 <StatusBadge status={assessment.status} />
                                 <button
@@ -1803,7 +1888,6 @@ export default function RiskAssessmentPage() {
                       ) : null}
 
                     </TracePanel>
-
                   </div>
                 </div>
                   </div>
@@ -1926,9 +2010,29 @@ export default function RiskAssessmentPage() {
             ) : null}
 
             {selectedAssessment && !showCreate ? (
-              <div ref={workflowContentRef}>
-                {/* Show the selected assessment context in the same compact band as the reference screen. */}
+              <div ref={workflowContentRef} className="space-y-6" data-risk-assessment-active-workspace="true">
                 <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
+                  <div className="flex flex-col items-stretch justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-5 sm:flex-row sm:items-center sm:px-6">
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/48">Assessment</p>
+                      <h2 className="text-[24px] font-bold tracking-[-0.03em] text-white">Risk Assessment Workspace</h2>
+                      <p className="mt-2 truncate text-[13px] leading-6 text-white/68">
+                        {selectedAssessment.title} - continue the guided workflow from the current stage.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-white/18 bg-white/10 px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-white/16 sm:w-auto"
+                      onClick={() => {
+                        selectAssessment(null);
+                        setLocation("/risk-assessment");
+                        setWizardStep(0);
+                      }}
+                    >
+                      <ArrowRight className="h-4 w-4 rotate-180" />
+                      Recent Assessments
+                    </button>
+                  </div>
                   <WorkflowContextBar
                     assessment={selectedAssessment}
                     assetLabel={assetName(currentAssetId || selectedAssessment.asset_ids[0] || "")}
@@ -2038,7 +2142,7 @@ export default function RiskAssessmentPage() {
                       ) : (
                         <div className="space-y-3">
                           {sections.map((section) => {
-                            const completed = sectionProgress(answers, currentAssetId, section);
+                            const completed = sectionProgress(answers, currentAssetId, section, selectedAssessment.responses);
                             const total = section.questions.length;
                             const isOpen = expandedSection === section.id;
                             return (
@@ -2201,7 +2305,7 @@ export default function RiskAssessmentPage() {
 
                           <div className="space-y-4">
                             {sections.map((section) => {
-                              const completed = sectionProgress(answers, currentAssetId, section);
+                              const completed = sectionProgress(answers, currentAssetId, section, selectedAssessment?.responses ?? []);
                               const total = section.questions.length;
                               const isOpen = expandedSection === section.id;
                               return (

@@ -121,6 +121,30 @@ for (const label of [
   );
 }
 
+assert.ok(
+  source.indexOf("<RiskAssessmentFeatureCards") > -1 &&
+    source.indexOf("<HowItWorks") > source.indexOf("<RiskAssessmentFeatureCards"),
+  "Risk Assessment landing should show KPI boxes before How It Works",
+);
+
+assert.match(
+  source,
+  /!isCreatePage && !selectedAssessment/,
+  "Risk Assessment landing KPI and How It Works content should hide while an assessment workflow is open",
+);
+
+assert.match(
+  source,
+  /data-risk-assessment-active-workspace="true"/,
+  "Risk Assessment should expose a dedicated selected-assessment workspace view",
+);
+
+assert.match(
+  source,
+  /Recent Assessments/,
+  "Selected assessment workspace should include a Recent Assessments return action",
+);
+
 for (const removed of [
   /data-risk-assessment-rail="true"/,
   /data-risk-assessment-dashboard="true"/,
@@ -164,4 +188,28 @@ assert.match(
   overhaulLog,
   /Risk Assessment/,
   "The running UI overhaul log should include the Risk Assessment entry",
+);
+
+assert.match(
+  source,
+  /Please complete all the questions/,
+  "Risk Assessment questionnaire should warn before proceeding with unanswered questions",
+);
+
+assert.match(
+  source,
+  /isAssetQuestionnaireComplete\(currentAssetId\)/,
+  "Risk Assessment questionnaire submit should require every question to be answered",
+);
+
+assert.match(
+  source,
+  /Questionnaire:\s*hasQuestionnaireSubmitted \|\| hasRisksIdentified/,
+  "Questionnaire workflow tick should wait for complete submitted responses or analysed risks",
+);
+
+assert.doesNotMatch(
+  source,
+  /answer:\s*\(local\?\.answer \?\? "na"\)/,
+  "Risk Assessment questionnaire should not silently default unanswered questions to NA on submit",
 );
