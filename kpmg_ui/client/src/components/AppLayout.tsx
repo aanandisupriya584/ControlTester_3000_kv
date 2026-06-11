@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import Footer from "@/components/Footer";
+import KPMGImg from '../assets/Picture1.png';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -107,7 +108,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         >
           {!collapsed && (
             <div className="flex items-center gap-2 pr-10">
-              <span className="text-[16px] font-bold tracking-tight text-white">KPMG</span>
+              <span className="text-[16px] font-bold tracking-tight text-white"><img src={KPMGImg} width={"55px"} /></span>
               <span className="text-[#1E49E2] text-[18px] font-light select-none">|</span>
               <span className="text-[16px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
             </div>

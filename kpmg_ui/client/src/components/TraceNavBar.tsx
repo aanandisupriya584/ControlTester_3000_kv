@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import KpmgImg from '../assets/Picture1.png';
 
 interface TraceNavBarProps {
   breadcrumb?: string;
@@ -30,7 +31,7 @@ export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
             title="Back to TRACE landing"
             className="trace-top-ribbon__brand flex min-w-0 items-center gap-3 transition-opacity hover:opacity-90"
           >
-            <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
+            <span className="text-[18px] font-bold tracking-tight text-white"><img src={KpmgImg} width={"75px"}/></span>
             <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
             <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
           </button>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocation } from "wouter";
+import StatusCard from '../../src/components/custom_ui/cards/StatusCard.tsx';
 import {
   ArrowRight,
   CheckCircle2,
@@ -483,41 +484,68 @@ function RiskAssessmentFeatureCards({
       value: activeAssessments,
       detail: "Sessions currently progressing",
       badge: `${totalAssessments} total sessions`,
-      accent: "#1E49E2",
+      accent: "#00338D",
       badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+    },
+    {
+      label: "DRAFT ASSESSMENTS",
+      value: drafts,
+      detail: "Waiting to begin questionnaire capture",
+      badge: `${totalAssessments} asset registry applications available`,
+      accent: "#1E49E2",
+      badgeClassName: "bg-[#EDFBF5] text-[#009A44]",
     },
     {
       label: "HIGH / CRITICAL RISKS",
       value: highCriticalRisks,
       detail: "Across all fetched assessments",
       badge: `${totalRisks} total recorded risks`,
-      accent: "#EAAA00",
+      accent: "#00B8F5",
       badgeClassName: "bg-[#FFF9E8] text-[#8A6A00]",
     },
     {
-      label: "DRAFT ASSESSMENTS",
-      value: drafts,
-      detail: "Waiting to begin questionnaire capture",
-      badge: `${assetCount} asset registry applications available`,
-      accent: "#009A44",
-      badgeClassName: "bg-[#EDFBF5] text-[#009A44]",
+      label: "TOTAL ASSESSMENTS",
+      value: activeAssessments,
+      detail: "Includes active, & draft assessments",
+      badge: `${totalRisks} total assessments`,
+      accent: "#ACEAFF",
+      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
     },
+    {
+      label: "TOTAL RISKS",
+      value: totalRisks,
+      detail: "Risks identified across all assessments",
+      badge: `${totalRisks} total risks identified`,
+      accent: "#7213EA",
+      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+    },
+    {
+      label: "ASSET COUNT",
+      value: assetCount,
+      detail: "Total assets in scope across all assessments",
+      badge: `${assetCount} total assets`,
+      accent: "#0C233C",
+      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+    }
   ];
 
   return (
-    <section className="mb-9 grid gap-5 md:grid-cols-3" data-risk-assessment-feature-cards="true">
+    <section className="mb-9 grid gap-5 md:grid-cols-6" data-risk-assessment-feature-cards="true">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="relative min-h-[284px] overflow-hidden rounded-[22px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
+          className="relative max-h-[200px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
         >
           <div className="absolute left-0 right-0 top-0 h-1" style={{ background: card.accent }} />
-          <p className="text-[12px] font-bold uppercase leading-6 tracking-[0.42em] text-[#6D7EA8]">
-            {card.label}
-          </p>
-          <div className="mt-5 text-[44px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]">{card.value}</div>
-          <p className="mt-4 max-w-[210px] text-[16px] leading-7 text-[#5D6FA4]">{card.detail}</p>
-          <div className={`mt-6 inline-flex max-w-full rounded-full px-4 py-2 text-[12px] font-bold ${card.badgeClassName}`}>
+          <div className={"min-h-[45px] max-h-[45pxpx] "}>
+            <p className="text-[13px] font-bold uppercase leading-6 tracking-[0.1em] text-[#6D7EA8]">
+              {card.label}
+            </p>
+          </div>
+
+          <div className="mt-5 text-[30px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]">{card.value}</div>
+          <p className="mt-4 max-w-[100%] text-[15px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>
+          <div className={`mt-6 inline-flex max-w-full rounded-full px-4 py-2 text-[8px] font-bold ${card.badgeClassName}`}>
             <span className="break-words">{card.badge}</span>
           </div>
         </div>
@@ -1488,29 +1516,7 @@ export default function RiskAssessmentPage() {
         {!isCreatePage ? (
           <>
             {/* Keep How It Works first on the landing page so users see the assessment process before entering the workspace. */}
-            <HowItWorks
-              defaultOpen
-              steps={[
-                {
-                  number: 1,
-                  title: "Create Assessment",
-                  desc: "Start a new assessment and choose the applications or ad hoc systems in scope.",
-                  color: "#1E49E2",
-                },
-                {
-                  number: 2,
-                  title: "Answer Questionnaire",
-                  desc: "Capture control and risk responses with evidence notes for each selected asset.",
-                  color: "#098E7E",
-                },
-                {
-                  number: 3,
-                  title: "Review Output",
-                  desc: "Validate risks, findings, residual scoring, and the final report.",
-                  color: "#EAAA00",
-                },
-              ]}
-            />
+
 
             {/* Place the requested three KPI boxes immediately after How It Works before the main workspace begins. */}
             <RiskAssessmentFeatureCards
@@ -1520,6 +1526,29 @@ export default function RiskAssessmentPage() {
               totalAssessments={assessments.length}
               totalRisks={allRisks.length}
               assetCount={assets.length}
+            />
+            <HowItWorks
+                defaultOpen
+                steps={[
+                  {
+                    number: 1,
+                    title: "Create Assessment",
+                    desc: "Start a new assessment and choose the applications or ad hoc systems in scope.",
+                    color: "#1E49E2",
+                  },
+                  {
+                    number: 2,
+                    title: "Answer Questionnaire",
+                    desc: "Capture control and risk responses with evidence notes for each selected asset.",
+                    color: "#098E7E",
+                  },
+                  {
+                    number: 3,
+                    title: "Review Output",
+                    desc: "Validate risks, findings, residual scoring, and the final report.",
+                    color: "#EAAA00",
+                  },
+                ]}
             />
           </>
         ) : null}
