@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocation } from "wouter";
@@ -12,9 +12,7 @@ import {
   Database,
   Download,
   FileBarChart,
-  FileCheck2,
   HelpCircle,
-  Info,
   Lightbulb,
   Loader2,
   Lock,
@@ -90,7 +88,43 @@ const ANSWER_CLASS: Record<AnswerType, string> = {
 };
 
 // Mirror the reference workflow labels so the progress rail matches the requested UI.
-const WIZARD_STEPS = ["Create", "Assets", "Questionnaire", "Risk Review", "Findings", "Final Report", "Audit Output"];
+const WIZARD_STEPS = ["Create", "Assets", "Questionnaire", "Risk Review", "Findings", "Final Report"];
+const WORKFLOW_PROGRESS_STEP_COUNT = 6;
+const WORKFLOW_STEP_CONFIG = [
+  { label: "Create", slug: "create", targetStep: 0 },
+  { label: "Assets", slug: "assets", targetStep: 0 },
+  { label: "Questionnaire", slug: "questionnaire", targetStep: 1 },
+  { label: "Risk Review", slug: "risk-review", targetStep: 3 },
+  { label: "Findings", slug: "findings", targetStep: 4 },
+  { label: "Final Report", slug: "final-report", targetStep: 6 },
+] as const;
+type WorkflowStepLabel = (typeof WORKFLOW_STEP_CONFIG)[number]["label"];
+
+const WORKFLOW_STEP_BY_LABEL = WORKFLOW_STEP_CONFIG.reduce(
+  (acc, step) => ({ ...acc, [step.label]: step }),
+  {} as Record<WorkflowStepLabel, (typeof WORKFLOW_STEP_CONFIG)[number]>,
+);
+const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
+  (acc, step) => ({ ...acc, [step.slug]: step }),
+  {} as Record<string, (typeof WORKFLOW_STEP_CONFIG)[number]>,
+);
+
+function workflowSlugFromLocation(location: string) {
+  const query = location.split("?")[1] ?? "";
+  return new URLSearchParams(query).get("step");
+}
+
+function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
+  const slug = workflowSlugFromLocation(location);
+  const urlStep = slug ? WORKFLOW_STEP_BY_SLUG[slug] : null;
+  if (urlStep && urlStep.targetStep === wizardStep) return urlStep.label;
+  if (wizardStep === 0) return "Assets";
+  if (wizardStep === 1) return "Questionnaire";
+  if (wizardStep === 3) return "Risk Review";
+  if (wizardStep === 4 || wizardStep === 5) return "Findings";
+  if (wizardStep === 6) return "Final Report";
+  return "Risk Review";
+}
 
 // Give each workflow step a compatible icon and hover summary so the rail explains itself without extra page text.
 const WORKFLOW_STEP_DETAILS: Record<string, { Icon: LucideIcon; summary: string }> = {
@@ -100,7 +134,6 @@ const WORKFLOW_STEP_DETAILS: Record<string, { Icon: LucideIcon; summary: string 
   "Risk Review": { Icon: ShieldAlert, summary: "Review inherent risks identified from questionnaire responses." },
   Findings: { Icon: SearchCheck, summary: "Review findings and control suggestions before residual scoring." },
   "Final Report": { Icon: FileBarChart, summary: "Generate and preview the formatted risk assessment report." },
-  "Audit Output": { Icon: FileCheck2, summary: "Finalize the audit-ready output for evidence and reporting." },
 };
 
 // Buttons become full-width on mobile to prevent cramped or clipped action text.
@@ -167,16 +200,41 @@ function getAssessmentRiskSummary(assessment: RiskAssessment | null) {
   return "Assessment selected.";
 }
 
-function StepPill({ label, index, currentStep }: { label: string; index: number; currentStep: number }) {
-  const complete = index < currentStep;
-  const active = index === currentStep;
-  const nextStepComplete = index + 1 < currentStep;
+function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): WorkflowStepLabel {
+  if (status === "complete") return "Final Report";
+  if (status === "controls_applied") return "Findings";
+  if (status === "risks_identified") return "Risk Review";
+  if (status === "in_progress") return "Questionnaire";
+  if (status === "draft") return "Assets";
+  return "Create";
+}
+
+function StepPill({
+  label,
+  index,
+  active,
+  complete,
+  disabled,
+  onSelect,
+}: {
+  label: WorkflowStepLabel;
+  index: number;
+  active: boolean;
+  complete: boolean;
+  disabled: boolean;
+  onSelect?: (label: WorkflowStepLabel) => void;
+}) {
+  const nextStepComplete = complete;
   const { Icon, summary } = WORKFLOW_STEP_DETAILS[label] ?? WORKFLOW_STEP_DETAILS.Create;
-  const className = complete
-    ? "border-white/80 bg-white text-[#1E49E2]"
-    : active
-      ? "border-white bg-[#00B8F5] text-white shadow-[0_0_0_4px_rgba(255,255,255,0.18)]"
-      : "border-white/45 bg-white/12 text-white/78";
+  const StepIcon = complete ? CheckCircle2 : Icon;
+  const className = active
+    ? "border-white bg-[#00B8F5] text-white shadow-[0_0_0_4px_rgba(255,255,255,0.18)]"
+    : complete
+      ? "border-[#00C853] bg-white text-[#009A44] shadow-[0_0_0_4px_rgba(255,255,255,0.16)]"
+      : disabled
+        ? "border-white/20 bg-white/8 text-white/35"
+        : "border-white/45 bg-white/12 text-white/78";
+  const labelClass = active || complete ? "text-white" : disabled ? "text-white/35" : "text-white/68";
 
   return (
     <div
@@ -186,14 +244,28 @@ function StepPill({ label, index, currentStep }: { label: string; index: number;
       {/* Stack each step label below its circle so the stepper matches the requested icon-first layout. */}
       <Tooltip>
         <TooltipTrigger asChild>
-          {/* Animate workflow icons on hover and expose a step summary through the tooltip. */}
+          {/* Make each workflow step a real navigation button while keeping the tooltip summary. */}
           <button
             type="button"
-            className={`relative z-10 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-[12px] font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:shadow-[0_10px_22px_-14px_rgba(30,73,226,0.65)] focus:outline-none focus:ring-2 focus:ring-[#AFC1F8] ${className}`}
+            role="tab"
+            onClick={() => onSelect?.(label)}
+            className={`relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-[8px] px-1 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#AFC1F8] ${
+              disabled ? "cursor-pointer opacity-70 hover:-translate-y-0.5" : "cursor-pointer hover:-translate-y-0.5"
+            }`}
             data-risk-assessment-step-tooltip="true"
+            aria-current={active ? "step" : undefined}
+            aria-selected={active}
+            aria-disabled={disabled}
           >
-            {/* Keep completed steps recognizable by showing the original step icon in the completed blue state. */}
-            <Icon className="h-4 w-4" />
+            {/* Completed steps switch to a tick mark so the workflow state is visible at a glance. */}
+            <span
+              className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-[12px] font-bold shadow-sm transition-all duration-200 ${
+                disabled ? "" : "hover:scale-110 hover:shadow-[0_10px_22px_-14px_rgba(30,73,226,0.65)]"
+              } ${className}`}
+            >
+              <StepIcon className="h-4 w-4" />
+            </span>
+            <span className={`max-w-[86px] text-[12px] font-semibold leading-4 ${labelClass}`}>{label}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-[240px] rounded-[10px] border border-[#D8E0ED] bg-white px-3 py-2 text-[#0C233C] shadow-[0_18px_42px_-28px_rgba(12,35,60,0.36)]">
@@ -201,12 +273,11 @@ function StepPill({ label, index, currentStep }: { label: string; index: number;
           <p className="mt-1 text-[11px] leading-5 text-[#5A6478]">{summary}</p>
         </TooltipContent>
       </Tooltip>
-      <span className={`max-w-[86px] text-[12px] font-semibold leading-4 ${active || complete ? "text-white" : "text-white/68"}`}>{label}</span>
       {index < WIZARD_STEPS.length - 1 ? (
         // Keep connector lines visible on the dark workflow background; turn a segment green only after the next step is complete.
         <span
           className={`absolute left-[calc(50%+18px)] right-[calc(-50%+18px)] top-[18px] h-0.5 rounded-full ${
-            nextStepComplete ? "bg-[#00C853]" : "bg-white"
+            nextStepComplete || !disabled ? "bg-[#00C853]" : "bg-white/30"
           }`}
         />
       ) : null}
@@ -314,12 +385,12 @@ function SuggestedControlRow({
           </div>
         </div>
         {alreadyApplied ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[#BFE7D1] bg-[#EDFBF5] px-3 py-1 text-[11px] font-bold text-[#009A44]">
+          <span className="risk-control-applied-glass-pill">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Applied
           </span>
         ) : (
-          <button className={SOFT_BUTTON} onClick={() => void onApply()}>
+          <button className="risk-control-apply-glass-button" onClick={() => void onApply()}>
             Apply
           </button>
         )}
@@ -382,10 +453,10 @@ function CommandDeckMetric({
   detail: string;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm">
-      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/58">{label}</div>
-      <div className="mt-2 text-[30px] font-bold tracking-[-0.04em] text-white">{value}</div>
-      <div className="mt-1 text-[12px] leading-6 text-white/64">{detail}</div>
+    <div className="min-h-[180px] rounded-[8px] border border-[#D6E0EF] bg-[#F8FAFD] px-4 py-4">
+      <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#50627F]">{label}</div>
+      <div className="mt-5 text-[30px] font-bold tracking-[-0.04em] text-[#001B3A]">{value}</div>
+      <div className="mt-4 text-[12px] leading-6 text-[#33415C]">{detail}</div>
     </div>
   );
 }
@@ -647,10 +718,12 @@ function WorkflowContextBar({
   assessment,
   assetLabel,
   progress,
+  currentStage,
 }: {
   assessment: RiskAssessment | null;
   assetLabel: string;
   progress: number;
+  currentStage: string;
 }) {
   // Clamp workflow progress at the component boundary so every caller displays 100% at most.
   const cappedProgress = Math.min(100, Math.max(0, Math.round(progress)));
@@ -664,25 +737,25 @@ function WorkflowContextBar({
 
   return (
     <section className="border-b border-[#D8E0ED] bg-white" data-risk-assessment-context-strip="true">
-      <div className="grid min-h-[76px] grid-cols-1 divide-y divide-[#E5EAF2] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[1.15fr_1.1fr_0.95fr_1.2fr_0.85fr_0.9fr_1.15fr]">
+      <div className="grid min-h-[156px] grid-cols-1 divide-y divide-[#DCE4F0] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[1.15fr_1.05fr_0.9fr_1.15fr_0.85fr_0.85fr_1.1fr]">
         {[
           ["Assessment", assessment?.title || "New Risk Assessment"],
           ["Asset", assetLabel],
-          ["Current Stage", WIZARD_STEPS[Math.min(2, WIZARD_STEPS.length - 1)]],
+          ["Current Stage", currentStage],
           // Put progress before status to match the requested context-strip order.
           ["Progress", `${cappedProgress}% Complete`],
           ["Risk Level", riskLabel],
           ["Status", STATUS_LABELS[assessment?.status ?? "in_progress"] ?? "In Progress"],
           ["Workflow Summary", "Answer questions to evaluate inherent risk for the selected asset."],
         ].map(([label, value]) => (
-          <div key={label} className={`min-w-0 px-4 py-3 sm:px-5 sm:py-4 ${label === "Progress" ? "flex flex-col items-center" : ""}`}>
+          <div key={label} className={`min-w-0 px-5 py-5 ${label === "Progress" ? "flex flex-col items-center" : ""}`}>
             {/* Center the Progress label above its circle while preserving normal alignment for other context fields. */}
-            <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#6E7787] ${label === "Progress" ? "text-center" : ""}`}>
+            <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[#5A6478] ${label === "Progress" ? "text-center" : ""}`}>
               {label}
             </p>
             {label === "Progress" ? (
               // Render progress as a compact circular graph to match the requested visual treatment.
-              <div className="mt-2 flex min-h-[92px] w-full items-center justify-center" data-risk-assessment-progress-ring="true">
+              <div className="flex w-full items-center justify-center" data-risk-assessment-progress-ring="true">
                 <div
                   className="grid h-24 w-24 flex-shrink-0 place-items-center rounded-full"
                   style={{
@@ -699,7 +772,7 @@ function WorkflowContextBar({
                 </div>
               </div>
             ) : (
-              <p className={`truncate text-[13px] font-bold ${label === "Risk Level" ? "text-[#AB5C00]" : "text-[#0C233C]"}`}>
+              <p className={`mt-1 truncate text-[13px] font-bold ${label === "Risk Level" ? "text-[#AB5C00]" : "text-[#001B44]"}`}>
                 {value}
               </p>
             )}
@@ -711,39 +784,39 @@ function WorkflowContextBar({
 }
 
 // The stepper fills its container on desktop and scrolls only when smaller screens need extra room.
-function WorkflowStepper({ currentStep }: { currentStep: number }) {
+function WorkflowStepper({
+  activeStep,
+  completedSteps,
+  disabledSteps,
+  onStepSelect,
+}: {
+  activeStep: WorkflowStepLabel;
+  completedSteps: Record<WorkflowStepLabel, boolean>;
+  disabledSteps: Record<WorkflowStepLabel, boolean>;
+  onStepSelect?: (label: WorkflowStepLabel) => void;
+}) {
   return (
     // Put the workflow rail in its own card-like box so it reads as a separate workflow section.
-    <section className="m-3 overflow-x-auto rounded-[8px] border border-[#1D5BA6] bg-[linear-gradient(135deg,#0C233C_0%,#00338D_58%,#1E49E2_100%)] px-4 py-4 shadow-[0_22px_46px_-30px_rgba(12,35,60,0.72)] ring-1 ring-white/35 sm:m-5 sm:px-5" data-risk-assessment-stepper="true">
+    <section
+      className="m-3 overflow-x-auto rounded-[8px] border border-[#1D5BA6] bg-[linear-gradient(135deg,#0C233C_0%,#00338D_58%,#1E49E2_100%)] px-4 py-4 shadow-[0_22px_46px_-30px_rgba(12,35,60,0.72)] ring-1 ring-white/35 sm:m-5 sm:px-5"
+      data-risk-assessment-stepper="true"
+      role="tablist"
+      aria-label="Risk assessment workflow"
+    >
       <div className="flex w-full min-w-[760px] gap-2 pb-1 pt-1">
-        {WIZARD_STEPS.map((label, index) => (
-          <StepPill key={label} label={label} index={index} currentStep={currentStep} />
+        {WORKFLOW_STEP_CONFIG.map(({ label }, index) => (
+          <StepPill
+            key={label}
+            label={label}
+            index={index}
+            active={label === activeStep}
+            complete={completedSteps[label]}
+            disabled={disabledSteps[label]}
+            onSelect={onStepSelect}
+          />
         ))}
       </div>
     </section>
-  );
-}
-
-// This instruction strip explains the active questionnaire step before the question panels.
-function WorkflowInstructionStrip() {
-  return (
-    <div className="mb-4 grid gap-3 rounded-[8px] border-l-4 border-[#1E49E2] border-y border-r border-[#D8E8FF] bg-[#F8FBFF] px-4 py-4 md:grid-cols-3 md:px-5">
-      <div className="flex gap-3">
-        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1E49E2]" />
-        <div>
-          <p className="text-[12px] font-bold text-[#00338D]">What to do in this step</p>
-          <p className="mt-1 text-[11px] leading-5 text-[#5A6478]">Answer each control and risk question for the selected asset using Yes or No.</p>
-        </div>
-      </div>
-      <div>
-        <p className="text-[12px] font-bold text-[#00338D]">Expected output</p>
-        <p className="mt-1 text-[11px] leading-5 text-[#5A6478]">Completed questionnaire responses ready for inherent risk scoring.</p>
-      </div>
-      <div>
-        <p className="text-[12px] font-bold text-[#00338D]">Why this matters</p>
-        <p className="mt-1 text-[11px] leading-5 text-[#5A6478]">Responses help determine inherent risk and drive key control focus areas.</p>
-      </div>
-    </div>
   );
 }
 
@@ -766,8 +839,8 @@ function GuidanceCard({
         </div>
         <p className="mb-4 text-[12px] leading-5 text-[#5A6478]">Answer each question based on the current state of controls for the selected asset.</p>
         <div className="space-y-3 rounded-[6px] border border-[#D8E8FF] bg-[#F8FBFF] p-3">
-          {/* Keep questionnaire guidance aligned to the Yes/No-only answer design. */}
-          {["Provide accurate and factual responses.", "Select either Yes or No for each question.", "You can save progress anytime and return later."].map((item) => (
+          {/* Keep questionnaire guidance aligned to the Yes/No/NA answer design. */}
+          {["Provide accurate and factual responses.", "Select Yes, No, or NA for each question.", "You can save progress anytime and return later."].map((item) => (
             <div key={item} className="flex gap-2 text-[12px] leading-5 text-[#0C233C]">
               <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1E49E2]" />
               <span>{item}</span>
@@ -955,7 +1028,7 @@ function ReportPreviewDialog({
               data-risk-assessment-report-download="true"
             >
               <Download className="h-4 w-4" />
-              Download PDF
+              Print PDF
             </button>
           </div>
         </DialogHeader>
@@ -1039,6 +1112,7 @@ export default function RiskAssessmentPage() {
   const [answers, setAnswers] = useState<Record<string, Record<string, Record<string, LocalAnswer>>>>({});
   const [submittingQa, setSubmittingQa] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const workflowContentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchAssessments();
@@ -1088,7 +1162,7 @@ export default function RiskAssessmentPage() {
     (risk) => risk.inherent_risk_band === "Critical" || risk.inherent_risk_band === "High",
   ).length;
   const draftAssessments = assessments.filter((assessment) => assessment.status === "draft").length;
-
+  const landingAssessment = assessments[0] ?? null;
   const currentAssetId = selectedAssessment?.asset_ids[qaAssetIdx] ?? "";
   const currentReport = report ?? selectedAssessment?.report_markdown ?? null;
   const currentTotalQuestions = sections.reduce((acc, section) => acc + section.questions.length, 0);
@@ -1097,6 +1171,97 @@ export default function RiskAssessmentPage() {
     assets.find((asset) => asset.id === id)?.name ??
     selectedAssessment?.ad_hoc_applications?.find((app) => app.id === id)?.name ??
     id;
+
+  const hasAssetsInScope = Boolean(selectedAssessment && selectedAssessment.asset_ids.length > 0);
+  const hasRisksIdentified = Boolean(
+    selectedAssessment &&
+      (selectedAssessment.risks.length > 0 ||
+        selectedAssessment.status === "risks_identified" ||
+        selectedAssessment.status === "controls_applied" ||
+        selectedAssessment.status === "complete"),
+  );
+  const hasFindingsReady = hasRisksIdentified;
+  const hasReportPrerequisites = Boolean(
+    selectedAssessment &&
+      (selectedAssessment.status === "controls_applied" ||
+        selectedAssessment.status === "complete" ||
+        residualResults.length > 0 ||
+        currentReport),
+  );
+  const activeWorkflowStep = workflowLabelFromWizardStep(wizardStep, location);
+  const completedWorkflowSteps: Record<WorkflowStepLabel, boolean> = {
+    Create: Boolean(selectedAssessment),
+    Assets: hasAssetsInScope,
+    Questionnaire: hasRisksIdentified,
+    "Risk Review": hasFindingsReady,
+    Findings: hasReportPrerequisites,
+    "Final Report": Boolean(currentReport || selectedAssessment?.status === "complete"),
+  };
+  const disabledWorkflowSteps: Record<WorkflowStepLabel, boolean> = {
+    Create: false,
+    Assets: false,
+    Questionnaire: !hasAssetsInScope,
+    "Risk Review": !hasRisksIdentified,
+    Findings: !hasFindingsReady,
+    "Final Report": !hasReportPrerequisites,
+  };
+
+  function navigateWorkflowStep(label: WorkflowStepLabel, pushHistory = true) {
+    if (label === "Create") {
+      openCreate();
+      return;
+    }
+    const nextStep = WORKFLOW_STEP_BY_LABEL[label].targetStep;
+    if (label === "Questionnaire") {
+      setExpandedSection(sections[0]?.id ?? null);
+    }
+    if (label === "Final Report" && disabledWorkflowSteps[label]) {
+      toast({
+        title: "Report not ready",
+        description: "Generate the final report before opening the audit output.",
+      });
+    }
+    setWizardStep(nextStep);
+    if (pushHistory) {
+      setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
+    }
+  }
+
+  function handleWorkflowStepSelect(label: WorkflowStepLabel) {
+    navigateWorkflowStep(label);
+  }
+
+  useEffect(() => {
+    if (!selectedAssessment || showCreate || isCreatePage) return;
+    const slug = workflowSlugFromLocation(location);
+    if (!slug) return;
+    const step = WORKFLOW_STEP_BY_SLUG[slug];
+    if (!step) return;
+    if (step.targetStep !== wizardStep) {
+      if (step.label === "Questionnaire") {
+        setExpandedSection(sections[0]?.id ?? null);
+      }
+      setWizardStep(step.targetStep);
+    }
+  }, [
+    location,
+    selectedAssessment?.id,
+    selectedAssessment?.status,
+    selectedAssessment?.risks.length,
+    residualResults.length,
+    currentReport,
+    showCreate,
+    isCreatePage,
+    sections,
+    wizardStep,
+  ]);
+
+  useEffect(() => {
+    if (!selectedAssessment || showCreate) return;
+    window.requestAnimationFrame(() => {
+      workflowContentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [wizardStep, selectedAssessment?.id, showCreate]);
 
   function resetCreateState() {
     setForm({ title: "", description: "", selectedAssetIds: [] });
@@ -1148,7 +1313,7 @@ export default function RiskAssessmentPage() {
       });
       selectAssessment(assessment);
       setShowCreate(false);
-      setLocation("/risk-assessment");
+      setLocation("/risk-assessment?step=assets");
       setWizardStep(statusToStep(assessment.status));
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
@@ -1198,6 +1363,7 @@ export default function RiskAssessmentPage() {
         setExpandedSection(sections[0]?.id ?? null);
         toast({ title: "Responses saved for this application" });
       } else {
+        setLocation("/risk-assessment?step=risk-review");
         setWizardStep(2);
         toast({ title: "All responses submitted. Starting analysis." });
       }
@@ -1242,7 +1408,7 @@ export default function RiskAssessmentPage() {
   }
 
   function openCreate() {
-    // Send users to a dedicated create URL so the assessment details open as a separate page.
+    // Route the create icon to the dedicated create URL while showing the existing setup dialog.
     setLocation("/risk-assessment/new");
     setShowCreate(true);
     selectAssessment(null);
@@ -1250,7 +1416,7 @@ export default function RiskAssessmentPage() {
   }
 
   function closeCreate() {
-    // Return from the standalone create page to the Risk Assessment landing workspace.
+    // Return to the Risk Assessment landing workspace when the popup closes.
     setLocation("/risk-assessment");
     setShowCreate(false);
     resetCreateState();
@@ -1259,7 +1425,10 @@ export default function RiskAssessmentPage() {
   function selectExistingAssessment(assessment: RiskAssessment) {
     setShowCreate(false);
     selectAssessment(assessment);
-    setWizardStep(statusToStep(assessment.status));
+    const nextStep = statusToStep(assessment.status);
+    const nextLabel = workflowLabelForAssessmentStatus(assessment.status);
+    setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
+    setWizardStep(nextStep);
     setQaAssetIdx(0);
     setExpandedSection(sections[0]?.id ?? null);
   }
@@ -1337,7 +1506,7 @@ export default function RiskAssessmentPage() {
                 {
                   number: 3,
                   title: "Review Output",
-                  desc: "Validate risks, findings, residual scoring, and final audit output.",
+                  desc: "Validate risks, findings, residual scoring, and the final report.",
                   color: "#EAAA00",
                 },
               ]}
@@ -1356,7 +1525,7 @@ export default function RiskAssessmentPage() {
         ) : null}
 
         <div className="min-w-0 space-y-6">
-            {!selectedAssessment && !showCreate ? (
+            {!selectedAssessment ? (
               /* This landing workspace replaces the old dashboard while preserving New Assessment access. */
               <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
                 {/* Match the workflow header background to the dark KPMG/TRACE treatment used by Recent Assessments. */}
@@ -1373,20 +1542,17 @@ export default function RiskAssessmentPage() {
                 </div>
 
                 <WorkflowContextBar
-                  assessment={assessments[0] ?? null}
-                  assetLabel={assessments[0] ? assetName(assessments[0].asset_ids[0] ?? "") : "Select an assessment"}
-                  // Keep landing progress at 100% maximum even when the final workflow step math reaches completion.
-                  progress={assessments[0] ? Math.min(100, Math.max(20, statusToStep(assessments[0].status) * 17)) : 0}
+                  assessment={landingAssessment}
+                  assetLabel={landingAssessment ? assetName(landingAssessment.asset_ids[0] ?? "") : "Select an assessment"}
+                  progress={landingAssessment ? Math.min(100, Math.max(17, Math.round(((statusToStep(landingAssessment.status) + 1) / WORKFLOW_PROGRESS_STEP_COUNT) * 100))) : 0}
+                  currentStage={workflowLabelForAssessmentStatus(landingAssessment?.status)}
                 />
-                <WorkflowStepper currentStep={assessments[0] ? Math.max(1, statusToStep(assessments[0].status)) : 0} />
 
                 {/* Stack guidance below the main content until there is enough horizontal room. */}
                 <div className="grid gap-5 bg-[#F7F9FC] p-3 sm:p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
                   <div className="flex h-full min-w-0 flex-col">
-                    <WorkflowInstructionStrip />
-
-                    {/* Stretch this card to align with the right checklist stack while keeping rows light and scrollable. */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] border border-[#D8E0ED] bg-white">
+                    {/* Keep this card sized to its own five-row list so the scroll area ends at the box bottom. */}
+                    <div className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#D8E0ED] bg-white">
                       <div className="flex min-h-[128px] flex-col items-start justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-8 sm:flex-row sm:items-center sm:px-6">
                         <div className="flex min-w-0 items-center gap-4">
                           <ShieldCheck className="h-12 w-12 rounded-full bg-white/10 p-3 text-white" />
@@ -1411,12 +1577,11 @@ export default function RiskAssessmentPage() {
                           <Loader2 className="h-5 w-5 animate-spin text-[#1E49E2]" />
                         </div>
                       ) : assessments.length > 0 ? (
-                        /* Let a short list keep its natural height, but scroll inside the box when many assessments exist. */
-                        <div className="max-h-[270px] min-h-0 flex-1 divide-y divide-[#E8EDF5] overflow-y-auto overscroll-contain">
+                        <div className="max-h-[352px] divide-y divide-[#E8EDF5] overflow-y-auto">
                           {assessments.map((assessment) => (
                             <div
                               key={assessment.id}
-                              className="group grid w-full grid-cols-1 items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-[#F8FBFF] sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]"
+                              className="group grid min-h-[88px] w-full grid-cols-1 items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-[#F8FBFF] sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]"
                               data-risk-assessment-session={assessment.id}
                             >
                               <button
@@ -1475,27 +1640,29 @@ export default function RiskAssessmentPage() {
             ) : null}
 
             {showCreate ? (
-              <SurfaceSection
-                eyebrow="Setup"
-                title="Create New Assessment"
-                action={
-                  <div className="flex flex-wrap gap-2" data-risk-assessment-create="true">
-                    <button className={SECONDARY_BUTTON} onClick={closeCreate}>
-                      Cancel
-                    </button>
-                    <button className={PRIMARY_BUTTON} onClick={() => void handleCreate()}>
-                      <Play className="h-4 w-4" />
-                      Create Assessment
-                    </button>
-                  </div>
-                }
-              >
-                <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+              <Dialog open={showCreate} onOpenChange={(open) => (open ? setShowCreate(true) : closeCreate())}>
+                <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[1280px] flex-col overflow-hidden rounded-[18px] border border-[#BFD0E5] bg-white p-0 shadow-[0_34px_100px_-42px_rgba(2,10,24,0.72)] sm:w-[calc(100vw-80px)] sm:rounded-[24px]">
+                  <DialogHeader className="flex-shrink-0 border-b border-[#123863] bg-[#0C233C] px-5 py-6 text-left text-white sm:px-6">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white">New Assessment</p>
+                        <DialogTitle className="mt-4 text-[26px] font-bold tracking-[-0.04em] text-white">
+                          Create New Assessment
+                        </DialogTitle>
+                        <DialogDescription className="mt-4 max-w-[760px] text-[14px] leading-7 text-white">
+                          Define scope, select applications, and prepare the questionnaire workflow.
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto bg-[#F4F7FB] px-4 py-5 sm:px-6" data-risk-assessment-create="true">
+                    <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                   <div className="flex min-h-full flex-col gap-5">
-                    <div className="risk-assessment-setup-glass overflow-hidden rounded-[22px] border p-6 text-white">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-white/46">Assessment Setup</p>
-                      <h3 className="text-[24px] font-bold tracking-[-0.04em] text-white">Define Scope Before We Ask Anything</h3>
-                      <p className="mt-3 max-w-[560px] text-[14px] leading-7 text-white/66">
+                    <div className="risk-assessment-setup-glass overflow-hidden rounded-[8px] border p-6">
+                      <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[#1E49E2]">Assessment Details</p>
+                      <h3 className="text-[22px] font-bold tracking-[-0.04em] text-[#001B3A]">Define Scope Before We Ask Anything</h3>
+                      <p className="mt-4 max-w-[640px] text-[13px] leading-7 text-[#33415C]">
                         Name the session, choose the core applications in scope, and add any ad hoc systems that need to be assessed without touching the wider registry.
                       </p>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1511,25 +1678,25 @@ export default function RiskAssessmentPage() {
                         />
                         <CommandDeckMetric
                           label="Questionnaire Path"
-                          value={Math.max(form.selectedAssetIds.length, 0)}
+                        value={Math.max(form.selectedAssetIds.length, 0)}
                           detail="Registry-backed applications will enter the guided questionnaire"
                         />
                       </div>
                     </div>
 
                     <div className="group">
-                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                         Assessment Title
                       </label>
                       <Input
                         value={form.title}
                         onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
                         placeholder="FY2026 Cloud Payments Review"
-                        className="risk-create-glass-field h-12 rounded-[16px] placeholder:text-[#8492A6]"
+                        className="h-14 rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
                       />
                     </div>
                     <div className="group">
-                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                         Description
                       </label>
                       <Textarea
@@ -1537,13 +1704,13 @@ export default function RiskAssessmentPage() {
                         onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
                         placeholder="Describe the scope, timing, and assessment objective."
                         rows={4}
-                        className="risk-create-glass-field max-h-32 overflow-y-auto rounded-[16px] placeholder:text-[#8492A6]"
+                        className="max-h-32 overflow-y-auto rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
                       />
                     </div>
                     <TracePanel
                       title="Applications In Scope"
                       subtitle="Select existing applications from the Asset Registry. These drive the questionnaire path."
-                      className="risk-scope-glass-panel"
+                      className="rounded-[22px] shadow-none"
                     >
                       <div
                         data-risk-assessment-scope-asset-scroll="true"
@@ -1599,9 +1766,9 @@ export default function RiskAssessmentPage() {
                     <TracePanel
                       title="Ad Hoc Applications"
                       subtitle="Add systems not yet in the registry. They remain part of scope without touching other features."
-                      className="risk-ad-hoc-glass-panel"
+                      className="rounded-[8px] shadow-none"
                     >
-                      <div className="mb-4 flex flex-col items-start gap-7">
+                      <div className="mb-4 flex flex-col items-start gap-3">
                         <div className="text-[13px] text-[#7388A8]">
                           {adHocApps.length} ad hoc application{adHocApps.length === 1 ? "" : "s"} added
                         </div>
@@ -1612,11 +1779,11 @@ export default function RiskAssessmentPage() {
                       </div>
 
                       {adHocApps.length > 0 ? (
-                        <div className="mb-4 space-y-2">
+                        <div className="max-h-[184px] space-y-2 overflow-y-auto pr-1">
                           {adHocApps.map((application, index) => (
                             <div
                               key={`${application.name}-${index}`}
-                              className="flex items-center justify-between rounded-[16px] border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3"
+                              className="flex items-center justify-between gap-3 rounded-[8px] border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3"
                             >
                               <div>
                                 <p className="text-[13px] font-bold text-[#0C233C]">{application.name}</p>
@@ -1637,49 +1804,40 @@ export default function RiskAssessmentPage() {
 
                     </TracePanel>
 
-                    <SetupProgressReport
-                      className="flex flex-1 flex-col"
-                      answeredQuestions={0}
-                      totalQuestions={sections.reduce((acc, section) => acc + section.questions.length, 0) || 0}
-                      registryCount={form.selectedAssetIds.length}
-                      adHocCount={adHocApps.length}
-                      notesCount={adHocApps.filter((application) =>
-                        Boolean(application.assessment_context?.trim() || application.description?.trim()),
-                      ).length}
-                    />
                   </div>
                 </div>
+                  </div>
 
                 <Dialog open={showAdHocForm} onOpenChange={setShowAdHocForm}>
-                  <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[920px] flex-col overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white p-0 shadow-[0_30px_80px_-44px_rgba(12,35,60,0.58)] sm:w-[calc(100vw-48px)] sm:rounded-[24px]">
+                  <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[920px] flex-col overflow-hidden rounded-[18px] border border-[#BFD0E5] bg-white p-0 shadow-[0_34px_100px_-42px_rgba(2,10,24,0.72)] sm:w-[calc(100vw-48px)] [&>button]:text-white [&>button]:opacity-80 [&>button:hover]:opacity-100">
                     {/* Keep the ad hoc popup readable on mobile by letting the shell size from the viewport. */}
-                    <DialogHeader className="flex-shrink-0 bg-[linear-gradient(135deg,#0C233C_0%,#163B67_58%,#1E49E2_100%)] px-4 py-5 text-left text-white sm:px-6 sm:py-6">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/46">Ad Hoc Application</p>
-                      <DialogTitle className="mt-2 text-[22px] font-bold tracking-[-0.04em] text-white sm:text-[26px]">
+                    <DialogHeader className="flex-shrink-0 border-b border-[#123863] bg-[#0C233C] px-5 py-6 text-left text-white sm:px-6">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white">Ad Hoc Application</p>
+                      <DialogTitle className="mt-4 text-[26px] font-bold tracking-[-0.04em] text-white">
                         Add Application Details
                       </DialogTitle>
-                      <DialogDescription className="mt-2 max-w-[680px] text-[14px] leading-7 text-white/66">
+                      <DialogDescription className="mt-4 max-w-[780px] text-[14px] leading-7 text-white">
                         Capture systems that are not yet in the Asset Registry and include the CIA rating needed for this assessment scope.
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-[#F4F7FB] px-4 py-5 sm:px-6 sm:py-10">
                       {/* Stack form and CIA panels until there is enough room for a stable two-column layout. */}
                       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
-                        <div className="space-y-5">
+                        <div className="min-h-[504px] space-y-5 rounded-[8px] border border-[#D6E0EF] bg-white p-5 sm:p-6">
                           <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                               Application Name
                             </label>
                             <Input
                               value={adHocDraft.name ?? ""}
                               onChange={(event) => setAdHocDraft((prev) => ({ ...prev, name: event.target.value }))}
                               placeholder="Payments orchestration platform"
-                              className="h-12 rounded-[16px] border-[#DCE3EE]"
+                              className="h-12 rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
                             />
                           </div>
                           <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                               Application Description
                             </label>
                             <Textarea
@@ -1687,11 +1845,11 @@ export default function RiskAssessmentPage() {
                               onChange={(event) => setAdHocDraft((prev) => ({ ...prev, description: event.target.value }))}
                               placeholder="Describe the application, users, data, and core business process."
                               rows={4}
-                              className="rounded-[16px] border-[#DCE3EE]"
+                              className="rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
                             />
                           </div>
                           <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                               Assessment Context
                             </label>
                             <Textarea
@@ -1701,14 +1859,14 @@ export default function RiskAssessmentPage() {
                               }
                               placeholder="Explain why this system is in scope and what should be considered during risk review."
                               rows={4}
-                              className="rounded-[16px] border-[#DCE3EE]"
+                              className="rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
                             />
                           </div>
                         </div>
 
                         <div className="min-w-0 space-y-4">
-                          <div className="min-w-0 rounded-[18px] border border-[#E2E6EF] bg-[#F7F9FC] p-3 sm:rounded-[20px] sm:p-4">
-                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                          <div className="min-w-0 rounded-[8px] border border-[#D6E0EF] bg-white p-4 sm:p-5">
+                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
                               CIA Rating
                             </p>
                             <CiaRatingWidget
@@ -1723,8 +1881,8 @@ export default function RiskAssessmentPage() {
                               }
                             />
                           </div>
-                          <div className="min-w-0 rounded-[18px] border border-[#E2E6EF] bg-white p-3 sm:rounded-[20px] sm:p-4">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">Current Summary</p>
+                          <div className="min-w-0 rounded-[8px] border border-[#D6E0EF] bg-white p-4 sm:p-5">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">Current Summary</p>
                             <p className="mt-3 break-words text-[14px] font-bold text-[#0C233C]">
                               {adHocDraft.name?.trim() || "Unnamed application"}
                             </p>
@@ -1736,30 +1894,53 @@ export default function RiskAssessmentPage() {
                       </div>
                     </div>
 
-                    <DialogFooter className="flex-shrink-0 border-t border-[#E2E6EF] bg-[#FBFCFE] px-4 py-4 sm:px-6">
+                    <DialogFooter className="flex-shrink-0 border-t border-[#253244] bg-[#2F3947] px-4 py-4 sm:px-6">
                       {/* Stack footer actions on narrow screens so both controls remain easy to tap. */}
-                      <button className={SECONDARY_BUTTON} onClick={() => setShowAdHocForm(false)}>
+                      <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#4C596B] bg-[#465162] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#526073] sm:w-auto" onClick={() => setShowAdHocForm(false)}>
                         Cancel
                       </button>
-                      <button className={PRIMARY_BUTTON} onClick={handleAddAdHoc} disabled={!adHocDraft.name?.trim()}>
+                      <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1E49E2] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#00338D] disabled:cursor-not-allowed disabled:bg-[#8EA4D9] sm:w-auto" onClick={handleAddAdHoc} disabled={!adHocDraft.name?.trim()}>
                         Add Application
                       </button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </SurfaceSection>
+                  <DialogFooter className="flex-shrink-0 border-t border-[#253244] bg-[#2F3947] px-4 py-4 sm:px-6">
+                    <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#4C596B] bg-[#465162] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#526073] sm:w-auto" onClick={closeCreate}>
+                      Cancel
+                    </button>
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#66758A] bg-transparent px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-white/10 sm:w-auto"
+                      onClick={() => toast({ title: "Draft retained", description: "Your entries are still available in this create form." })}
+                    >
+                      <Save className="h-4 w-4" />
+                      Save Draft
+                    </button>
+                    <button className={PRIMARY_BUTTON} onClick={() => void handleCreate()}>
+                      <Play className="h-4 w-4" />
+                      Create Assessment
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             ) : null}
 
             {selectedAssessment && !showCreate ? (
-              <>
+              <div ref={workflowContentRef}>
                 {/* Show the selected assessment context in the same compact band as the reference screen. */}
                 <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
                   <WorkflowContextBar
                     assessment={selectedAssessment}
                     assetLabel={assetName(currentAssetId || selectedAssessment.asset_ids[0] || "")}
-                    progress={Math.min(100, Math.max(12, Math.round(((wizardStep + 1) / WIZARD_STEPS.length) * 100)))}
+                    progress={Math.min(100, Math.max(17, Math.round(((Math.min(wizardStep, WORKFLOW_PROGRESS_STEP_COUNT - 1) + 1) / WORKFLOW_PROGRESS_STEP_COUNT) * 100)))}
+                    currentStage={activeWorkflowStep}
                   />
-                  <WorkflowStepper currentStep={Math.max(1, Math.min(WIZARD_STEPS.length - 1, wizardStep + 1))} />
+                  <WorkflowStepper
+                    activeStep={activeWorkflowStep}
+                    completedSteps={completedWorkflowSteps}
+                    disabledSteps={disabledWorkflowSteps}
+                    onStepSelect={handleWorkflowStepSelect}
+                  />
                 </section>
 
                 {wizardStep === 0 ? (
@@ -1770,10 +1951,7 @@ export default function RiskAssessmentPage() {
                       selectedAssessment.asset_ids.length > 0 ? (
                         <button
                           className={PRIMARY_BUTTON}
-                          onClick={() => {
-                            setWizardStep(1);
-                            setExpandedSection(sections[0]?.id ?? null);
-                          }}
+                          onClick={() => navigateWorkflowStep("Questionnaire")}
                         >
                           Start Questionnaire
                           <ArrowRight className="h-4 w-4" />
@@ -1785,6 +1963,7 @@ export default function RiskAssessmentPage() {
                       <TracePanel
                         title="Applications In Scope"
                         subtitle="Asset Registry applications drive the questionnaire path for this assessment."
+                        className="risk-summary-scope-glass-panel"
                       >
                         <div className="flex flex-wrap gap-2">
                           {selectedAssessment.asset_ids.length > 0 ? (
@@ -1819,7 +1998,11 @@ export default function RiskAssessmentPage() {
                         ) : null}
                       </TracePanel>
 
-                      <TracePanel title="Readiness" subtitle="Questionnaire can begin once at least one registry application is in scope.">
+                      <TracePanel
+                        title="Readiness"
+                        subtitle="Questionnaire can begin once at least one registry application is in scope."
+                        className="risk-summary-readiness-glass-panel"
+                      >
                         <div className="space-y-3">
                           <div className="rounded-[18px] bg-[#F7F9FC] px-4 py-4">
                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8492A6]">Registry Applications</div>
@@ -1848,7 +2031,6 @@ export default function RiskAssessmentPage() {
                   /* Keep the questionnaire and guidance side-by-side on desktop and stacked on smaller screens. */
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]" data-risk-assessment-questionnaire="true">
                     <section className="min-w-0">
-                      <WorkflowInstructionStrip />
                       {selectedAssessment.asset_ids.length === 0 ? (
                         <div className="rounded-[8px] border border-dashed border-[#DCE3EE] bg-white px-4 py-8 text-center text-[13px] leading-6 text-[#7388A8]">
                           No Asset Registry applications were selected for questionnaire capture.
@@ -1862,7 +2044,7 @@ export default function RiskAssessmentPage() {
                             return (
                               <div
                                 key={section.id}
-                                className={`overflow-hidden rounded-[8px] border bg-white ${
+                                className={`risk-questionnaire-glass-section overflow-hidden rounded-[8px] border ${
                                   isOpen ? "border-[#1E49E2] shadow-[0_18px_34px_-30px_rgba(30,73,226,0.36)]" : "border-[#D8E0ED]"
                                 }`}
                               >
@@ -1915,21 +2097,23 @@ export default function RiskAssessmentPage() {
                                                   <p className="text-[14px] font-semibold leading-6 text-[#0C233C]">{question.text}</p>
                                                 </div>
                                               </div>
-                                              {/* Keep each questionnaire answer limited to Yes/No boxes as requested, with no notes placeholder field. */}
-                                              <div className="flex h-10 min-w-0 overflow-hidden rounded-[3px] border border-[#D8E0ED] bg-white">
-                                                {(["yes", "no"] as AnswerType[]).map((answer) => (
+                                              {/* Keep each questionnaire answer limited to Yes/No/NA boxes, with no notes placeholder field. */}
+                                              <div className="grid min-w-0 grid-cols-3 gap-3">
+                                                {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
                                                   <button
                                                     key={answer}
-                                                    className={`flex-1 text-[12px] font-bold transition-colors ${
+                                                    className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold transition-all ${
                                                       local?.answer === answer
                                                         ? answer === "yes"
-                                                          ? "bg-[#EDFBF5] text-[#007A36]"
-                                                          : "bg-[#F7F9FC] text-[#5A6478]"
-                                                        : "text-[#5A6478] hover:bg-[#F7F9FC]"
+                                                          ? "risk-question-answer-button--yes-selected"
+                                                          : answer === "no"
+                                                            ? "risk-question-answer-button--no-selected"
+                                                            : "risk-question-answer-button--na-selected"
+                                                        : "risk-question-answer-button--idle"
                                                     }`}
                                                     onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
                                                   >
-                                                    {answer === "yes" ? "Yes" : "No"}
+                                                    {answer === "yes" ? "Yes" : answer === "no" ? "No" : "NA"}
                                                   </button>
                                                 ))}
                                               </div>
@@ -2072,15 +2256,19 @@ export default function RiskAssessmentPage() {
                                                 <p className="text-[14px] leading-7 text-[#4D6485]">{question.text}</p>
                                               </div>
 
-                                              {/* Keep the legacy questionnaire fallback aligned with the visible Yes/No-only answer design. */}
-                                              <div className="mb-3 flex flex-wrap gap-2">
-                                                {(["yes", "no"] as AnswerType[]).map((answer) => (
+                                              {/* Keep the legacy questionnaire fallback aligned with the visible Yes/No/NA answer design. */}
+                                              <div className="mb-3 grid max-w-[330px] grid-cols-3 gap-3">
+                                                {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
                                                   <button
                                                     key={answer}
-                                                    className={`rounded-full border px-4 py-2 text-[12px] font-bold transition-colors ${
+                                                    className={`risk-question-answer-button h-11 rounded-[8px] border px-4 text-[12px] font-bold transition-all ${
                                                       local?.answer === answer
-                                                        ? ANSWER_CLASS[answer]
-                                                        : "border-[#DCE3EE] bg-white text-[#6A748A] hover:bg-[#F7F9FC]"
+                                                        ? answer === "yes"
+                                                          ? "risk-question-answer-button--yes-selected"
+                                                          : answer === "no"
+                                                            ? "risk-question-answer-button--no-selected"
+                                                            : "risk-question-answer-button--na-selected"
+                                                        : "risk-question-answer-button--idle"
                                                     }`}
                                                     onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
                                                   >
@@ -2107,7 +2295,7 @@ export default function RiskAssessmentPage() {
                 {wizardStep === 2 ? (
                   <SurfaceSection eyebrow="Analysis" title="Running Risk Analysis" data-risk-assessment-analysis="true">
                     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-                      <div className="rounded-[22px] border border-[#E2E6EF] bg-white px-8 py-10 text-center shadow-[0_18px_42px_-34px_rgba(12,35,60,0.26)]">
+                      <div className="risk-identify-glass-panel rounded-[22px] border px-8 py-10 text-center">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#F3F0FF] text-[#7213EA]">
                           <Sparkles className="h-8 w-8 animate-pulse" />
                         </div>
@@ -2126,7 +2314,11 @@ export default function RiskAssessmentPage() {
                         </div>
                       </div>
 
-                      <TracePanel title="Current Run" subtitle="The page remains inside Risk Assessment while analysis completes.">
+                      <TracePanel
+                        title="Current Run"
+                        subtitle="The page remains inside Risk Assessment while analysis completes."
+                        className="risk-identify-glass-panel risk-identify-run-panel"
+                      >
                         <div className="space-y-3">
                           {[
                             ["Responses validated", "Done", "done"],
@@ -2160,14 +2352,14 @@ export default function RiskAssessmentPage() {
                     eyebrow="Risks"
                     title={`Identified Risks (${selectedAssessment.risks.length})`}
                     action={
-                      <button className={PRIMARY_BUTTON} onClick={() => setWizardStep(4)} data-risk-assessment-risks="true">
+                      <button className={PRIMARY_BUTTON} onClick={() => navigateWorkflowStep("Findings")} data-risk-assessment-risks="true">
                         Apply Controls
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     }
                   >
                     {selectedAssessment.risks.length > 0 ? (
-                      <div className="grid gap-4">
+                      <div className="risk-identified-glass-list grid gap-4 rounded-[22px] border p-4">
                         {selectedAssessment.risks.map((risk) => (
                           <RiskSummaryCard key={risk.id} risk={risk} />
                         ))}
@@ -2197,7 +2389,13 @@ export default function RiskAssessmentPage() {
                           <RefreshCw className="h-4 w-4" />
                           Refresh Suggestions
                         </button>
-                        <button className={PRIMARY_BUTTON} onClick={() => setWizardStep(5)}>
+                        <button
+                          className={PRIMARY_BUTTON}
+                          onClick={() => {
+                            setLocation("/risk-assessment?step=findings");
+                            setWizardStep(5);
+                          }}
+                        >
                           Calculate Residual
                           <ArrowRight className="h-4 w-4" />
                         </button>
@@ -2205,7 +2403,7 @@ export default function RiskAssessmentPage() {
                     }
                   >
                     {selectedAssessment.risks.length > 0 ? (
-                      <div className="space-y-5">
+                      <div className="risk-controls-glass-stage space-y-5 rounded-[22px] border p-4">
                         {selectedAssessment.risks.map((risk) => {
                           const suggestions = (selectedAssessment.suggested_controls ?? []).filter(
                             (suggestion) => suggestion.risk_id === risk.id,
@@ -2216,7 +2414,7 @@ export default function RiskAssessmentPage() {
                               key={risk.id}
                               title={risk.title}
                               subtitle={risk.description}
-                              className="border-[#E2E6EF]"
+                              className="risk-controls-risk-panel"
                             >
                               <div className="mb-4 flex flex-wrap items-center gap-2">
                                 <BandBadge band={risk.inherent_risk_band} />
@@ -2276,7 +2474,7 @@ export default function RiskAssessmentPage() {
                           <RefreshCw className="h-4 w-4" />
                           Refresh
                         </button>
-                        <button className={PRIMARY_BUTTON} onClick={() => setWizardStep(6)}>
+                        <button className={PRIMARY_BUTTON} onClick={() => navigateWorkflowStep("Final Report")}>
                           Generate Report
                           <ArrowRight className="h-4 w-4" />
                         </button>
@@ -2284,7 +2482,7 @@ export default function RiskAssessmentPage() {
                     }
                   >
                     {residualResults.length > 0 ? (
-                      <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="risk-residual-glass-stage grid gap-4 rounded-[22px] border p-4 lg:grid-cols-2">
                         {residualResults.map((result) => (
                           <ResidualCard key={result.risk_id} result={result} />
                         ))}
@@ -2329,7 +2527,7 @@ export default function RiskAssessmentPage() {
                     }
                   >
                     {/* Keep the generated report out of the main page and launch it through the animated preview dialog. */}
-                    <div className="rounded-[18px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-8 text-center text-[13px] leading-6 text-[#7388A8]">
+                    <div className="risk-report-glass-box rounded-[18px] border px-4 py-8 text-center text-[13px] leading-6">
                       <FileBarChart className="mx-auto mb-3 h-8 w-8 text-[#1E49E2]" />
                       <p>
                         {currentReport
@@ -2337,7 +2535,7 @@ export default function RiskAssessmentPage() {
                           : "Generate the report to open the formatted assessment output in a preview popup."}
                       </p>
                       {currentReport ? (
-                        <button className={`${PRIMARY_BUTTON} mt-5`} onClick={() => setShowReportDialog(true)}>
+                        <button className="risk-view-report-glass-button mt-5" onClick={() => setShowReportDialog(true)}>
                           View Report
                         </button>
                       ) : null}
@@ -2351,7 +2549,7 @@ export default function RiskAssessmentPage() {
                   title={selectedAssessment.title}
                   report={currentReport}
                 />
-              </>
+              </div>
             ) : null}
           </div>
       </main>
@@ -2504,25 +2702,13 @@ export default function RiskAssessmentPage() {
 
         .risk-assessment-setup-glass {
           position: relative;
-          border-color: rgba(0, 184, 245, 0.24);
-          background:
-            linear-gradient(135deg, rgba(2, 10, 24, 0.92), rgba(0, 51, 141, 0.78) 52%, rgba(12, 35, 60, 0.90)),
-            rgba(12, 35, 60, 0.86);
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.13),
-            0 24px 58px -38px rgba(0, 51, 141, 0.72);
-          backdrop-filter: blur(18px);
-          -webkit-backdrop-filter: blur(18px);
+          border-color: #D6E0EF;
+          background: #FFFFFF;
+          box-shadow: none;
         }
 
         .risk-assessment-setup-glass::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
-            linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.08), transparent 62%);
-          pointer-events: none;
+          content: none;
         }
 
         .risk-assessment-setup-glass > * {
@@ -2532,10 +2718,8 @@ export default function RiskAssessmentPage() {
 
         .risk-assessment-setup-glass [class*="CommandDeckMetric"],
         .risk-assessment-setup-glass .rounded-\\[18px\\] {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(0, 184, 245, 0.20);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: #F8FAFD;
+          border-color: #D6E0EF;
         }
 
         .risk-ad-hoc-glass-panel,
@@ -2620,6 +2804,413 @@ export default function RiskAssessmentPage() {
           border-color: rgba(0, 184, 245, 0.20);
           background: rgba(255, 255, 255, 0.08);
           color: rgba(226, 240, 255, 0.78);
+        }
+
+        .risk-summary-scope-glass-panel,
+        .risk-summary-readiness-glass-panel {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 18% 8%, rgba(0, 184, 245, 0.20), transparent 34%),
+            radial-gradient(circle at 88% 0%, rgba(30, 73, 226, 0.22), transparent 30%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: #FFFFFF;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-summary-scope-glass-panel {
+          min-height: 354px;
+        }
+
+        .risk-summary-scope-glass-panel::before,
+        .risk-summary-readiness-glass-panel::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.18), transparent 34%),
+            linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 62%);
+          pointer-events: none;
+        }
+
+        .risk-summary-scope-glass-panel > *,
+        .risk-summary-readiness-glass-panel > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-summary-scope-glass-panel h2,
+        .risk-summary-readiness-glass-panel h2 {
+          color: #FFFFFF;
+        }
+
+        .risk-summary-scope-glass-panel header p,
+        .risk-summary-readiness-glass-panel header p,
+        .risk-summary-scope-glass-panel .text-\\[13px\\],
+        .risk-summary-readiness-glass-panel .text-\\[13px\\],
+        .risk-summary-readiness-glass-panel .text-\\[11px\\],
+        .risk-summary-scope-glass-panel .text-\\[12px\\] {
+          color: rgba(226, 240, 255, 0.76);
+        }
+
+        .risk-summary-scope-glass-panel .rounded-full {
+          border-color: rgba(0, 184, 245, 0.32);
+          background: rgba(255, 255, 255, 0.10);
+          color: #EAF7FF;
+          box-shadow: 0 0 18px rgba(0, 184, 245, 0.12);
+        }
+
+        .risk-summary-scope-glass-panel .border-t {
+          border-color: rgba(0, 184, 245, 0.20);
+        }
+
+        .risk-summary-scope-glass-panel .bg-\\[\\#FBFCFE\\] {
+          border-color: rgba(0, 184, 245, 0.22);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .risk-summary-readiness-glass-panel .bg-\\[\\#F7F9FC\\] {
+          border: 1px solid rgba(0, 184, 245, 0.20);
+          background: rgba(255, 255, 255, 0.08);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .risk-summary-readiness-glass-panel .text-\\[28px\\] {
+          color: #FFFFFF;
+        }
+
+        .risk-summary-readiness-glass-panel .border-\\[\\#F6D3A0\\] {
+          border-color: rgba(234, 170, 0, 0.34);
+          background: rgba(234, 170, 0, 0.12);
+          color: rgba(255, 242, 198, 0.92);
+        }
+
+        .risk-question-answer-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 0;
+          color: #33415C;
+          background: #FFFFFF;
+          border-color: #D6E0EF;
+          box-shadow: none;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .risk-question-answer-button::before {
+          content: none;
+        }
+
+        .risk-question-answer-button--idle:hover {
+          border-color: #1E49E2;
+          background: #F8FBFF;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--yes-selected {
+          border-color: #009A44;
+          color: #007A36;
+          background: #EDFBF5;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--no-selected {
+          border-color: #E5001B;
+          color: #B80016;
+          background: #FEEBED;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--na-selected {
+          border-color: #8492A6;
+          color: #33415C;
+          background: #F3F6FA;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-question-answer-button:focus-visible {
+          outline: 2px solid rgba(30, 73, 226, 0.45);
+          outline-offset: 2px;
+        }
+
+        .risk-question-answer-button:active {
+          transform: translateY(1px);
+        }
+
+        .risk-questionnaire-glass-section {
+          background: #FFFFFF;
+          box-shadow: none;
+        }
+
+        .risk-questionnaire-glass-section > button {
+          background: #FFFFFF;
+        }
+
+        .risk-questionnaire-glass-section > div {
+          background: #FFFFFF;
+        }
+
+        .risk-identify-glass-panel,
+        .risk-identified-glass-list {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 18% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 86% 18%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: #FFFFFF;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-identify-glass-panel::before,
+        .risk-identified-glass-list::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-identify-glass-panel > *,
+        .risk-identified-glass-list > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-identify-glass-panel h2,
+        .risk-identify-glass-panel h3,
+        .risk-identify-glass-panel .text-\\[24px\\],
+        .risk-identify-glass-panel .text-\\[13px\\],
+        .risk-identify-glass-panel .text-\\[15px\\] {
+          color: #FFFFFF;
+        }
+
+        .risk-identify-glass-panel p,
+        .risk-identify-glass-panel header p {
+          color: rgba(226, 240, 255, 0.76);
+        }
+
+        .risk-identify-glass-panel .bg-\\[\\#F3F0FF\\] {
+          background: rgba(255, 255, 255, 0.10);
+          color: #ACEAFF;
+          box-shadow: 0 0 24px rgba(0, 184, 245, 0.18);
+        }
+
+        .risk-identify-glass-panel .bg-\\[\\#DCE3EE\\] {
+          background: rgba(255, 255, 255, 0.14);
+        }
+
+        .risk-identify-run-panel .bg-\\[\\#F7F9FC\\] {
+          border: 1px solid rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.94);
+          box-shadow: 0 14px 28px -24px rgba(12, 35, 60, 0.28);
+        }
+
+        .risk-identify-run-panel .text-\\[\\#0C233C\\] {
+          color: #0C233C;
+        }
+
+        .risk-identified-glass-list > .rounded-\\[22px\\],
+        .risk-identified-glass-list > div {
+          border-color: rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 16px 34px -30px rgba(12, 35, 60, 0.32);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+
+        .risk-controls-glass-stage {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 90% 16%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-controls-glass-stage::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-controls-glass-stage > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-controls-risk-panel {
+          border-color: rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 16px 34px -30px rgba(12, 35, 60, 0.34);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+
+        .risk-controls-risk-panel .bg-\\[\\#FBFCFE\\] {
+          background: rgba(247, 249, 252, 0.92);
+        }
+
+        .risk-control-apply-glass-button {
+          display: inline-flex;
+          min-height: 38px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          border: 1px solid #1E49E2;
+          background: #1E49E2;
+          padding: 0 16px;
+          color: #FFFFFF;
+          font-size: 12px;
+          font-weight: 800;
+          box-shadow: none;
+          transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .risk-control-apply-glass-button:hover {
+          border-color: #00338D;
+          background: #00338D;
+          color: #FFFFFF;
+          box-shadow: none;
+        }
+
+        .risk-control-apply-glass-button:active {
+          transform: translateY(1px);
+        }
+
+        .risk-control-applied-glass-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border-radius: 999px;
+          border: 1px solid #009A44;
+          background: #009A44;
+          padding: 4px 12px;
+          color: #FFFFFF;
+          font-size: 11px;
+          font-weight: 800;
+          box-shadow: none;
+        }
+
+        .risk-residual-glass-stage {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 90% 16%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-residual-glass-stage::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-residual-glass-stage > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-residual-glass-stage > div {
+          background: rgba(255, 255, 255, 0.96);
+          border-color: rgba(216, 224, 237, 0.88);
+        }
+
+        .risk-report-glass-box {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 20% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 86% 18%, rgba(30, 73, 226, 0.24), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: rgba(226, 240, 255, 0.80);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-report-glass-box::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-report-glass-box > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-report-glass-box svg {
+          color: #ACEAFF;
+          filter: drop-shadow(0 0 18px rgba(0, 184, 245, 0.28));
+        }
+
+        .risk-view-report-glass-button {
+          display: inline-flex;
+          min-height: 42px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background:
+            linear-gradient(135deg, rgba(2, 6, 12, 0.94), rgba(14, 18, 26, 0.88) 58%, rgba(0, 0, 0, 0.92));
+          padding: 0 18px;
+          color: #FFFFFF;
+          font-size: 13px;
+          font-weight: 800;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 16px 32px -24px rgba(0, 0, 0, 0.72);
+          transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+        }
+
+        .risk-view-report-glass-button:hover {
+          border-color: rgba(255, 255, 255, 0.32);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 18px 36px -24px rgba(0, 0, 0, 0.82);
+        }
+
+        .risk-view-report-glass-button:active {
+          transform: translateY(1px);
         }
 
         @keyframes riskCreateGridDrift {

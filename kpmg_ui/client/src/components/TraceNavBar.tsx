@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { ChevronLeft, LogOut } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -30,9 +30,6 @@ export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
             title="Back to TRACE landing"
             className="trace-top-ribbon__brand flex min-w-0 items-center gap-3 transition-opacity hover:opacity-90"
           >
-            <span className="trace-top-ribbon__back" aria-hidden="true">
-              <ChevronLeft className="h-4 w-4" />
-            </span>
             <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
             <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
             <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
@@ -46,6 +43,15 @@ export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
         </div>
         <div className="flex items-center gap-2">
           {actions}
+          <div className="group relative mr-[10px] hidden h-9 w-9 transition-[width] duration-200 ease-out hover:w-44 focus-within:w-44 sm:block lg:hover:w-56 lg:focus-within:w-56">
+            <Search className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white/55 transition-all duration-200 group-hover:left-3 group-hover:translate-x-0 group-focus-within:left-3 group-focus-within:translate-x-0" />
+            <input
+              type="search"
+              aria-label="Search TRACE"
+              placeholder="Search"
+              className="h-9 w-full rounded-full border border-[#2B5CAB] bg-[#102F57] pl-8 pr-3 text-xs font-medium text-white outline-none placeholder:text-transparent focus:border-[#00B8F5]/75 focus:bg-[#123A6C] group-hover:placeholder:text-[#9DB6D5] group-focus-within:placeholder:text-[#9DB6D5]"
+            />
+          </div>
           <Button
             variant="ghost"
             size="sm"

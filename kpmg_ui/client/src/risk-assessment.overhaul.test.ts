@@ -109,7 +109,7 @@ for (const label of [
   "Residual Risk Review",
   "Risk Assessment Report",
   "View Report",
-  "Download PDF",
+  "Print PDF",
   "Workflow Summary",
   "Completion checklist",
   "Risk Review",

@@ -17,6 +17,7 @@ import {
   Library,
   LogOut,
   MessageSquare,
+  Search,
   Scale,
   ShieldCheck,
   TestTube,
@@ -261,6 +262,15 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="group relative mr-[10px] hidden h-9 w-9 transition-[width] duration-200 ease-out hover:w-44 focus-within:w-44 sm:block lg:hover:w-56 lg:focus-within:w-56">
+              <Search className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white/55 transition-all duration-200 group-hover:left-3 group-hover:translate-x-0 group-focus-within:left-3 group-focus-within:translate-x-0" />
+              <input
+                type="search"
+                aria-label="Search TRACE"
+                placeholder="Search"
+                className="h-9 w-full rounded-full border border-[#2B5CAB] bg-[#102F57] pl-8 pr-3 text-xs font-medium text-white outline-none placeholder:text-transparent focus:border-[#00B8F5]/75 focus:bg-[#123A6C] group-hover:placeholder:text-[#9DB6D5] group-focus-within:placeholder:text-[#9DB6D5]"
+              />
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -275,21 +285,6 @@ export default function LandingPage() {
       </div>
 
       <header className="landing-hero agentic-landing-hero relative overflow-hidden">
-        <div className="agentic-hero-backdrop pointer-events-none absolute inset-0" aria-hidden="true">
-          <div className="absolute inset-0 agentic-grid" />
-          <div className="absolute inset-0 agentic-orbit-field">
-            <span className="agentic-ring agentic-ring-one" />
-            <span className="agentic-ring agentic-ring-two" />
-            <span className="agentic-ring agentic-ring-three" />
-            <span className="agentic-beam agentic-beam-left" />
-            <span className="agentic-beam agentic-beam-right" />
-            <span className="agentic-beam agentic-beam-low-left" />
-            <span className="agentic-beam agentic-beam-low-right" />
-            {Array.from({ length: 18 }).map((_, index) => (
-              <span key={index} className={`agentic-spark agentic-spark-${index + 1}`} />
-            ))}
-          </div>
-        </div>
         <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-10 px-8 pb-18 pt-10 lg:grid-cols-[minmax(0,1.6fr)_380px] lg:px-14 lg:pb-20">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-3 py-1.5">
@@ -430,35 +425,8 @@ export default function LandingPage() {
       </main>
       <Footer />
       <style>{`
-        .agentic-hero-backdrop {
-          z-index: 1;
-          overflow: hidden;
-        }
-
-        .agentic-hero-backdrop::before {
-          content: "";
-          position: absolute;
-          inset: -18% -8% -10% -8%;
-          background:
-            radial-gradient(circle at 48% 68%, rgba(0, 184, 245, 0.28), transparent 32%),
-            radial-gradient(circle at 18% 52%, rgba(30, 73, 226, 0.24), transparent 26%),
-            radial-gradient(circle at 82% 44%, rgba(30, 73, 226, 0.20), transparent 30%),
-            radial-gradient(circle at 72% 72%, rgba(0, 184, 245, 0.12), transparent 26%);
-          animation: commandGlow 5.8s ease-in-out infinite;
-          pointer-events: none;
-        }
-
         .agentic-command-stage {
           isolation: isolate;
-        }
-
-        .agentic-grid {
-          background-image:
-            linear-gradient(rgba(0, 184, 245, 0.08) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 184, 245, 0.08) 1px, transparent 1px);
-          background-size: 34px 34px;
-          mask-image: linear-gradient(180deg, black, black 76%, transparent);
-          opacity: 0.30;
         }
 
         .agentic-command-title {
@@ -483,41 +451,6 @@ export default function LandingPage() {
           color: #1479ff;
           text-shadow: 0 0 18px rgba(18, 109, 255, 0.7), 0 0 56px rgba(0, 184, 245, 0.36);
         }
-
-        .agentic-orbit-field {
-          overflow: hidden;
-        }
-
-        .agentic-ring {
-          position: absolute;
-          left: 50%;
-          bottom: 72px;
-          border: 1px solid rgba(0, 184, 245, 0.30);
-          border-radius: 999px;
-          transform: translateX(-50%);
-          box-shadow: 0 0 32px rgba(0, 115, 255, 0.22), inset 0 0 24px rgba(0, 184, 245, 0.10);
-          animation: orbitPulse 4.6s ease-in-out infinite;
-        }
-
-        .agentic-ring-one { width: 260px; height: 72px; }
-        .agentic-ring-two { width: 560px; height: 172px; bottom: 44px; animation-delay: 520ms; }
-        .agentic-ring-three { width: min(1040px, 86vw); height: 260px; bottom: 4px; animation-delay: 980ms; }
-
-        .agentic-beam {
-          position: absolute;
-          height: 1px;
-          width: 44%;
-          bottom: 184px;
-          background: linear-gradient(90deg, transparent, rgba(0, 184, 245, 0.75), transparent);
-          box-shadow: 0 0 16px rgba(0, 184, 245, 0.55);
-          transform-origin: center;
-          animation: beamFlow 3.8s linear infinite;
-        }
-
-        .agentic-beam-left { left: 8%; transform: rotate(18deg); }
-        .agentic-beam-right { right: 8%; transform: rotate(-18deg); animation-delay: 900ms; }
-        .agentic-beam-low-left { left: 9%; bottom: 118px; transform: rotate(-12deg); animation-delay: 500ms; }
-        .agentic-beam-low-right { right: 9%; bottom: 118px; transform: rotate(12deg); animation-delay: 1300ms; }
 
         .agentic-core {
           background: radial-gradient(circle, rgba(74, 245, 255, 0.9), rgba(18, 109, 255, 0.22) 42%, transparent 72%);
@@ -565,53 +498,9 @@ export default function LandingPage() {
           box-shadow: 0 0 22px rgba(18, 109, 255, 0.52), inset 0 0 18px rgba(0, 184, 245, 0.22);
         }
 
-        .agentic-spark {
-          position: absolute;
-          width: 7px;
-          height: 7px;
-          border-radius: 999px;
-          background: #00B8F5;
-          box-shadow: 0 0 14px rgba(0, 184, 245, 0.95);
-          animation: sparkDrift 4.2s ease-in-out infinite;
-        }
-
-        .agentic-spark-1 { left: 9%; top: 60%; }
-        .agentic-spark-2 { left: 18%; top: 48%; animation-delay: 300ms; }
-        .agentic-spark-3 { left: 29%; top: 76%; animation-delay: 600ms; }
-        .agentic-spark-4 { left: 38%; top: 63%; animation-delay: 900ms; }
-        .agentic-spark-5 { left: 49%; top: 82%; animation-delay: 1200ms; }
-        .agentic-spark-6 { left: 57%; top: 67%; animation-delay: 1500ms; }
-        .agentic-spark-7 { left: 72%; top: 52%; animation-delay: 1800ms; }
-        .agentic-spark-8 { left: 84%; top: 65%; animation-delay: 2100ms; }
-        .agentic-spark-9 { left: 91%; top: 44%; animation-delay: 2400ms; }
-        .agentic-spark-10 { left: 13%; top: 82%; animation-delay: 2700ms; }
-        .agentic-spark-11 { left: 24%; top: 35%; animation-delay: 3000ms; }
-        .agentic-spark-12 { left: 35%; top: 48%; animation-delay: 3300ms; }
-        .agentic-spark-13 { left: 44%; top: 58%; animation-delay: 3600ms; }
-        .agentic-spark-14 { left: 62%; top: 42%; animation-delay: 3900ms; }
-        .agentic-spark-15 { left: 77%; top: 76%; animation-delay: 4200ms; }
-        .agentic-spark-16 { left: 88%; top: 84%; animation-delay: 4500ms; }
-        .agentic-spark-17 { left: 5%; top: 42%; animation-delay: 4800ms; }
-        .agentic-spark-18 { left: 69%; top: 83%; animation-delay: 5100ms; }
-
         @keyframes commandWordIn {
           from { opacity: 0; transform: translateY(18px); filter: blur(8px); }
           to { opacity: 1; transform: translateY(0); filter: blur(0); }
-        }
-
-        @keyframes commandGlow {
-          0%, 100% { transform: scale(1); opacity: 0.88; }
-          50% { transform: scale(1.05); opacity: 1; }
-        }
-
-        @keyframes orbitPulse {
-          0%, 100% { opacity: 0.36; transform: translateX(-50%) scale(1); }
-          50% { opacity: 0.85; transform: translateX(-50%) scale(1.04); }
-        }
-
-        @keyframes beamFlow {
-          0%, 100% { opacity: 0.2; filter: saturate(1); }
-          45% { opacity: 0.9; filter: saturate(1.6); }
         }
 
         @keyframes corePulse {
@@ -622,11 +511,6 @@ export default function LandingPage() {
         @keyframes nodeFloat {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-8px); }
-        }
-
-        @keyframes sparkDrift {
-          0%, 100% { opacity: 0.22; transform: translate(0, 0) scale(0.8); }
-          50% { opacity: 1; transform: translate(10px, -8px) scale(1.28); }
         }
 
         @media (max-width: 640px) {
