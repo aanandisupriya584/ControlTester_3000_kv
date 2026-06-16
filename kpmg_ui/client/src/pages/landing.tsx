@@ -226,6 +226,7 @@ const AGENTIC_COMMAND_NODES = [
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(FEATURE_SECTIONS.map((s) => [s.id, true]))
   );
@@ -233,10 +234,20 @@ export default function LandingPage() {
   const toggleSection = (id: string) =>
     setCollapsedSections((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleFeatureCards = normalizedSearchQuery
+    ? FEATURE_CARDS.filter((card) =>
+        [card.title, card.description, card.functionLabel, card.category]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearchQuery),
+      )
+    : FEATURE_CARDS;
   const groupedSections = FEATURE_SECTIONS.map((section) => ({
     ...section,
-    items: FEATURE_CARDS.filter((card) => card.category === section.id),
+    items: visibleFeatureCards.filter((card) => card.category === section.id),
   }));
+  const isSearching = normalizedSearchQuery.length > 0;
 
   const handleSignOut = () => {
     logout();
@@ -268,6 +279,13 @@ export default function LandingPage() {
                 type="search"
                 aria-label="Search TRACE"
                 placeholder="Search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && visibleFeatureCards[0]) {
+                    setLocation(visibleFeatureCards[0].path);
+                  }
+                }}
                 className="h-9 w-full rounded-full border border-[#2B5CAB] bg-[#102F57] pl-8 pr-3 text-xs font-medium text-white outline-none placeholder:text-transparent focus:border-[#00B8F5]/75 focus:bg-[#123A6C] group-hover:placeholder:text-[#9DB6D5] group-focus-within:placeholder:text-[#9DB6D5]"
               />
             </div>
@@ -349,7 +367,8 @@ export default function LandingPage() {
       <main className="flex-1 px-8 py-10 lg:px-14 lg:py-12">
         <div className="mx-auto max-w-[1400px] space-y-8">
           {groupedSections.map((section) => {
-            const isCollapsed = !!collapsedSections[section.id];
+            const isCollapsed = isSearching ? false : !!collapsedSections[section.id];
+            if (isSearching && section.items.length === 0) return null;
             return (
             <section key={section.id} className="landing-directory-panel rounded-[18px] overflow-hidden">
               <button
@@ -412,6 +431,13 @@ export default function LandingPage() {
             </section>
             );
           })}
+
+          {isSearching && visibleFeatureCards.length === 0 ? (
+            <section className="landing-directory-panel rounded-[18px] px-7 py-8 text-center">
+              <p className="text-[14px] font-bold text-[#0C233C]">No modules found</p>
+              <p className="mt-2 text-[13px] text-[#5A6478]">Try a module name such as Risk Assessment, Reports, Chat, or Control Testing.</p>
+            </section>
+          ) : null}
 
           <div className="flex items-center justify-between border-t border-[#00338D]/8 pt-6 pb-2">
             <p className="text-[11px] text-slate-400 uppercase tracking-[0.22em] font-semibold">

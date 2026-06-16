@@ -45,3 +45,21 @@ assert.match(
   /Enter Workspace/,
   "Landing page should show the animated command center workspace-entry CTA",
 );
+
+assert.match(
+  landingSource,
+  /value=\{searchQuery\}/,
+  "Landing search should be a controlled input instead of a visual-only field",
+);
+
+assert.match(
+  landingSource,
+  /visibleFeatureCards/,
+  "Landing search should filter the visible module cards",
+);
+
+assert.match(
+  landingSource,
+  /event\.key === "Enter"/,
+  "Landing search should open the first matching module when Enter is pressed",
+);

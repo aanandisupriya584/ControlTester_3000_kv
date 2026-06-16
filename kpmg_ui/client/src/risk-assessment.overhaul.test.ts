@@ -7,6 +7,27 @@ function read(relativePath: string) {
 }
 
 const source = read("client/src/pages/risk-assessment.tsx");
+const featureCardsSource = read("client/src/pages/risk-assessment/components/FeatureCards.tsx");
+const guidanceCardSource = read("client/src/pages/risk-assessment/components/GuidanceCard.tsx");
+const newButtonSource = read("client/src/pages/risk-assessment/components/NewButton.tsx");
+const questionnaireStepSource = read("client/src/pages/risk-assessment/components/QuestionnaireStep.tsx");
+const recentAssessmentsSource = read("client/src/pages/risk-assessment/components/RecentAssessments.tsx");
+const reportPreviewSource = read("client/src/pages/risk-assessment/components/ReportPreviewDialog.tsx");
+const workflowControlsSource = read("client/src/pages/risk-assessment/components/WorkflowControls.tsx");
+const workflowStepsSource = read("client/src/pages/risk-assessment/components/WorkflowSteps.tsx");
+const workspaceHeaderSource = read("client/src/pages/risk-assessment/components/WorkspaceHeader.tsx");
+const riskAssessmentUiSource = [
+  source,
+  featureCardsSource,
+  guidanceCardSource,
+  newButtonSource,
+  questionnaireStepSource,
+  recentAssessmentsSource,
+  reportPreviewSource,
+  workflowControlsSource,
+  workflowStepsSource,
+  workspaceHeaderSource,
+].join("\n");
 const appSource = read("client/src/App.tsx");
 const contextSource = read("client/src/contexts/RiskAssessmentContext.tsx");
 const ciaWidgetSource = read("client/src/components/CiaRatingWidget.tsx");
@@ -88,7 +109,7 @@ for (const marker of [
   'data-risk-assessment-report-download="true"',
 ]) {
   assert.match(
-    source,
+    riskAssessmentUiSource,
     new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
     `Risk Assessment should expose ${marker} for browser smoke checks`,
   );
@@ -102,7 +123,6 @@ for (const label of [
   "HIGH / CRITICAL RISKS",
   "DRAFT ASSESSMENTS",
   "Create New Assessment",
-  "Application Response Capture",
   "Running Risk Analysis",
   "Identified Risks",
   "Apply Controls To Risks",
@@ -115,15 +135,15 @@ for (const label of [
   "Risk Review",
 ]) {
   assert.match(
-    source,
+    riskAssessmentUiSource,
     new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
     `Risk Assessment should include the redesigned screen label ${label}`,
   );
 }
 
 assert.ok(
-  source.indexOf("<RiskAssessmentFeatureCards") > -1 &&
-    source.indexOf("<HowItWorks") > source.indexOf("<RiskAssessmentFeatureCards"),
+  source.indexOf("<FeatureCards") > -1 &&
+    source.indexOf("<HowItWorks") > source.indexOf("<FeatureCards"),
   "Risk Assessment landing should show KPI boxes before How It Works",
 );
 
@@ -140,9 +160,39 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workspaceHeaderSource,
   /Recent Assessments/,
   "Selected assessment workspace should include a Recent Assessments return action",
+);
+
+assert.match(
+  featureCardsSource,
+  /data-risk-assessment-feature-cards="true"/,
+  "Risk Assessment KPI cards should live in the extracted feature cards component",
+);
+
+assert.match(
+  recentAssessmentsSource,
+  /Recent Assessments/,
+  "Recent assessments list should live in the extracted recent assessments component",
+);
+
+assert.match(
+  workflowControlsSource,
+  /data-risk-assessment-stepper="true"/,
+  "Risk Assessment workflow controls should live in the extracted workflow component",
+);
+
+assert.match(
+  reportPreviewSource,
+  /data-risk-assessment-report-preview="true"/,
+  "Risk Assessment report preview should live in the extracted report component",
+);
+
+assert.match(
+  source,
+  /@\/pages\/risk-assessment\/components/,
+  "Risk Assessment page should import child components from its local component folder",
 );
 
 for (const removed of [
@@ -213,3 +263,4 @@ assert.doesNotMatch(
   /answer:\s*\(local\?\.answer \?\? "na"\)/,
   "Risk Assessment questionnaire should not silently default unanswered questions to NA on submit",
 );
+
