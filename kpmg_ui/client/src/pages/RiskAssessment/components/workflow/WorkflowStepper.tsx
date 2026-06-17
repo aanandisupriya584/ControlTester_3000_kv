@@ -73,7 +73,7 @@ export function assessmentIdFromLocation(location: string) {
 export function workflowPathForAssessment(assessmentId: string | null | undefined, label: WorkflowStepLabel) {
   const slug = WORKFLOW_STEP_BY_LABEL[label].slug;
   if (label === "Create") return "/risk-assessment/create";
-  return assessmentId ? `/risk-assessment/${encodeURIComponent(assessmentId)}/${slug}` : `/risk-assessment/${slug}`;
+  return `/risk-assessment/${slug}`;
 }
 
 export function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {

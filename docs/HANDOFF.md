@@ -2081,6 +2081,40 @@ Verification:
 - `npm run check`
 
 Update:
+- Extracted the active Risk Assessment questionnaire step into `QuestionnaireForm` under `components/workflow`.
+- Kept the existing question accordion, Yes/No/NA answer buttons, guidance card, completion checklist, Save Progress, and Continue behavior unchanged.
+- Removed the old unreachable `false && selectedAssessment` questionnaire fallback from the parent page.
+
+Verification:
+- `npm run check -- --pretty false`
+- `http://localhost:3000/risk-assessment/questionnaire` returned HTTP 200
+
+Update:
+- Extracted the Risk Assessment `Assessment Summary` step into `AssessmentSummaryForm` under `components/workflow`.
+- Kept the existing summary UI, scope badges, readiness counts, ad hoc context display, and Start Questionnaire behavior unchanged.
+
+Verification:
+- `npm run check -- --pretty false`
+- `http://localhost:3000/risk-assessment/assets` returned HTTP 200
+
+Update:
+- Changed Risk Assessment workflow navigation to use clean step URLs such as `/risk-assessment/questionnaire` instead of `/risk-assessment/{assessmentId}/questionnaire`.
+- Kept legacy id-based URLs readable for compatibility and stored the selected assessment id locally so clean step URLs can reopen the current workspace.
+
+Verification:
+- `npm run check -- --pretty false`
+- `http://localhost:3000/risk-assessment/questionnaire` returned HTTP 200
+
+Update:
+- Extracted the Risk Assessment create/new assessment dialog into `CreateAssessmentPage` under `components/workflow`.
+- Kept the existing UI, styling, form state, ad hoc application popup, and create/save/cancel behavior wired through the parent page.
+- Removed the duplicate inline create-page JSX from `risk-assessment.tsx`.
+
+Verification:
+- `npm run check -- --pretty false`
+- `http://localhost:3000/risk-assessment` returned HTTP 200
+
+Update:
 - Moved the Risk Assessment report `Download PDF` action into the report popup header so it is visible immediately.
 - Renamed the reopen action from `View Generated Report` to `View Report`.
 

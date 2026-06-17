@@ -5,19 +5,12 @@ import { useLocation } from "wouter";
 import {
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Download,
   FileBarChart,
   HelpCircle,
   Loader2,
-  Lock,
-  Play,
-  Plus,
   RefreshCw,
-  Save,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
@@ -25,6 +18,11 @@ import CompletionChecklist from "@/pages/RiskAssessment/components/CompletionChe
 import RecentAssessments from "@/pages/RiskAssessment/components/RecentAssessments";
 import RiskAssessmentOverview from "@/pages/RiskAssessment/components/RiskAssessmentOverview";
 import RiskAssessmentWorkspace, { STATUS_LABELS } from "@/pages/RiskAssessment/components/RiskAssessmentWorkspace";
+import AssessmentSummaryForm from "@/pages/RiskAssessment/components/workflow/AssessmentSummaryForm";
+import CreateAssessmentPage, {
+  type CreateAssessmentFormState,
+} from "@/pages/RiskAssessment/components/workflow/CreateAssessmentPage";
+import QuestionnaireForm from "@/pages/RiskAssessment/components/workflow/QuestionnaireForm";
 import WorkflowStepper, {
   WORKFLOW_PROGRESS_STEP_COUNT,
   WORKFLOW_STEP_BY_LABEL,
@@ -39,7 +37,6 @@ import WorkflowStepper, {
 import {
   TracePanel,
 } from "@/components/TraceAnalysisPrimitives";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -48,9 +45,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import CiaRatingWidget from "@/components/CiaRatingWidget";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
 import {
@@ -59,7 +53,6 @@ import {
   type ResidualResult,
   type Risk,
   type RiskAssessment,
-  type Section,
   type SuggestedControl,
   useRiskAssessment,
 } from "@/contexts/RiskAssessmentContext";
@@ -77,12 +70,6 @@ const ANSWER_CLASS: Record<AnswerType, string> = {
   na: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
 };
 
-const ANSWER_LABEL: Record<AnswerType, string> = {
-  yes: "Yes",
-  no: "No",
-  na: "NA",
-};
-
 // Buttons become full-width on mobile to prevent cramped or clipped action text.
 const PRIMARY_BUTTON =
   "inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1E49E2] px-5 py-3 text-[14px] font-bold text-white transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:bg-[#8EA4D9] sm:w-auto";
@@ -95,6 +82,8 @@ interface LocalAnswer {
   answer: AnswerType;
   details: string;
 }
+
+const SELECTED_ASSESSMENT_STORAGE_KEY = "risk-assessment:selected-assessment-id";
 
 function statusToStep(status: RiskAssessment["status"]) {
   switch (status) {
@@ -116,14 +105,6 @@ function statusToStep(status: RiskAssessment["status"]) {
 function statusToneTitle(assessment: RiskAssessment | null) {
   if (!assessment) return "Ready To Begin";
   return STATUS_LABELS[assessment.status] ?? "Assessment Selected";
-}
-
-function sectionProgress(
-  answers: Record<string, Record<string, Record<string, LocalAnswer>>>,
-  assetId: string,
-  section: Section,
-) {
-  return Object.values(answers[assetId]?.[section.id] ?? {}).length;
 }
 
 function getAssessmentRiskSummary(assessment: RiskAssessment | null) {
@@ -289,24 +270,6 @@ function ResidualCard({ result }: { result: ResidualResult }) {
         <span>Avg effectiveness {(result.avg_effectiveness * 100).toFixed(0)}%</span>
         <span>Residual score {result.residual_risk_score}</span>
       </div>
-    </div>
-  );
-}
-
-function CommandDeckMetric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-}) {
-  return (
-    <div className="min-h-[180px] rounded-[8px] border border-[#D6E0EF] bg-[#F8FAFD] px-4 py-4">
-      <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#50627F]">{label}</div>
-      <div className="mt-5 text-[30px] font-bold tracking-[-0.04em] text-[#001B3A]">{value}</div>
-      <div className="mt-4 text-[12px] leading-6 text-[#33415C]">{detail}</div>
     </div>
   );
 }
@@ -662,7 +625,7 @@ export default function RiskAssessmentPage() {
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
-  const [form, setForm] = useState<{ title: string; description: string; selectedAssetIds: string[] }>({
+  const [form, setForm] = useState<CreateAssessmentFormState>({
     title: "",
     description: "",
     selectedAssetIds: [],
@@ -728,8 +691,40 @@ export default function RiskAssessmentPage() {
   ]);
 
   useEffect(() => {
+    if (isCreatePage || routeAssessmentId || selectedAssessment || assessments.length === 0) return;
+    const slug = workflowSlugFromLocation(location);
+    if (!slug) return;
+    const storedAssessmentId = window.localStorage.getItem(SELECTED_ASSESSMENT_STORAGE_KEY);
+    const storedAssessment = assessments.find((assessment) => assessment.id === storedAssessmentId);
+    if (!storedAssessment) return;
+
+    selectAssessment(storedAssessment);
+    setShowCreate(false);
+    setQaAssetIdx(0);
+    setExpandedSection(sections[0]?.id ?? null);
+
+    const routeStep = WORKFLOW_STEP_BY_SLUG[slug];
+    setWizardStep(routeStep?.targetStep ?? statusToStep(storedAssessment.status));
+  }, [
+    assessments,
+    isCreatePage,
+    location,
+    routeAssessmentId,
+    sections,
+    selectAssessment,
+    selectedAssessment,
+  ]);
+
+  useEffect(() => {
+    if (selectedAssessment) {
+      window.localStorage.setItem(SELECTED_ASSESSMENT_STORAGE_KEY, selectedAssessment.id);
+    }
+  }, [selectedAssessment]);
+
+  useEffect(() => {
     const pathname = location.split("?")[0] ?? "";
     if (pathname !== "/risk-assessment" || isCreatePage || showCreate || !selectedAssessment) return;
+    window.localStorage.removeItem(SELECTED_ASSESSMENT_STORAGE_KEY);
     selectAssessment(null);
     setWizardStep(0);
     setQaAssetIdx(0);
@@ -1248,289 +1243,25 @@ export default function RiskAssessmentPage() {
               </RiskAssessmentWorkspace>
             ) : null}
             {showCreate ? (
-              <Dialog open={showCreate} onOpenChange={(open) => (open ? setShowCreate(true) : closeCreate())}>
-                <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[1280px] flex-col overflow-hidden rounded-[18px] border border-[#BFD0E5] bg-white p-0 shadow-[0_34px_100px_-42px_rgba(2,10,24,0.72)] sm:w-[calc(100vw-80px)] sm:rounded-[24px]">
-                  <DialogHeader className="flex-shrink-0 border-b border-[#123863] bg-[#0C233C] px-5 py-6 text-left text-white sm:px-6">
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white">New Assessment</p>
-                        <DialogTitle className="mt-4 text-[26px] font-bold tracking-[-0.04em] text-white">
-                          Create New Assessment
-                        </DialogTitle>
-                        <DialogDescription className="mt-4 max-w-[760px] text-[14px] leading-7 text-white">
-                          Define scope, select applications, and prepare the questionnaire workflow.
-                        </DialogDescription>
-                      </div>
-                    </div>
-                  </DialogHeader>
-
-                  <div className="min-h-0 flex-1 overflow-y-auto bg-[#F4F7FB] px-4 py-5 sm:px-6" data-risk-assessment-create="true">
-                    <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                  <div className="flex min-h-full flex-col gap-5">
-                    <div className="risk-assessment-setup-glass overflow-hidden rounded-[8px] border p-6">
-                      <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[#1E49E2]">Assessment Details</p>
-                      <h3 className="text-[22px] font-bold tracking-[-0.04em] text-[#001B3A]">Define Scope Before We Ask Anything</h3>
-                      <p className="mt-4 max-w-[640px] text-[13px] leading-7 text-[#33415C]">
-                        Name the session, choose the core applications in scope, and add any ad hoc systems that need to be assessed without touching the wider registry.
-                      </p>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <CommandDeckMetric
-                          label="Registry Assets"
-                          value={form.selectedAssetIds.length}
-                          detail="Selected from the live registry"
-                        />
-                        <CommandDeckMetric
-                          label="Ad Hoc Systems"
-                          value={adHocApps.length}
-                          detail="Scoped only to this assessment"
-                        />
-                        <CommandDeckMetric
-                          label="Questionnaire Path"
-                        value={Math.max(form.selectedAssetIds.length, 0)}
-                          detail="Registry-backed applications will enter the guided questionnaire"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="group">
-                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                        Assessment Title
-                      </label>
-                      <Input
-                        value={form.title}
-                        onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-                        placeholder="FY2026 Cloud Payments Review"
-                        className="h-14 rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
-                      />
-                    </div>
-                    <div className="group">
-                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                        Description
-                      </label>
-                      <Textarea
-                        value={form.description}
-                        onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                        placeholder="Describe the scope, timing, and assessment objective."
-                        rows={4}
-                        className="max-h-32 overflow-y-auto rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
-                      />
-                    </div>
-                    <TracePanel
-                      title="Applications In Scope"
-                      subtitle="Select existing applications from the Asset Registry. These drive the questionnaire path."
-                      className="rounded-[22px] shadow-none"
-                    >
-                      <div
-                        data-risk-assessment-scope-asset-scroll="true"
-                        className="max-h-[112px] space-y-3 overflow-y-auto pr-2"
-                      >
-                        {assets.length === 0 ? (
-                          <div className="rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-6 text-[13px] leading-6 text-[#7388A8]">
-                            No applications are available in the Asset Registry yet.
-                          </div>
-                        ) : (
-                          assets.map((asset) => {
-                            const checked = form.selectedAssetIds.includes(asset.id);
-                            return (
-                              <label
-                                key={asset.id}
-                                className={`flex cursor-pointer items-start gap-3 rounded-[18px] border px-4 py-4 transition-colors ${
-                                  checked ? "border-[#AFC1F8] bg-[#EEF2FF]" : "border-[#E2E6EF] bg-white hover:bg-[#F8FAFF]"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="mt-1 h-4 w-4 rounded border-[#B4C1D6]"
-                                  checked={checked}
-                                  onChange={(event) =>
-                                    setForm((prev) => ({
-                                      ...prev,
-                                      selectedAssetIds: event.target.checked
-                                        ? [...prev.selectedAssetIds, asset.id]
-                                        : prev.selectedAssetIds.filter((value) => value !== asset.id),
-                                    }))
-                                  }
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="text-[14px] font-bold text-[#0C233C]">{asset.name}</p>
-                                      <p className="mt-1 text-[12px] leading-6 text-[#7388A8]">
-                                        {asset.description || asset.use || "Application in the asset registry"}
-                                      </p>
-                                    </div>
-                                    <BandBadge band={asset.criticality} />
-                                  </div>
-                                </div>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                    </TracePanel>
-                  </div>
-
-                  <div className="flex min-h-full flex-col gap-5">
-                    <TracePanel
-                      title="Ad Hoc Applications"
-                      subtitle="Add systems not yet in the registry. They remain part of scope without touching other features."
-                      className="rounded-[8px] shadow-none"
-                    >
-                      <div className="mb-4 flex flex-col items-start gap-3">
-                        <div className="text-[13px] text-[#7388A8]">
-                          {adHocApps.length} ad hoc application{adHocApps.length === 1 ? "" : "s"} added
-                        </div>
-                        <button className={SOFT_BUTTON} onClick={() => setShowAdHocForm((prev) => !prev)}>
-                          <Plus className="h-4 w-4" />
-                          Add Entry
-                        </button>
-                      </div>
-
-                      {adHocApps.length > 0 ? (
-                        <div className="max-h-[184px] space-y-2 overflow-y-auto pr-1">
-                          {adHocApps.map((application, index) => (
-                            <div
-                              key={`${application.name}-${index}`}
-                              className="flex items-center justify-between gap-3 rounded-[8px] border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3"
-                            >
-                              <div>
-                                <p className="text-[13px] font-bold text-[#0C233C]">{application.name}</p>
-                                <p className="text-[12px] text-[#7388A8]">
-                                  CIA {application.confidentiality}/{application.integrity}/{application.availability}
-                                </p>
-                              </div>
-                              <button
-                                className="text-[12px] font-bold text-[#8492A6] transition-colors hover:text-[#E5001B]"
-                                onClick={() => setAdHocApps((prev) => prev.filter((_, appIndex) => appIndex !== index))}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-
-                    </TracePanel>
-
-                  </div>
-                </div>
-                  </div>
-
-                <Dialog open={showAdHocForm} onOpenChange={setShowAdHocForm}>
-                  <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[920px] flex-col overflow-hidden rounded-[18px] border border-[#BFD0E5] bg-white p-0 shadow-[0_34px_100px_-42px_rgba(2,10,24,0.72)] sm:w-[calc(100vw-48px)] [&>button]:text-white [&>button]:opacity-80 [&>button:hover]:opacity-100">
-                    {/* Keep the ad hoc popup readable on mobile by letting the shell size from the viewport. */}
-                    <DialogHeader className="flex-shrink-0 border-b border-[#123863] bg-[#0C233C] px-5 py-6 text-left text-white sm:px-6">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white">Ad Hoc Application</p>
-                      <DialogTitle className="mt-4 text-[26px] font-bold tracking-[-0.04em] text-white">
-                        Add Application Details
-                      </DialogTitle>
-                      <DialogDescription className="mt-4 max-w-[780px] text-[14px] leading-7 text-white">
-                        Capture systems that are not yet in the Asset Registry and include the CIA rating needed for this assessment scope.
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="min-h-0 flex-1 overflow-y-auto bg-[#F4F7FB] px-4 py-5 sm:px-6 sm:py-10">
-                      {/* Stack form and CIA panels until there is enough room for a stable two-column layout. */}
-                      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
-                        <div className="min-h-[504px] space-y-5 rounded-[8px] border border-[#D6E0EF] bg-white p-5 sm:p-6">
-                          <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                              Application Name
-                            </label>
-                            <Input
-                              value={adHocDraft.name ?? ""}
-                              onChange={(event) => setAdHocDraft((prev) => ({ ...prev, name: event.target.value }))}
-                              placeholder="Payments orchestration platform"
-                              className="h-12 rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                              Application Description
-                            </label>
-                            <Textarea
-                              value={adHocDraft.description ?? ""}
-                              onChange={(event) => setAdHocDraft((prev) => ({ ...prev, description: event.target.value }))}
-                              placeholder="Describe the application, users, data, and core business process."
-                              rows={4}
-                              className="rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                              Assessment Context
-                            </label>
-                            <Textarea
-                              value={adHocDraft.assessment_context ?? ""}
-                              onChange={(event) =>
-                                setAdHocDraft((prev) => ({ ...prev, assessment_context: event.target.value }))
-                              }
-                              placeholder="Explain why this system is in scope and what should be considered during risk review."
-                              rows={4}
-                              className="rounded-[8px] border-[#C9D7E8] bg-white text-[#0C233C] placeholder:text-[#7388A8] focus-visible:ring-[#00B8F5]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="min-w-0 space-y-4">
-                          <div className="min-w-0 rounded-[8px] border border-[#D6E0EF] bg-white p-4 sm:p-5">
-                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
-                              CIA Rating
-                            </p>
-                            <CiaRatingWidget
-                              confidentiality={adHocDraft.confidentiality ?? 3}
-                              confidentiality_min={adHocDraft.confidentiality ?? 3}
-                              integrity={adHocDraft.integrity ?? 3}
-                              integrity_min={adHocDraft.integrity ?? 3}
-                              availability={adHocDraft.availability ?? 3}
-                              availability_min={adHocDraft.availability ?? 3}
-                              onChange={(field, _minValue, maxValue) =>
-                                setAdHocDraft((prev) => ({ ...prev, [field]: maxValue }))
-                              }
-                            />
-                          </div>
-                          <div className="min-w-0 rounded-[8px] border border-[#D6E0EF] bg-white p-4 sm:p-5">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">Current Summary</p>
-                            <p className="mt-3 break-words text-[14px] font-bold text-[#0C233C]">
-                              {adHocDraft.name?.trim() || "Unnamed application"}
-                            </p>
-                            <p className="mt-2 text-[12px] leading-6 text-[#7388A8]">
-                              CIA {adHocDraft.confidentiality ?? 3}/{adHocDraft.integrity ?? 3}/{adHocDraft.availability ?? 3}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <DialogFooter className="flex-shrink-0 border-t border-[#253244] bg-[#2F3947] px-4 py-4 sm:px-6">
-                      {/* Stack footer actions on narrow screens so both controls remain easy to tap. */}
-                      <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#4C596B] bg-[#465162] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#526073] sm:w-auto" onClick={() => setShowAdHocForm(false)}>
-                        Cancel
-                      </button>
-                      <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1E49E2] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#00338D] disabled:cursor-not-allowed disabled:bg-[#8EA4D9] sm:w-auto" onClick={handleAddAdHoc} disabled={!adHocDraft.name?.trim()}>
-                        Add Application
-                      </button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                  <DialogFooter className="flex-shrink-0 border-t border-[#253244] bg-[#2F3947] px-4 py-4 sm:px-6">
-                    <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#4C596B] bg-[#465162] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#526073] sm:w-auto" onClick={closeCreate}>
-                      Cancel
-                    </button>
-                    <button
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#66758A] bg-transparent px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-white/10 sm:w-auto"
-                      onClick={() => toast({ title: "Draft retained", description: "Your entries are still available in this create form." })}
-                    >
-                      <Save className="h-4 w-4" />
-                      Save Draft
-                    </button>
-                    <button className={PRIMARY_BUTTON} onClick={() => void handleCreate()}>
-                      <Play className="h-4 w-4" />
-                      Create Assessment
-                    </button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <CreateAssessmentPage
+                open={showCreate}
+                form={form}
+                assets={assets}
+                adHocApps={adHocApps}
+                adHocDraft={adHocDraft}
+                showAdHocForm={showAdHocForm}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                softButtonClassName={SOFT_BUTTON}
+                onOpenChange={(open) => (open ? setShowCreate(true) : closeCreate())}
+                onFormChange={setForm}
+                onAdHocAppsChange={setAdHocApps}
+                onAdHocDraftChange={setAdHocDraft}
+                onShowAdHocFormChange={setShowAdHocForm}
+                onAddAdHoc={handleAddAdHoc}
+                onCancel={closeCreate}
+                onSaveDraft={() => toast({ title: "Draft retained", description: "Your entries are still available in this create form." })}
+                onCreate={() => void handleCreate()}
+              />
             ) : null}
 
             {selectedAssessment && !showCreate ? (
@@ -1558,357 +1289,31 @@ export default function RiskAssessmentPage() {
                 </RiskAssessmentWorkspace>
 
                 {wizardStep === 0 ? (
-                  <SurfaceSection
-                    eyebrow="Scope"
-                    title="Assessment Summary"
-                    action={
-                      selectedAssessment.asset_ids.length > 0 ? (
-                        <button
-                          className={PRIMARY_BUTTON}
-                          onClick={() => navigateWorkflowStep("Questionnaire")}
-                        >
-                          Start Questionnaire
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
-                      ) : null
-                    }
-                  >
-                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-                      <TracePanel
-                        title="Applications In Scope"
-                        subtitle="Asset Registry applications drive the questionnaire path for this assessment."
-                        className="risk-summary-scope-glass-panel"
-                      >
-                        <div className="flex flex-wrap gap-2">
-                          {selectedAssessment.asset_ids.length > 0 ? (
-                            selectedAssessment.asset_ids.map((assetId) => (
-                              <Badge key={assetId} variant="outline" className="rounded-full px-3 py-1.5 text-[12px]">
-                                {assetName(assetId)}
-                              </Badge>
-                            ))
-                          ) : (
-                            <div className="text-[13px] text-[#7388A8]">No Asset Registry applications selected.</div>
-                          )}
-                        </div>
-                        {selectedAssessment.ad_hoc_applications?.length ? (
-                          <div className="mt-4 border-t border-[#E2E6EF] pt-4">
-                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
-                              Ad Hoc Applications
-                            </p>
-                            <div className="space-y-2">
-                              {selectedAssessment.ad_hoc_applications.map((application, index) => (
-                                <div
-                                  key={`${application.name}-${index}`}
-                                  className="rounded-[16px] border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3"
-                                >
-                                  <p className="text-[13px] font-bold text-[#0C233C]">{application.name}</p>
-                                  <p className="mt-1 text-[12px] text-[#7388A8]">
-                                    {application.assessment_context || application.description || "Added as scope context"}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </TracePanel>
-
-                      <TracePanel
-                        title="Readiness"
-                        subtitle="Questionnaire can begin once at least one registry application is in scope."
-                        className="risk-summary-readiness-glass-panel"
-                      >
-                        <div className="space-y-3">
-                          <div className="rounded-[18px] bg-[#F7F9FC] px-4 py-4">
-                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8492A6]">Registry Applications</div>
-                            <div className="mt-2 text-[28px] font-bold tracking-[-0.03em] text-[#0C233C]">
-                              {selectedAssessment!.asset_ids.length}
-                            </div>
-                          </div>
-                          <div className="rounded-[18px] bg-[#F7F9FC] px-4 py-4">
-                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8492A6]">Ad Hoc Context Entries</div>
-                            <div className="mt-2 text-[28px] font-bold tracking-[-0.03em] text-[#0C233C]">
-                              {selectedAssessment.ad_hoc_applications?.length ?? 0}
-                            </div>
-                          </div>
-                          {selectedAssessment.asset_ids.length === 0 ? (
-                            <div className="rounded-[16px] border border-[#F6D3A0] bg-[#FFF9E8] px-4 py-3 text-[12px] leading-6 text-[#8A6A00]">
-                              Questionnaire capture currently runs against Asset Registry applications only.
-                            </div>
-                          ) : null}
-                        </div>
-                      </TracePanel>
-                    </div>
-                  </SurfaceSection>
+                  <AssessmentSummaryForm
+                    assessment={selectedAssessment}
+                    primaryButtonClassName={PRIMARY_BUTTON}
+                    assetName={assetName}
+                    onStartQuestionnaire={() => navigateWorkflowStep("Questionnaire")}
+                  />
                 ) : null}
 
                 {wizardStep === 1 ? (
-                  /* Keep the questionnaire and guidance side-by-side on desktop and stacked on smaller screens. */
-                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]" data-risk-assessment-questionnaire="true">
-                    <section className="min-w-0">
-                      {selectedAssessment.asset_ids.length === 0 ? (
-                        <div className="rounded-[8px] border border-dashed border-[#DCE3EE] bg-white px-4 py-8 text-center text-[13px] leading-6 text-[#7388A8]">
-                          No Asset Registry applications were selected for questionnaire capture.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {sections.map((section) => {
-                            const completed = sectionProgress(answers, currentAssetId, section);
-                            const total = section.questions.length;
-                            const isOpen = expandedSection === section.id;
-                            return (
-                              <div
-                                key={section.id}
-                                className={`risk-questionnaire-glass-section overflow-hidden rounded-[8px] border ${
-                                  isOpen ? "border-[#1E49E2] shadow-[0_18px_34px_-30px_rgba(30,73,226,0.36)]" : "border-[#D8E0ED]"
-                                }`}
-                              >
-                                <button
-                                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-                                  onClick={() => setExpandedSection(isOpen ? null : section.id)}
-                                >
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EAF2FF] text-[#1E49E2]">
-                                      {section.title.toLowerCase().includes("access") ? <Lock className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
-                                    </span>
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="truncate text-[16px] font-bold text-[#0C233C]">{section.title}</span>
-                                        <HelpCircle className="h-3.5 w-3.5 flex-shrink-0 text-[#8492A6]" />
-                                      </div>
-                                      <p className="mt-1 text-[12px] text-[#5A6478]">Controls and risk questions for this section.</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex w-full flex-shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
-                                    <span
-                                      className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${
-                                        completed === total
-                                          ? "bg-[#EDFBF5] text-[#009A44]"
-                                          : completed > 0
-                                            ? "bg-[#FFF4E8] text-[#AB5C00]"
-                                            : "bg-[#FEEBED] text-[#E5001B]"
-                                      }`}
-                                    >
-                                      {completed} / {total} answered
-                                    </span>
-                                    {isOpen ? <ChevronDown className="h-4 w-4 text-[#7E91AE]" /> : <ChevronRight className="h-4 w-4 text-[#7E91AE]" />}
-                                  </div>
-                                </button>
-
-                                {isOpen ? (
-                                  <div className="border-t border-[#E8EDF5] px-5 py-4">
-                                    <div className="space-y-5">
-                                      {section.questions.map((question, questionIndex) => {
-                                        const local = answers[currentAssetId]?.[section.id]?.[question.id];
-                                        return (
-                                          <div key={question.id} className="border-t border-[#EFF2F7] pt-4 first:border-t-0 first:pt-0">
-                                            {/* Stack answer controls under the question until desktop width avoids squeeze. */}
-                                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
-                                              <div className="flex gap-3">
-                                                <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[#AFC1F8] bg-white text-[12px] font-bold text-[#1E49E2]">
-                                                  {questionIndex + 1}
-                                                </span>
-                                                <div className="min-w-0">
-                                                  <p className="text-[14px] font-semibold leading-6 text-[#0C233C]">{question.text}</p>
-                                                </div>
-                                              </div>
-                                              {/* Keep each questionnaire answer limited to Yes/No/NA boxes, with no notes placeholder field. */}
-                                              <div className="grid min-w-0 grid-cols-3 gap-3">
-                                                {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
-                                                  <button
-                                                    key={answer}
-                                                    className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold transition-all ${
-                                                      local?.answer === answer
-                                                        ? answer === "yes"
-                                                          ? "risk-question-answer-button--yes-selected"
-                                                          : answer === "no"
-                                                            ? "risk-question-answer-button--no-selected"
-                                                            : "risk-question-answer-button--na-selected"
-                                                        : "risk-question-answer-button--idle"
-                                                    }`}
-                                                    onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
-                                                  >
-                                                    {ANSWER_LABEL[answer]}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                    <div>
-                      <GuidanceCard
-                        answeredQuestions={currentAnsweredCount}
-                        totalQuestions={currentTotalQuestions}
-                        actions={
-                          currentAssetId ? (
-                            <>
-                              <button className={SECONDARY_BUTTON} onClick={() => toast({ title: "Progress saved" })}>
-                                <Save className="h-4 w-4" />
-                                Save Progress
-                              </button>
-                              <button className={PRIMARY_BUTTON} onClick={() => void handleSubmitQa()} disabled={submittingQa}>
-                                {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                Continue
-                                <ArrowRight className="h-4 w-4" />
-                              </button>
-                            </>
-                          ) : null
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {false && selectedAssessment && wizardStep === 1 ? (
-                  <div className="space-y-5" data-risk-assessment-questionnaire="true">
-                    <SurfaceSection
-                      eyebrow="Questionnaire"
-                      title="Application Response Capture"
-                      action={
-                        currentAssetId ? (
-                          <button className={PRIMARY_BUTTON} onClick={() => void handleSubmitQa()} disabled={submittingQa}>
-                            {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                            {qaAssetIdx < selectedAssessment!.asset_ids.length - 1 ? "Save And Next" : "Submit Responses"}
-                          </button>
-                        ) : null
-                      }
-                    >
-                      {selectedAssessment!.asset_ids.length === 0 ? (
-                        <div className="rounded-[18px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-8 text-center text-[13px] leading-6 text-[#7388A8]">
-                          No Asset Registry applications were selected for questionnaire capture.
-                        </div>
-                      ) : (
-                        <>
-                          <div className="sticky top-0 z-10 mb-4 rounded-[18px] border border-[#DCE3EE] bg-white/95 px-4 py-3 shadow-[0_14px_28px_-24px_rgba(12,35,60,0.26)] backdrop-blur">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[14px] font-bold text-[#0C233C]">{assetName(currentAssetId)}</p>
-                                <p className="mt-1 text-[12px] text-[#7388A8]">
-                                  Application {qaAssetIdx + 1} of {selectedAssessment!.asset_ids.length} · {answeredCount(currentAssetId)} answered
-                                </p>
-                              </div>
-                              <div className="rounded-full border border-[#DCE3EE] bg-[#F7F9FC] px-4 py-2 text-[12px] font-bold text-[#7388A8]">
-                                {sections.length} sections
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mb-4 flex flex-wrap gap-2">
-                            {selectedAssessment!.asset_ids.map((assetId, index) => (
-                              <button
-                                key={assetId}
-                                className={`rounded-full border px-4 py-2 text-[12px] font-bold transition-colors ${
-                                  index === qaAssetIdx
-                                    ? "border-[#1E49E2] bg-[#1E49E2] text-white"
-                                    : "border-[#DCE3EE] bg-white text-[#6A748A] hover:bg-[#F7F9FC]"
-                                }`}
-                                onClick={() => setQaAssetIdx(index)}
-                              >
-                                {assetName(assetId)} <span className="opacity-70">({answeredCount(assetId)})</span>
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="space-y-4">
-                            {sections.map((section) => {
-                              const completed = sectionProgress(answers, currentAssetId, section);
-                              const total = section.questions.length;
-                              const isOpen = expandedSection === section.id;
-                              return (
-                                <div
-                                  key={section.id}
-                                  className={`overflow-hidden rounded-[20px] border bg-white ${
-                                    isOpen ? "border-[#AFC1F8] shadow-[0_16px_34px_-30px_rgba(30,73,226,0.35)]" : "border-[#E2E6EF]"
-                                  }`}
-                                >
-                                  <button
-                                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-                                    onClick={() => setExpandedSection(isOpen ? null : section.id)}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      {isOpen ? (
-                                        <ChevronDown className="h-4 w-4 text-[#7E91AE]" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4 text-[#7E91AE]" />
-                                      )}
-                                      <span className="text-[15px] font-bold text-[#0C233C]">{section.title}</span>
-                                    </div>
-                                    <span
-                                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${
-                                        completed === total
-                                          ? "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]"
-                                          : "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]"
-                                      }`}
-                                    >
-                                      {completed}/{total}
-                                    </span>
-                                  </button>
-
-                                  {isOpen ? (
-                                    <div className="border-t border-[#E2E6EF] px-5 py-5">
-                                      <div className="space-y-5">
-                                        {section.questions.map((question) => {
-                                          const local = answers[currentAssetId]?.[section.id]?.[question.id];
-                                          return (
-                                            <div key={question.id} className="border-t border-[#EFF2F7] pt-5 first:border-t-0 first:pt-0">
-                                              <div className="mb-3 flex items-start gap-3">
-                                                <span
-                                                  className={`rounded-full border px-3 py-1 text-[11px] font-bold ${
-                                                    question.question_type === "Exposure"
-                                                      ? "border-[#F6D3A0] bg-[#FFF4E8] text-[#AB5C00]"
-                                                      : question.question_type === "Control"
-                                                        ? "border-[#C9D7FF] bg-[#EEF2FF] text-[#1E49E2]"
-                                                        : "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]"
-                                                  }`}
-                                                >
-                                                  {question.question_type}
-                                                </span>
-                                                <p className="text-[14px] leading-7 text-[#4D6485]">{question.text}</p>
-                                              </div>
-
-                                              {/* Keep the legacy questionnaire fallback aligned with the visible Yes/No/NA answer design. */}
-                                              <div className="mb-3 grid max-w-[330px] grid-cols-3 gap-3">
-                                                {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
-                                                  <button
-                                                    key={answer}
-                                                    className={`risk-question-answer-button h-11 rounded-[8px] border px-4 text-[12px] font-bold transition-all ${
-                                                      local?.answer === answer
-                                                        ? answer === "yes"
-                                                          ? "risk-question-answer-button--yes-selected"
-                                                          : answer === "no"
-                                                            ? "risk-question-answer-button--no-selected"
-                                                            : "risk-question-answer-button--na-selected"
-                                                        : "risk-question-answer-button--idle"
-                                                    }`}
-                                                    onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
-                                                  >
-                                                  {ANSWER_LABEL[answer]}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </SurfaceSection>
-                  </div>
+                  <QuestionnaireForm
+                    assessment={selectedAssessment}
+                    sections={sections}
+                    answers={answers}
+                    currentAssetId={currentAssetId}
+                    currentAnsweredCount={currentAnsweredCount}
+                    currentTotalQuestions={currentTotalQuestions}
+                    expandedSection={expandedSection}
+                    submittingQa={submittingQa}
+                    primaryButtonClassName={PRIMARY_BUTTON}
+                    secondaryButtonClassName={SECONDARY_BUTTON}
+                    onExpandedSectionChange={setExpandedSection}
+                    onAnswer={setAnswer}
+                    onSaveProgress={() => toast({ title: "Progress saved" })}
+                    onContinue={() => void handleSubmitQa()}
+                  />
                 ) : null}
 
                 {wizardStep === 2 ? (
@@ -2335,7 +1740,6 @@ export default function RiskAssessmentPage() {
           z-index: 1;
         }
 
-        .risk-assessment-setup-glass [class*="CommandDeckMetric"],
         .risk-assessment-setup-glass .rounded-\\[18px\\] {
           background: #F8FAFD;
           border-color: #D6E0EF;
