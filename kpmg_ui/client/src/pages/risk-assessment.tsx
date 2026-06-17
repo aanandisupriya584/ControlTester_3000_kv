@@ -35,7 +35,7 @@ import WorkflowStepper, {
   workflowPathForAssessment,
   workflowSlugFromLocation,
   type WorkflowStepLabel,
-} from "@/pages/RiskAssessment/components/WorkflowStepper";
+} from "@/pages/RiskAssessment/components/workflow/WorkflowStepper";
 import {
   TracePanel,
 } from "@/components/TraceAnalysisPrimitives";
@@ -75,6 +75,12 @@ const ANSWER_CLASS: Record<AnswerType, string> = {
   yes: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
   no: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
   na: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
+};
+
+const ANSWER_LABEL: Record<AnswerType, string> = {
+  yes: "Yes",
+  no: "No",
+  na: "NA",
 };
 
 // Buttons become full-width on mobile to prevent cramped or clipped action text.
@@ -508,24 +514,25 @@ function WorkflowContextBar({
   const cappedProgress = Math.min(100, Math.max(0, Math.round(progress)));
   // Use blue while work is in progress and green once the workflow reaches completion.
   const progressColor = cappedProgress >= 100 ? "#009A44" : "#1E49E2";
-  const riskLabel = assessment?.risks.some((risk) => risk.inherent_risk_band === "Critical" || risk.inherent_risk_band === "High")
-    ? "Risk Level: High"
-    : assessment?.risks.some((risk) => risk.inherent_risk_band === "Medium")
-      ? "Risk Level: Medium"
-      : "Risk Level: Low";
+  const riskLabel = !assessment
+    ? "Risk Level: Not selected"
+    : assessment.risks.length === 0
+      ? "Risk Level: Not assessed"
+      : assessment.risks.some((risk) => risk.inherent_risk_band === "Critical" || risk.inherent_risk_band === "High")
+        ? "Risk Level: High"
+        : assessment.risks.some((risk) => risk.inherent_risk_band === "Medium")
+          ? "Risk Level: Medium"
+          : "Risk Level: Low";
 
   return (
     <section className="border-b border-[#D8E0ED] bg-white" data-risk-assessment-context-strip="true">
-      <div className="grid min-h-[156px] grid-cols-1 divide-y divide-[#DCE4F0] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[1.15fr_1.05fr_0.9fr_1.15fr_0.85fr_0.85fr_1.1fr]">
+      <div className="grid min-h-[156px] grid-cols-1 divide-y divide-[#DCE4F0] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[1.25fr_1.1fr_1fr_1fr_1.15fr]">
         {[
           ["Assessment", assessment?.title || "New Risk Assessment"],
           ["Asset", assetLabel],
           ["Current Stage", currentStage],
-          // Put progress before status to match the requested context-strip order.
-          ["Progress", `${cappedProgress}% Complete`],
           ["Risk Level", riskLabel],
-          ["Status", STATUS_LABELS[assessment?.status ?? "in_progress"] ?? "In Progress"],
-          ["Workflow Summary", "Answer questions to evaluate inherent risk for the selected asset."],
+          ["Progress", `${cappedProgress}% Complete`],
         ].map(([label, value]) => (
           <div key={label} className={`min-w-0 px-5 py-5 ${label === "Progress" ? "flex flex-col items-center" : ""}`}>
             {/* Center the Progress label above its circle while preserving normal alignment for other context fields. */}
@@ -573,7 +580,7 @@ function GuidanceCard({
   const answerPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
   return (
-    <aside className="space-y-4">
+    <aside className="flex h-full flex-col gap-4">
       <section className="rounded-[8px] border border-[#D8E0ED] bg-white p-5">
         <div className="mb-4 flex items-center gap-2">
           <h3 className="text-[15px] font-bold text-[#0C233C]">Guidance</h3>
@@ -591,7 +598,7 @@ function GuidanceCard({
         </div>
       </section>
 
-      <section className="rounded-[8px] border border-[#D8E0ED] bg-white p-5">
+      <section className="flex flex-1 flex-col rounded-[8px] border border-[#D8E0ED] bg-white p-5">
         <h3 className="mb-4 text-[15px] font-bold text-[#0C233C]">Completion checklist</h3>
         {[
           ["Questions answered", answeredQuestions, totalQuestions, "#009A44", answerPct],
@@ -614,7 +621,7 @@ function GuidanceCard({
             </div>
           </div>
         ))}
-        <div className="mt-5 rounded-[6px] border border-[#F6D3A0] bg-[#FFFBEE] p-3">
+        <div className="mt-auto rounded-[6px] border border-[#F6D3A0] bg-[#FFFBEE] p-3">
           <div className="flex gap-2 text-[12px] leading-5 text-[#7A5E00]">
             <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>Complete all questions to proceed to Risk Review.</span>
@@ -935,6 +942,14 @@ export default function RiskAssessmentPage() {
     }
     if (!selectedAssessment) return;
     const nextStep = WORKFLOW_STEP_BY_LABEL[label].targetStep;
+    if (nextStep > 1 && !isQuestionnaireComplete()) {
+      showQuestionnaireIncompleteToast();
+      setWizardStep(1);
+      if (pushHistory) {
+        setLocation(workflowPathForAssessment(selectedAssessment.id, "Questionnaire"));
+      }
+      return;
+    }
     setShowCreate(false);
     if (label === "Questionnaire") {
       setQaAssetIdx(0);
@@ -954,12 +969,18 @@ export default function RiskAssessmentPage() {
   }
 
   function handleWorkflowStepOpen(label: WorkflowStepLabel, targetStep: number) {
+    if (targetStep > 1 && !isQuestionnaireComplete()) {
+      showQuestionnaireIncompleteToast();
+      setWizardStep(1);
+      return false;
+    }
     setShowCreate(false);
     if (label === "Questionnaire") {
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
     }
     setWizardStep(targetStep);
+    return true;
   }
 
   function handleBlockedFinalReport() {
@@ -975,6 +996,13 @@ export default function RiskAssessmentPage() {
     if (!slug) return;
     const step = WORKFLOW_STEP_BY_SLUG[slug];
     if (!step) return;
+    if (step.targetStep > 1 && !isQuestionnaireComplete()) {
+      showQuestionnaireIncompleteToast();
+      setLocation(workflowPathForAssessment(selectedAssessment.id, "Questionnaire"));
+      setWizardStep(1);
+      setExpandedSection(sections[0]?.id ?? null);
+      return;
+    }
     if (step.targetStep !== wizardStep) {
       if (step.label === "Questionnaire") {
         setExpandedSection(sections[0]?.id ?? null);
@@ -1032,13 +1060,74 @@ export default function RiskAssessmentPage() {
   }
 
   function answeredCount(assetId: string) {
-    const assetAnswers = answers[assetId] ?? {};
-    return Object.values(assetAnswers).flatMap((sectionAnswer) => Object.values(sectionAnswer)).length;
+    return sections.reduce((count, section) => {
+      const answeredInSection = section.questions.filter((question) =>
+        isQuestionAnswered(assetId, section.id, question.id),
+      ).length;
+      return count + answeredInSection;
+    }, 0);
+  }
+
+  function isQuestionAnswered(assetId: string, sectionId: string, questionId: string) {
+    const localAnswer = answers[assetId]?.[sectionId]?.[questionId]?.answer;
+    if (localAnswer) return true;
+    return Boolean(
+      selectedAssessment?.responses.some(
+        (response) =>
+          response.asset_id === assetId &&
+          response.section_id === sectionId &&
+          response.question_id === questionId &&
+          Boolean(response.answer),
+      ),
+    );
+  }
+
+  function findFirstIncompleteQuestion() {
+    if (!selectedAssessment || sections.length === 0) return null;
+    for (let assetIndex = 0; assetIndex < selectedAssessment.asset_ids.length; assetIndex += 1) {
+      const assetId = selectedAssessment.asset_ids[assetIndex];
+      for (const section of sections) {
+        for (const question of section.questions) {
+          if (!isQuestionAnswered(assetId, section.id, question.id)) {
+            return { assetIndex, assetId, sectionId: section.id };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function isQuestionnaireComplete() {
+    if (!selectedAssessment || selectedAssessment.asset_ids.length === 0 || sections.length === 0) return false;
+    return findFirstIncompleteQuestion() === null;
+  }
+
+  function showQuestionnaireIncompleteToast() {
+    const firstIncomplete = findFirstIncompleteQuestion();
+    if (firstIncomplete) {
+      setQaAssetIdx(firstIncomplete.assetIndex);
+      setExpandedSection(firstIncomplete.sectionId);
+    }
+    toast({
+      title: "Complete questionnaire first",
+      description: "Answer every question for each application before moving to the next workflow step.",
+      variant: "destructive",
+    });
   }
 
   async function handleCreate() {
     if (!form.title.trim() || (form.selectedAssetIds.length === 0 && adHocApps.length === 0)) {
       toast({ title: "Title and at least one application required", variant: "destructive" });
+      return;
+    }
+    const normalizedTitle = form.title.trim().toLowerCase();
+    const duplicateAssessment = assessments.find((assessment) => assessment.title.trim().toLowerCase() === normalizedTitle);
+    if (duplicateAssessment) {
+      toast({
+        title: "Assessment name already exists",
+        description: "Use a unique assessment name to avoid duplicate sessions.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -1078,18 +1167,36 @@ export default function RiskAssessmentPage() {
 
   async function handleSubmitQa() {
     if (!selectedAssessment || !currentAssetId) return;
+    if (answeredCount(currentAssetId) < currentTotalQuestions) {
+      const firstIncomplete = findFirstIncompleteQuestion();
+      if (firstIncomplete?.assetId === currentAssetId) {
+        setExpandedSection(firstIncomplete.sectionId);
+      }
+      toast({
+        title: "Answer all questions",
+        description: "Complete every question for this application before continuing.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmittingQa(true);
 
     try {
       const responses = sections.flatMap((section) =>
         section.questions.map((question) => {
           const local = answers[currentAssetId]?.[section.id]?.[question.id];
+          const saved = selectedAssessment.responses.find(
+            (response) =>
+              response.asset_id === currentAssetId &&
+              response.section_id === section.id &&
+              response.question_id === question.id,
+          );
           return {
             asset_id: currentAssetId,
             section_id: section.id,
             question_id: question.id,
-            answer: (local?.answer ?? "na") as AnswerType,
-            details: local?.details ?? "",
+            answer: (local?.answer ?? saved?.answer) as AnswerType,
+            details: local?.details ?? saved?.details ?? "",
           };
         }),
       );
@@ -1223,7 +1330,7 @@ export default function RiskAssessmentPage() {
       </div>
 
       <main className="relative z-10 mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10">
-        {!isCreatePage ? (
+        {!isCreatePage && !selectedAssessment ? (
           <RiskAssessmentOverview
             activeAssessments={activeAssessments}
             highCriticalRisks={highCriticalRisks}
@@ -1549,8 +1656,11 @@ export default function RiskAssessmentPage() {
 
             {selectedAssessment && !showCreate ? (
               <div ref={workflowContentRef}>
-                {/* Show the selected assessment context in the same compact band as the reference screen. */}
-                <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
+                <RiskAssessmentWorkspace
+                  primaryButtonClassName={PRIMARY_BUTTON}
+                  onCreate={openCreate}
+                  showCreateButton={false}
+                >
                   <WorkflowContextBar
                     assessment={selectedAssessment}
                     assetLabel={assetName(currentAssetId || selectedAssessment.asset_ids[0] || "")}
@@ -1566,7 +1676,7 @@ export default function RiskAssessmentPage() {
                     onStepOpen={handleWorkflowStepOpen}
                     onBlockedFinalReport={handleBlockedFinalReport}
                   />
-                </section>
+                </RiskAssessmentWorkspace>
 
                 {wizardStep === 0 ? (
                   <SurfaceSection
@@ -1738,7 +1848,7 @@ export default function RiskAssessmentPage() {
                                                     }`}
                                                     onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
                                                   >
-                                                    {answer === "yes" ? "Yes" : answer === "no" ? "No" : "NA"}
+                                                    {ANSWER_LABEL[answer]}
                                                   </button>
                                                 ))}
                                               </div>
@@ -1897,7 +2007,7 @@ export default function RiskAssessmentPage() {
                                                     }`}
                                                     onClick={() => setAnswer(currentAssetId, section.id, question.id, answer)}
                                                   >
-                                                    {answer.toUpperCase()}
+                                                  {ANSWER_LABEL[answer]}
                                                   </button>
                                                 ))}
                                               </div>

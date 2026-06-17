@@ -13,12 +13,14 @@ interface RiskAssessmentWorkspaceProps {
   primaryButtonClassName: string;
   onCreate: () => void;
   children: ReactNode;
+  showCreateButton?: boolean;
 }
 
 export default function RiskAssessmentWorkspace({
   primaryButtonClassName,
   onCreate,
   children,
+  showCreateButton = true,
 }: RiskAssessmentWorkspaceProps) {
   return (
     <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
@@ -28,7 +30,7 @@ export default function RiskAssessmentWorkspace({
           <h2 className="text-[24px] font-bold tracking-[-0.03em] text-white">Risk Assessment Workspace</h2>
           <p className="mt-2 text-[13px] leading-6 text-white/68">Open an existing assessment or create a new assessment to begin the guided workflow.</p>
         </div>
-        <NewAssessmentButton className={primaryButtonClassName} onClick={onCreate} />
+        {showCreateButton ? <NewAssessmentButton className={primaryButtonClassName} onClick={onCreate} /> : null}
       </div>
       {children}
     </section>

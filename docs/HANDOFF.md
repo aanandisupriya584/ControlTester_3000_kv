@@ -1695,6 +1695,43 @@ Verification:
 - `npm run check -- --pretty false` still fails because `client/src/pages/RiskAssessment/RiskAssessmentDashboard.tsx` imports deleted `AssessmentProcess.tsx`.
 
 Update:
+- Updated Recent Assessments so opening an assessment navigates to that assessment's dedicated Risk Assessment workspace route before loading it into state.
+- Row title clicks and the arrow action now both use the workflow route helper, selecting the best workflow page from the assessment status.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- When a Recent Assessment is opened, the page now starts at the Risk Assessment Workspace panel instead of showing the KPI boxes and How It Works section above it.
+- The workspace summary strip now uses selected-assessment-specific summary and risk state, including a `Not assessed` risk label when no risks exist.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- Reused the Risk Assessment Workspace header on selected-assessment pages.
+- Hid the `New Assessment` action only for selected-assessment workspace pages while leaving the landing workspace unchanged.
+- Removed the workspace summary cell from the context strip and rebalanced the remaining six boxes.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- Added questionnaire completion guards so users cannot move past the Questionnaire workflow step until every question is answered for every scoped application.
+- The questionnaire submit action now blocks incomplete current-application answers instead of defaulting unanswered questions to `NA`.
+- Workflow stepper navigation now asks the parent page before changing route, allowing incomplete questionnaire navigation to be blocked.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- Added a client-side duplicate assessment title guard to the Risk Assessment create flow.
+- New assessments now require a unique title compared case-insensitively against existing Recent Assessments.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
 - Redesigned the legacy Control Testing UI surface to match the provided enterprise SaaS reference while preserving the current ControlTestingContext and `/audit/*` flow.
 - Added a slow KPMG blue header glow, subtle network particles, sequential workflow fade-ins, flowing connector pulses, and a dark blue upload card with a soft hover glow and non-interactive upload visual.
 - Opened the Control Testing `How It Works` flow by default, enlarged the process cards/step nodes, and adjusted the page spacing to 20px side padding with a tight 5px bottom gap.

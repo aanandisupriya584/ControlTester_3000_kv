@@ -1,7 +1,9 @@
 import { ArrowRight, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { useLocation } from "wouter";
 import type { RiskAssessment } from "@/contexts/RiskAssessmentContext";
 import NewAssessmentButton from "./NewAssessmentButton";
 import { STATUS_LABELS } from "./RiskAssessmentWorkspace";
+import { workflowPathForAssessment, type WorkflowStepLabel } from "./workflow/WorkflowStepper";
 
 const STATUS_CLASS: Record<string, string> = {
   draft: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
@@ -34,6 +36,14 @@ function assessmentAppCount(assessment: RiskAssessment) {
   return assessment.asset_ids.length + (assessment.ad_hoc_applications?.length ?? 0);
 }
 
+function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): WorkflowStepLabel {
+  if (status === "complete") return "Final Report";
+  if (status === "controls_applied") return "Findings";
+  if (status === "risks_identified") return "Risk Review";
+  if (status === "in_progress") return "Questionnaire";
+  return "Assets";
+}
+
 interface RecentAssessmentsProps {
   assessments: RiskAssessment[];
   error: string | null;
@@ -53,6 +63,14 @@ export default function RecentAssessments({
   onOpen,
   onDelete,
 }: RecentAssessmentsProps) {
+  const [, setLocation] = useLocation();
+
+  function openAssessmentWorkspace(assessment: RiskAssessment) {
+    const stepLabel = workflowLabelForAssessmentStatus(assessment.status);
+    setLocation(workflowPathForAssessment(assessment.id, stepLabel));
+    onOpen(assessment);
+  }
+
   return (
     <div className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#D8E0ED] bg-white">
       <div className="flex min-h-[128px] flex-col items-start justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-8 sm:flex-row sm:items-center sm:px-6">
@@ -79,14 +97,14 @@ export default function RecentAssessments({
           <Loader2 className="h-5 w-5 animate-spin text-[#1E49E2]" />
         </div>
       ) : assessments.length > 0 ? (
-        <div className="max-h-[352px] divide-y divide-[#E8EDF5] overflow-y-auto">
+        <div className="max-h-[440px] divide-y divide-[#E8EDF5] overflow-y-auto">
           {assessments.map((assessment) => (
             <div
               key={assessment.id}
               className="group grid min-h-[88px] w-full grid-cols-1 items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-[#F8FBFF] sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]"
               data-risk-assessment-session={assessment.id}
             >
-              <button type="button" onClick={() => onOpen(assessment)} className="min-w-0 text-left">
+              <button type="button" onClick={() => openAssessmentWorkspace(assessment)} className="min-w-0 text-left">
                 <p className="truncate text-[15px] font-bold text-[#0C233C]">{assessment.title}</p>
                 <p className="mt-1.5 text-[12px] text-[#5A6478]">
                   {assessmentAppCount(assessment)} application{assessmentAppCount(assessment) === 1 ? "" : "s"} - Updated {formatDate(assessment.updated_at)}
@@ -105,7 +123,7 @@ export default function RecentAssessments({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpen(assessment)}
+                  onClick={() => openAssessmentWorkspace(assessment)}
                   className="grid h-8 w-8 place-items-center rounded-full bg-[#EEF2FF] text-[#1E49E2] transition-colors group-hover:bg-[#DDE7FF]"
                   title="Open assessment"
                   aria-label={`Open ${assessment.title}`}
