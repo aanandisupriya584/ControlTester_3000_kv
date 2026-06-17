@@ -1679,6 +1679,14 @@ Verification:
 - `npm run check`
 
 Update:
+- Adjusted the shared TRACE top ribbon spacing so the search control and Sign Out button stay inside the page.
+- Added right-side padding, constrained the expanding search width, and prevented the Sign Out button from shrinking.
+
+Verification:
+- `npm run check -- --pretty false`
+- `GET http://localhost:3000/risk-assessment` returned `200`
+
+Update:
 - Extracted the Risk Assessment page-level CSS block into `RiskAssessmentStyles` under `RiskAssessment/components`.
 - The parent now renders `<RiskAssessmentStyles />` instead of keeping the large inline `<style>` block, preserving the existing CSS selectors and UI behavior.
 

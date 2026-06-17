@@ -24,7 +24,7 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
       className="landing-nav trace-top-ribbon fixed top-0 z-50"
       style={{ background: "#0C233C", backdropFilter: "blur(12px)", width:collapsed? '100%': 'calc(100% - 280px)', transition: "width 0.3s ease" }}
     >
-      <div className="trace-top-ribbon__inner mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 lg:px-10">
+      <div className="trace-top-ribbon__inner mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-5 pr-12 sm:pr-16 lg:px-10 lg:pr-20">
         <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={() => setLocation("/landing")}
@@ -43,9 +43,9 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-2">
           {actions}
-          <div className="group relative mr-[10px] hidden h-9 w-9 transition-[width] duration-200 ease-out hover:w-44 focus-within:w-44 sm:block lg:hover:w-56 lg:focus-within:w-56">
+          <div className="group relative mr-0 hidden h-9 w-9 max-w-[calc(100vw-300px)] transition-[width] duration-200 ease-out hover:w-32 focus-within:w-32 sm:block lg:hover:w-44 lg:focus-within:w-44">
             <Search className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white/55 transition-all duration-200 group-hover:left-3 group-hover:translate-x-0 group-focus-within:left-3 group-focus-within:translate-x-0" />
             <input
               type="search"
@@ -57,7 +57,7 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
           <Button
             variant="ghost"
             size="sm"
-            className="kpmg-dark-outline-button rounded-full text-xs gap-1.5"
+            className="kpmg-dark-outline-button shrink-0 rounded-full text-xs gap-1.5"
             onClick={handleSignOut}
           >
             <LogOut className="h-3.5 w-3.5" />
