@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import ControlTestingKpis from "@/components/ControlTestingKpis";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 interface GapSummary {
   total_documents: number;
@@ -282,23 +283,24 @@ export default function ReportsPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <HeroSection
-        title="Reports"
-        subtitle="Evidence assessments, control testing workpapers, RCM compliance assessments, and regulatory gap analyses"
-        icon={FileBarChart}
-        actions={
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={fetchReports}
-            disabled={loading}
-            className="h-7 w-7 text-slate-400 hover:text-white hover:bg-white/10"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        }
-      />
+      <HeroSubSection title={"Reports"} subtitle="Evidence assessments, control testing workpapers, RCM compliance assessments, and regulatory gap analyses" icon={FileBarChart} actions={null} />
+      {/*<HeroSection*/}
+      {/*  title="Reports"*/}
+      {/*  subtitle="Evidence assessments, control testing workpapers, RCM compliance assessments, and regulatory gap analyses"*/}
+      {/*  icon={FileBarChart}*/}
+      {/*  actions={*/}
+      {/*    <Button*/}
+      {/*      variant="ghost"*/}
+      {/*      size="icon"*/}
+      {/*      onClick={fetchReports}*/}
+      {/*      disabled={loading}*/}
+      {/*      className="h-7 w-7 text-slate-400 hover:text-white hover:bg-white/10"*/}
+      {/*      title="Refresh"*/}
+      {/*    >*/}
+      {/*      <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />*/}
+      {/*    </Button>*/}
+      {/*  }*/}
+      {/*/>*/}
 
       <TracePageBody width="wide" contentClassName="space-y-4">
 

@@ -273,7 +273,31 @@ body, p, span, li {
 /* ================================================================
    Hero Sections
    ================================================================ */
+.hero-sub-section{
+  background: #0C233C;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(172, 234, 255, 0.14);
+  box-shadow: 0 14px 30px -24px rgba(0, 51, 141, 0.38);
+}
+.hero-sub-section::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, #00338D 0%, #1E49E2 58%, #00B8F5 100%);
+  pointer-events: none;
+}
 
+.hero-sub-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+          radial-gradient(ellipse 60% 95% at 6% 115%, #7213EA 0%, transparent 85%),
+          radial-gradient(ellipse 36% 95% at 92% -22%, #0C233C 0%, transparent 68%);
+  pointer-events: none;
+}
 .hero-section {
   background: #0C233C;
   position: relative;

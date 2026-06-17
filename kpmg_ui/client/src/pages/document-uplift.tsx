@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 type CaseStage =
   | "uploading"
@@ -502,12 +503,14 @@ export default function DocumentUpliftPage() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]" data-testid="document-uplift-page">
-      <HeroSection
-        title="Document Uplift"
-        subtitle="Review, improve, and export procedure documents with cross-document control evidence."
-        icon={FileStack}
-      />
+    // <div className="h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]" data-testid="document-uplift-page">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+        <HeroSubSection title={"Document Uplift"} subtitle="Review, improve, and export procedure documents with cross-document control evidence." icon={FileStack} />
+      {/*<HeroSection*/}
+      {/*  title="Document Uplift"*/}
+      {/*  subtitle="Review, improve, and export procedure documents with cross-document control evidence."*/}
+      {/*  icon={FileStack}*/}
+      {/*/>*/}
       <div className="sr-only">DOCUMENT INTELLIGENCE</div>
 
       <TracePageBody width="wide" tint contentClassName="space-y-9">

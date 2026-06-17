@@ -38,6 +38,7 @@ import {
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_STYLE,
 } from "@/lib/chartTheme";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const TRACE_GRAPH_COLORS = ["#1E49E2", "#00B8F5", "#098E7E", "#7213EA", "#009A44", "#EAAA00", "#00338D", "#8492A6"];
 const CHART_TEXT_STYLE = { fontFamily: "Arial", fontSize: 11, fill: "#5A6478" };
@@ -879,12 +880,14 @@ export default function ControlsLibraryPage() {
   const selectedScopeLabel = isSelectedScope ? selectedDoc?.source_filename ?? "Selected Document" : "All Uploaded Database";
 
   return (
-    <div className="trace-workbench-shell h-full min-h-0 overflow-auto bg-[#F0F2F7] text-[#0C233C]">
-      <HeroSection
-        title="Controls Library"
-        subtitle="Browse, filter, and analyse enterprise security controls from the uploaded policy corpus."
-        icon={ShieldCheck}
-      />
+    // <div className="trace-workbench-shell h-full min-h-0 overflow-auto bg-[#F0F2F7] text-[#0C233C]">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]`}>
+        <HeroSubSection title={"Controls Library"} subtitle="Browse, filter, and analyse enterprise security controls from the uploaded policy corpus." icon={ShieldCheck} />
+        {/*<HeroSection*/}
+      {/*  title="Controls Library"*/}
+      {/*  subtitle="Browse, filter, and analyse enterprise security controls from the uploaded policy corpus."*/}
+      {/*  icon={ShieldCheck}*/}
+      {/*/>*/}
 
       <main className="max-w-[1200px] mx-auto px-8 md:px-12 py-12 pb-24">
         <section className="mb-9">

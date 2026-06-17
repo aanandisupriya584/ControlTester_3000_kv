@@ -21,6 +21,7 @@ import { useRegulatoryTesting, LibraryDocument } from "@/contexts/RegulatoryTest
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TraceMetricCard, TracePanel, TraceSectionHeading, TraceStatusRibbon } from "@/components/TraceAnalysisPrimitives";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const ENFORCEMENT_COLOR: Record<string, string> = {
   mandatory:    "bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300",
@@ -1054,6 +1055,7 @@ export default function RegulatoryLibraryPage() {
   const [, setLocation] = useLocation();
   const { pendingObligationId, setPendingObligationId, setPendingControlId } = useCrossNav();
   const { refreshMetrics, allControls, loading: metricsLoading } = useLibraryMetrics();
+  // const allPageLoading = loading || systemStatusLoading || pageRecordsLoading || assetsLoading || assessmentsLoading || issuesLoading || isLoadingQueue;
   const {
     libraryDocuments,
     setLibraryDocuments,
@@ -1552,13 +1554,14 @@ export default function RegulatoryLibraryPage() {
     const gapReady = gapSelectedIds.size >= 2;
 
     return (
-      <div className="trace-workbench-shell flex h-full flex-col overflow-hidden bg-[#F0F2F7] text-[#0C233C]">
-        <HeroSection
-          title="Regulatory Library"
-          subtitle="Curate source documents, review obligations, and compare frameworks in one workspace."
-          icon={Library}
-        />
-
+      // <div className="trace-workbench-shell flex h-full flex-col overflow-hidden bg-[#F0F2F7] text-[#0C233C]">
+        <div className={`relative h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]`}>
+        {/*<HeroSection*/}
+        {/*  title="Regulatory Library"*/}
+        {/*  subtitle="Curate source documents, review obligations, and compare frameworks in one workspace."*/}
+        {/*  icon={Library}*/}
+        {/*/>*/}
+      <HeroSubSection title={"Regulatory Library"} subtitle="Curate source documents, review obligations, and compare frameworks in one workspace." icon={Library} />
         <main className="min-h-0 flex-1 overflow-auto px-6 py-6">
           <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-[#E2E6EF] bg-white p-4 shadow-sm xl:flex-row xl:items-center xl:justify-between">
             <div>
@@ -2164,11 +2167,11 @@ export default function RegulatoryLibraryPage() {
 
   return (
     <div className="trace-workbench-shell h-full min-h-0 flex flex-col overflow-hidden select-none">
-      <HeroSection
-        title="Regulatory Library"
-        subtitle="Curate source documents, review obligations, and compare frameworks in one workspace."
-        icon={Library}
-      />
+      {/*<HeroSection*/}
+      {/*  title="Regulatory Library"*/}
+      {/*  subtitle="Curate source documents, review obligations, and compare frameworks in one workspace."*/}
+      {/*  icon={Library}*/}
+      {/*/>*/}
       <div className="trace-workbench-layout">
 
       {/* ── LEFT PANEL ─────────────────────────────────────────────────────── */}

@@ -7,9 +7,10 @@ import KpmgImg from '../assets/Picture1.png';
 interface TraceNavBarProps {
   breadcrumb?: string;
   actions?: React.ReactNode;
+  collapsed?: boolean;
 }
 
-export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
+export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNavBarProps) {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
 
@@ -20,8 +21,8 @@ export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
 
   return (
     <div
-      className="landing-nav trace-top-ribbon sticky top-0 z-50 w-full"
-      style={{ background: "#0C233C", backdropFilter: "blur(12px)" }}
+      className="landing-nav trace-top-ribbon fixed top-0 z-50"
+      style={{ background: "#0C233C", backdropFilter: "blur(12px)", width:collapsed? '100%': 'calc(100% - 280px)', transition: "width 0.3s ease" }}
     >
       <div className="trace-top-ribbon__inner mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 lg:px-10">
         <div className="flex min-w-0 items-center gap-3">
@@ -33,7 +34,7 @@ export default function TraceNavBar({ breadcrumb, actions }: TraceNavBarProps) {
           >
             <span className="text-[18px] font-bold tracking-tight text-white"><img src={KpmgImg} width={"75px"}/></span>
             <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
-            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
+            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
           </button>
           {breadcrumb && (
             <span className="hidden min-w-0 items-center gap-1.5 text-white/40 sm:flex text-[13px]">

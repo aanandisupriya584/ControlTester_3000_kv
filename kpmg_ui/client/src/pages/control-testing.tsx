@@ -32,6 +32,7 @@ import {
   CONTROL_TESTING_API,
   getControlTestingStepNumber,
 } from "@/pages/control-testing.helpers";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const CHECKLIST_PAGE_SIZE = 5;
 
@@ -322,8 +323,9 @@ export default function ControlTestingPage() {
   const showGenerateAction = canGenerateWorkpaper(readyToGenerate, evidenceSummary);
 
   return (
-    <div className="h-full min-h-0 overflow-hidden flex flex-col">
-      <HeroSection
+    // <div className="h-full min-h-0 overflow-hidden flex flex-col">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7]`}>
+      <HeroSubSection
         title="Control Testing"
         subtitle="Upload a test script, validate evidence against required controls, and generate an audit workpaper"
         icon={Shield}

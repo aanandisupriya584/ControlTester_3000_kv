@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
 import NewAssessmentButton from "./NewAssessmentButton";
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -14,6 +15,7 @@ interface RiskAssessmentWorkspaceProps {
   onCreate: () => void;
   children: ReactNode;
   showCreateButton?: boolean;
+  onBack?: () => void;
 }
 
 export default function RiskAssessmentWorkspace({
@@ -21,6 +23,7 @@ export default function RiskAssessmentWorkspace({
   onCreate,
   children,
   showCreateButton = true,
+  onBack,
 }: RiskAssessmentWorkspaceProps) {
   return (
     <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
@@ -30,7 +33,19 @@ export default function RiskAssessmentWorkspace({
           <h2 className="text-[24px] font-bold tracking-[-0.03em] text-white">Risk Assessment Workspace</h2>
           <p className="mt-2 text-[13px] leading-6 text-white/68">Open an existing assessment or create a new assessment to begin the guided workflow.</p>
         </div>
-        {showCreateButton ? <NewAssessmentButton className={primaryButtonClassName} onClick={onCreate} /> : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-white/20 bg-white/10 px-4 py-3 text-[13px] font-bold text-white transition-colors hover:bg-white/16 sm:w-auto"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+          ) : null}
+          {showCreateButton ? <NewAssessmentButton className={primaryButtonClassName} onClick={onCreate} /> : null}
+        </div>
       </div>
       {children}
     </section>

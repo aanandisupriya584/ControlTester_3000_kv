@@ -9,16 +9,17 @@ import HeroSection from "@/components/HeroSection";
 import TracePageBody from "@/components/TracePageBody";
 import { Trash2, MessageSquare } from "lucide-react";
 import type { Message } from "@/types";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 export default function ChatPage() {
-  const { 
-    messages, 
-    setMessages, 
-    uploadedFiles, 
-    setUploadedFiles, 
-    hasAttachments, 
+  const {
+    messages,
+    setMessages,
+    uploadedFiles,
+    setUploadedFiles,
+    hasAttachments,
     setHasAttachments,
-    clearChat 
+    clearChat
   } = useChatContext();
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const { toast } = useToast();
@@ -45,7 +46,7 @@ export default function ChatPage() {
       }
 
       const result = await response.json();
-      
+
       try {
         const saveFormData = new URLSearchParams();
         saveFormData.append("kb_type", "chat");
@@ -59,20 +60,20 @@ export default function ChatPage() {
       } catch (saveError) {
         console.warn("Error saving chat vectorstore:", saveError);
       }
-      
+
       return result;
     },
   });
 
   const chatMutation = useMutation({
-    mutationFn: async ({ 
-      user_input, 
-      selected_model, 
-      has_attachments, 
-      chat_history 
-    }: { 
-      user_input: string; 
-      selected_model: string; 
+    mutationFn: async ({
+      user_input,
+      selected_model,
+      has_attachments,
+      chat_history
+    }: {
+      user_input: string;
+      selected_model: string;
       has_attachments: boolean;
       chat_history: Array<{role: string; content: string}>;
     }) => {
@@ -83,7 +84,7 @@ export default function ChatPage() {
         global_kb_path: "saved_global_vectorstore",
         company_kb_path: "saved_company_vectorstore",
       };
-      
+
       if (has_attachments) {
         payload.chat_kb_path = "chat_attachment_vectorstore";
       }
@@ -130,7 +131,7 @@ export default function ChatPage() {
 
     // Get selected model from localStorage
     const selectedModel = localStorage.getItem("selectedModel");
-    
+
     if (!selectedModel) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -164,12 +165,12 @@ export default function ChatPage() {
 
         setHasAttachments(true);
         currentHasAttachments = true; // Update local variable immediately
-        
+
         const stats = uploadResult?.processing_summary;
-        const statsMessage = stats 
+        const statsMessage = stats
           ? `Files: ${stats.files} | Vectors: ${stats.vectors || 'N/A'} | Time: ${stats.processing_seconds?.toFixed(2)}s | Model: ${stats.model}`
           : `Successfully uploaded files`;
-        
+
         toast({
           title: "✓ Chat Attachments Ready",
           description: statsMessage,
@@ -211,11 +212,11 @@ export default function ChatPage() {
         loadVectorstore("saved_global_vectorstore", "global"),
         loadVectorstore("saved_company_vectorstore", "company"),
       ];
-      
+
       if (currentHasAttachments) {
         loads.push(loadVectorstore("chat_attachment_vectorstore", "chat"));
       }
-      
+
       await Promise.allSettled(loads);
     } catch (error) {
       console.log("Vectorstore loading info:", error);
@@ -314,26 +315,28 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <HeroSection
-        title="AI Chat"
-        subtitle="Converse with your AI cybersecurity audit assistant"
-        icon={MessageSquare}
-        actions={
-          messages.length > 0 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearChat}
-              data-testid="button-clear-chat"
-              className="text-slate-400 hover:text-white hover:bg-white/10"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear Chat
-            </Button>
-          ) : undefined
-        }
-      />
+    // <div className="h-full flex flex-col">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+        <HeroSubSection title={"AI Chat"} subtitle={"Converse with your AI cybersecurity audit assistant"} icon={MessageSquare}  />
+      {/*<HeroSection*/}
+      {/*  title="AI Chat"*/}
+      {/*  subtitle="Converse with your AI cybersecurity audit assistant"*/}
+      {/*  icon={MessageSquare}*/}
+      {/*  actions={*/}
+      {/*    messages.length > 0 ? (*/}
+      {/*      <Button*/}
+      {/*        variant="ghost"*/}
+      {/*        size="sm"*/}
+      {/*        onClick={handleClearChat}*/}
+      {/*        data-testid="button-clear-chat"*/}
+      {/*        className="text-slate-400 hover:text-white hover:bg-white/10"*/}
+      {/*      >*/}
+      {/*        <Trash2 className="h-4 w-4 mr-2" />*/}
+      {/*        Clear Chat*/}
+      {/*      </Button>*/}
+      {/*    ) : undefined*/}
+      {/*  }*/}
+      {/*/>*/}
 
       {messages.length === 0 ? (
         <TracePageBody width="narrow" tint className="flex items-center">

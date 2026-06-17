@@ -16,13 +16,14 @@ import {
   AlertTriangle,
   Database,
   FilePenLine,
-  FileStack,
+  FileStack, ShieldOff,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import Footer from "@/components/Footer";
 import KPMGImg from '../assets/Picture1.png';
+import HeroSection from "@/components/HeroSection.tsx";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -110,7 +111,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <div className="flex items-center gap-2 pr-10">
               <span className="text-[16px] font-bold tracking-tight text-white"><img src={KPMGImg} width={"55px"} /></span>
               <span className="text-[#1E49E2] text-[18px] font-light select-none">|</span>
-              <span className="text-[16px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
+              <span className="text-[16px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
             </div>
           )}
 
@@ -215,6 +216,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </aside>
 
       <div className="trace-shell-main flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        <HeroSection
+            collapsed={collapsed}
+            title={
+                HIDEABLE_TABS.find(
+                    (tab) => tab.path === location
+                )?.fullTitle ?? "Exception Management"
+            }
+            // subtitle="Log, review, and disposition control exceptions and waivers"
+            icon={ShieldOff}
+        />
         <main className="trace-shell-canvas flex-1 min-h-0 overflow-hidden flex flex-col">{children}</main>
         <Footer />
       </div>

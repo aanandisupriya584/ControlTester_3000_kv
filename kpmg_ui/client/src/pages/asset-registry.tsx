@@ -27,6 +27,7 @@ import {
 } from "@/contexts/AssetRegistryContext";
 import { useToast } from "@/hooks/use-toast";
 import HeroSection from "@/components/HeroSection";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const ASSET_TYPES: AssetType[] = [
   "Application",
@@ -463,7 +464,7 @@ export default function AssetRegistryPage() {
   return (
     <div className="h-full overflow-auto bg-[#F0F2F7]">
       <div data-asset-registry-hero="true">
-        <HeroSection
+        <HeroSubSection
           title="Asset Registry"
           subtitle="Maintain critical assets, CIA ratings, ownership, hosting context, and control linkage evidence from one operational register."
           icon={Database}
