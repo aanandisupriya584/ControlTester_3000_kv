@@ -58,6 +58,7 @@ import {
   type SuggestedControl,
   useRiskAssessment,
 } from "@/contexts/RiskAssessmentContext";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -469,7 +470,7 @@ function RiskAssessmentFeatureCards({
   drafts,
   totalAssessments,
   totalRisks,
-  assetCount,
+  // assetCount,
 }: {
   activeAssessments: number;
   highCriticalRisks: number;
@@ -519,18 +520,18 @@ function RiskAssessmentFeatureCards({
       accent: "#7213EA",
       badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
     },
-    {
-      label: "ASSET COUNT",
-      value: assetCount,
-      detail: "Total assets in scope across all assessments",
-      badge: `${assetCount} total assets`,
-      accent: "#0C233C",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-    }
+    // {
+    //   label: "ASSET COUNT",
+    //   value: assetCount,
+    //   detail: "Total assets in scope across all assessments",
+    //   badge: `${assetCount} total assets`,
+    //   accent: "#0C233C",
+    //   badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+    // }
   ];
 
   return (
-    <section className="mb-9 grid gap-5 md:grid-cols-6" data-risk-assessment-feature-cards="true">
+    <section className="mb-9 grid gap-5 md:grid-cols-5" data-risk-assessment-feature-cards="true">
       {cards.map((card) => (
         <div
           key={card.label}
@@ -544,8 +545,8 @@ function RiskAssessmentFeatureCards({
           </div>
 
           <div className="mt-5 text-[30px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]">{card.value}</div>
-          <p className="mt-4 max-w-[100%] text-[15px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>
-          <div className={`mt-6 inline-flex max-w-full rounded-full px-4 py-2 text-[8px] font-bold ${card.badgeClassName}`}>
+          <p className="mt-4 max-w-[100%] text-[11px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>
+          <div className={`mt-1 inline-flex max-w-full rounded-full px-4 py-2 text-[8px] font-bold ${card.badgeClassName}`}>
             <span className="break-words">{card.badge}</span>
           </div>
         </div>
@@ -1505,11 +1506,12 @@ export default function RiskAssessmentPage() {
       ) : null}
 
       <div className="relative z-10">
-        <HeroSection
-          title="Risk Assessment"
-          subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting."
-          icon={ShieldAlert}
-        />
+        <HeroSubSection title={"Risk Assessment"} subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting." icon={ShieldAlert} />
+        {/*<HeroSection*/}
+        {/*  title="Risk Assessment"*/}
+        {/*  subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting."*/}
+        {/*  icon={ShieldAlert}*/}
+        {/*/>*/}
       </div>
 
       <main className="relative z-10 mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10">
@@ -1525,7 +1527,7 @@ export default function RiskAssessmentPage() {
               drafts={draftAssessments}
               totalAssessments={assessments.length}
               totalRisks={allRisks.length}
-              assetCount={assets.length}
+              // assetCount={assets.length}
             />
             <HowItWorks
                 defaultOpen

@@ -52,6 +52,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PROVIDER_MODELS, providerLabel } from "@/lib/llm-provider-models";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const NAV_HIDDEN_KEY = "nav_hidden_pages";
 const DOCUMENT_UPLIFT_DEFAULT_MAX_LLM_CALLS = 80;
@@ -682,8 +683,8 @@ export default function SettingsPage() {
 
   return (
     <div className="trace-workbench-shell flex flex-col h-full overflow-hidden">
-      <HeroSection title="Settings" subtitle="Configure AI models and application preferences" icon={Network} />
-
+      {/*<HeroSection title="Settings" subtitle="Configure AI models and application preferences" icon={Network} />*/}
+      <HeroSubSection title={"Settings"} subtitle="Configure AI models and application preferences" icon={Network} />
       <div className="trace-workbench-layout">
 
         {/* ── Left Navigation Rail ── */}

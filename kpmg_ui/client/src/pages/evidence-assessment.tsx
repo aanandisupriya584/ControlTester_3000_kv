@@ -6,15 +6,16 @@ import TracePageBody from "@/components/TracePageBody";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEvidenceContext, AgentStatus } from "@/contexts/EvidenceContext";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
-function AgentCard({ 
-  icon: Icon, 
-  title, 
-  description, 
-  status, 
+function AgentCard({
+  icon: Icon,
+  title,
+  description,
+  status,
   statusMessage,
-  isLast = false 
-}: { 
+  isLast = false
+}: {
   icon: React.ElementType;
   title: string;
   description: string;
@@ -130,7 +131,7 @@ export default function EvidenceAssessmentPage() {
 
   const handleAssess = async () => {
     if (files.length === 0) return;
-    
+
     const selectedModel = localStorage.getItem("selectedModel");
     if (!selectedModel) {
       toast({
@@ -162,7 +163,7 @@ export default function EvidenceAssessmentPage() {
       console.log("Agent 2: Starting evidence assessment...");
       setAgentStates(prev => ({ ...prev, assessor: "active" }));
       setAssessmentStatus("Analyzing evidence against knowledge bases...");
-      
+
       const formData = new FormData();
       formData.append("selected_model", selectedModel);
       formData.append("max_workers", "4");
@@ -190,19 +191,19 @@ export default function EvidenceAssessmentPage() {
 
       const assessResult = await assessResponse.json();
       console.log("Agent 2 complete. Assessment result:", assessResult);
-      
+
       if (!assessResult.success) {
         setAgentStates(prev => ({ ...prev, assessor: "error" }));
         throw new Error(assessResult.error_details || "Assessment failed");
       }
-      
+
       setAgentStates(prev => ({ ...prev, assessor: "completed" }));
 
       // Agent 3: Reporter - Generate summary and prepare report
       console.log("Agent 3: Generating report...");
       setAgentStates(prev => ({ ...prev, reporter: "active" }));
       setAssessmentStatus("Generating executive summary and report...");
-      
+
       let summaryResult = { success: true, executive_summary: "" };
       try {
         const summaryResponse = await fetch(`/api/generate-summary?selected_model=${encodeURIComponent(selectedModel)}`, {
@@ -228,10 +229,10 @@ export default function EvidenceAssessmentPage() {
         setAssessmentStatus("Preparing report for download...");
         const filename = assessResult.workbook_path.split("/").pop() || "assessment-report.pdf";
         console.log("Downloading report:", filename);
-        
+
         try {
           const downloadResponse = await fetch(`/api/download-report?filename=${encodeURIComponent(filename)}`);
-          
+
           if (downloadResponse.ok) {
             const blob = await downloadResponse.blob();
             setReportData(blob);
@@ -301,8 +302,9 @@ export default function EvidenceAssessmentPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <HeroSection title="Final Report" subtitle="Upload evidence files for AI-powered multi-agent risk assessment" icon={Search} />
+    // <div className="h-full flex flex-col">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+      <HeroSubSection title="Final Report" subtitle="Upload evidence files for AI-powered multi-agent risk assessment" icon={Search} />
       <TracePageBody width="wide">
         {!showAgents ? (
           <Card>
@@ -402,7 +404,7 @@ export default function EvidenceAssessmentPage() {
                 status={agentStates.validator}
                 statusMessage={assessmentStatus}
               />
-              
+
               <AgentCard
                 icon={Search}
                 title="Assessment Agent"
@@ -410,7 +412,7 @@ export default function EvidenceAssessmentPage() {
                 status={agentStates.assessor}
                 statusMessage={assessmentStatus}
               />
-              
+
               <AgentCard
                 icon={FileOutput}
                 title="Report Agent"

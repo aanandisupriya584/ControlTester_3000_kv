@@ -36,6 +36,7 @@ import {
   CHART_TOOLTIP_STYLE,
   GRID_STYLE,
 } from "@/lib/chartTheme";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 type DashboardTab = "overview" | "libraries" | "workflows" | "exceptions";
 
@@ -654,12 +655,13 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#F0F2F7]">
-      <HeroSection
-        title="Dashboard"
-        subtitle="Monitor TRACE libraries, workflows, issues, and generated outputs."
-        icon={Grid2X2}
-      />
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
+      <HeroSubSection title={"Dashboard"} subtitle="Monitor TRACE libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
+      {/*<HeroSection*/}
+      {/*  title="Dashboard"*/}
+      {/*  subtitle="Monitor TRACE libraries, workflows, issues, and generated outputs."*/}
+      {/*  icon={Grid2X2}*/}
+      {/*/>*/}
 
       <TracePageBody width="wide" tint contentClassName="gap-5">
         <section

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -488,19 +489,20 @@ export default function FrameworksLibraryPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="trace-workbench-shell h-full flex flex-col bg-background overflow-hidden">
-
+    // <div className="trace-workbench-shell h-full flex flex-col bg-background overflow-hidden">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]`}>
+        <HeroSubSection title={"Frameworks Library"} subtitle="Upload quality & risk frameworks — 5W1H, ECOTM, PDCA, FMEA, and more" icon={BookOpen} />
       {/* ── Page header ── */}
-      <HeroSection
-        title="Frameworks Library"
-        subtitle="Upload quality & risk frameworks — 5W1H, ECOTM, PDCA, FMEA, and more"
-        icon={BookOpen}
-        actions={
-          <Button variant="ghost" size="icon" onClick={fetchDocs} title="Refresh" className="h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10">
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        }
-      />
+      {/*<HeroSection*/}
+      {/*  title="Frameworks Library"*/}
+      {/*  subtitle="Upload quality & risk frameworks — 5W1H, ECOTM, PDCA, FMEA, and more"*/}
+      {/*  icon={BookOpen}*/}
+      {/*  actions={*/}
+      {/*    <Button variant="ghost" size="icon" onClick={fetchDocs} title="Refresh" className="h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10">*/}
+      {/*      <RotateCcw className="h-4 w-4" />*/}
+      {/*    </Button>*/}
+      {/*  }*/}
+      {/*/>*/}
 
       {/* ── KPI strip ── */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-5 py-3 border-b">

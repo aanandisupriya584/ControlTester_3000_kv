@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   useIssueManagement, IssueCreate, Severity,
 } from "@/contexts/IssueManagementContext";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const SEV_COLOR: Record<Severity, string> = {
   Low:      "bg-emerald-100 text-emerald-700 border-emerald-300",
@@ -109,8 +110,10 @@ export default function IssueManagementPage() {
   }
 
   return (
-    <div className="trace-workbench-shell flex flex-col h-full overflow-hidden">
-      <HeroSection title="Issue Management" subtitle="Track, triage, and resolve issues across engagements" />
+    // <div className="trace-workbench-shell flex flex-col h-full overflow-hidden">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+        <HeroSubSection title={"Issue Management"} subtitle="Track, triage, and resolve issues across engagements" icon={AlertTriangle} />
+      {/*<HeroSection title="Issue Management" subtitle="Track, triage, and resolve issues across engagements" />*/}
 
       <div className="trace-workbench-layout">
         {/* Left Panel */}

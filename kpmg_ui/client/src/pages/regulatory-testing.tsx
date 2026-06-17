@@ -19,6 +19,7 @@ import {
   getRcmComparisonEndpoint,
   getRcmProcessingDescription,
 } from "./regulatory-testing.helpers";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 type RegulationSlotSource = "upload" | "library";
 type RegulatoryResultView = "summary" | "domain-drilldown" | "gap-analysis" | "report";
@@ -1402,8 +1403,10 @@ export default function RegulatoryTestingPage() {
   );
 
   return (
-    <div className="h-full overflow-auto bg-[#F0F2F7]" style={pageFontStyle}>
-      <HeroSection title="Regulatory Testing" subtitle="Compare regulations or assess RCM documents against regulatory requirements" icon={Scale} />
+    // <div className="h-full overflow-auto bg-[#F0F2F7]" style={pageFontStyle}>
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] text-[#0C233C]`}>
+        {/*<HeroSubSection title={}*/}
+      <HeroSubSection title="Regulatory Testing" subtitle="Compare regulations or assess RCM documents against regulatory requirements" icon={Scale} />
       <TracePageBody width="wide" tint contentClassName="space-y-9">
         {!comparisonResults && (
           <HowItWorks

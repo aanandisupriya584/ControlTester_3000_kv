@@ -6,11 +6,12 @@ import {
   ClipboardCheck,
   Clock,
   Loader2,
-  Plus,
+  Plus, ShieldCheck,
 } from "lucide-react";
 
 import Footer from "@/components/Footer";
 import { STAGE_LABEL, useCtSessions, type CtSessionSummary, type CtStage } from "@/hooks/useControlTesting";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const ACCENT_BY_STAGE: Record<CtStage, string> = {
   input: "#8492A6",
@@ -105,42 +106,46 @@ export default function ControlsAssurancePage() {
   const failed = sessions.filter((session) => session.stage === "failed");
 
   return (
-    <div className="h-full min-h-0 overflow-hidden flex flex-col">
+    // <div className="h-full min-h-0 overflow-hidden flex flex-col">
+
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+      <HeroSubSection title={"Controls Assurance"} subtitle={"Create local SOX ITGC testing assessments, monitor pipeline gates, review exceptions, and download completed workpapers."} icon={ShieldCheck} actionBtn={'New Assessment'} actionFn={() => navigate("/controls-assurance/new")} />
+
       <div className="h-full overflow-auto bg-[#F0F2F7]">
-        <section className="relative overflow-hidden" style={{ background: "#0C233C", padding: "52px 0 56px" }}>
-          <div
-            className="pointer-events-none absolute rounded-full blur-3xl"
-            style={{ width: 420, height: 420, background: "rgba(30,73,226,0.35)", right: -140, top: -180 }}
-          />
-          <div
-            className="pointer-events-none absolute rounded-full blur-3xl"
-            style={{ width: 300, height: 300, background: "rgba(0,184,245,0.20)", left: -90, bottom: -120 }}
-          />
-          <div className="relative mx-auto max-w-[1100px] px-8 md:px-12">
-            <div className="mb-3 text-[11px] font-bold uppercase tracking-[2.5px] text-white/55">
-              Control Assurance
-            </div>
-            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div className="max-w-3xl">
-                <h1 className="font-bold leading-tight text-white" style={{ fontSize: "clamp(32px, 5vw, 52px)" }}>
-                  Controls Assurance
-                </h1>
-                <p className="mt-4 max-w-2xl text-[16px] leading-[1.75] text-white/65">
-                  Create local SOX ITGC testing assessments, monitor pipeline gates, review exceptions, and download
-                  completed workpapers.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/controls-assurance/new")}
-                className="inline-flex items-center gap-3 whitespace-nowrap rounded-xl bg-[#7213EA] px-8 py-4 text-[16px] font-bold text-white transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <Plus size={20} />
-                New Assessment
-              </button>
-            </div>
-          </div>
-        </section>
+        {/*<section className="relative overflow-hidden" style={{ background: "#0C233C", padding: "52px 0 56px" }}>*/}
+        {/*  <div*/}
+        {/*    className="pointer-events-none absolute rounded-full blur-3xl"*/}
+        {/*    style={{ width: 420, height: 420, background: "rgba(30,73,226,0.35)", right: -140, top: -180 }}*/}
+        {/*  />*/}
+        {/*  <div*/}
+        {/*    className="pointer-events-none absolute rounded-full blur-3xl"*/}
+        {/*    style={{ width: 300, height: 300, background: "rgba(0,184,245,0.20)", left: -90, bottom: -120 }}*/}
+        {/*  />*/}
+        {/*  <div className="relative mx-auto max-w-[1100px] px-8 md:px-12">*/}
+        {/*    <div className="mb-3 text-[11px] font-bold uppercase tracking-[2.5px] text-white/55">*/}
+        {/*      Control Assurance*/}
+        {/*    </div>*/}
+        {/*    <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">*/}
+        {/*      <div className="max-w-3xl">*/}
+        {/*        <h1 className="font-bold leading-tight text-white" style={{ fontSize: "clamp(32px, 5vw, 52px)" }}>*/}
+        {/*          Controls Assurance*/}
+        {/*        </h1>*/}
+        {/*        <p className="mt-4 max-w-2xl text-[16px] leading-[1.75] text-white/65">*/}
+        {/*          Create local SOX ITGC testing assessments, monitor pipeline gates, review exceptions, and download*/}
+        {/*          completed workpapers.*/}
+        {/*        </p>*/}
+        {/*      </div>*/}
+        {/*      <button*/}
+        {/*        type="button"*/}
+        {/*        onClick={() => navigate("/controls-assurance/new")}*/}
+        {/*        className="inline-flex items-center gap-3 whitespace-nowrap rounded-xl bg-[#7213EA] px-8 py-4 text-[16px] font-bold text-white transition-all duration-200 hover:-translate-y-0.5"*/}
+        {/*      >*/}
+        {/*        <Plus size={20} />*/}
+        {/*        New Assessment*/}
+        {/*      </button>*/}
+        {/*    </div>*/}
+        {/*  </div>*/}
+        {/*</section>*/}
 
         <main className="mx-auto max-w-[1200px] px-8 py-12 pb-24 md:px-12">
           <section className="mb-9 grid gap-4 md:grid-cols-4">
@@ -168,7 +173,7 @@ export default function ControlsAssurancePage() {
                   <button
                     type="button"
                     onClick={() => navigate("/controls-assurance/new")}
-                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#7213EA] px-6 py-3 text-[14px] font-bold text-white"
+                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#1E49E2] px-6 py-3 text-[14px] font-bold text-white"
                   >
                     <Plus size={18} />
                     New Assessment

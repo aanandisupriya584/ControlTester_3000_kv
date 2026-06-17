@@ -44,6 +44,8 @@ import { AssetRegistryProvider } from "@/contexts/AssetRegistryContext";
 import { RiskAssessmentProvider } from "@/contexts/RiskAssessmentContext";
 import { IssueManagementProvider } from "@/contexts/IssueManagementContext";
 import RiskAssessmentDashboard from "@/pages/RiskAssessment/RiskAssessmentDashboard.tsx";
+import {ShieldOff} from "lucide-react";
+import HeroSection from "@/components/HeroSection.tsx";
 
 // All pages are kept permanently mounted and CSS-hidden when inactive.
 // This prevents remount on every tab switch, so useEffect runs only once per

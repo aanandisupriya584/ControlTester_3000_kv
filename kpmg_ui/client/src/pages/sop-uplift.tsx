@@ -57,6 +57,7 @@ import { SopUploadBuckets } from "./sop-uplift/SopUploadBuckets";
 import { SopUpliftHeader } from "./sop-uplift/SopUpliftHeader";
 import { SuggestionQueue } from "./sop-uplift/SuggestionQueue";
 import { SwimlanePreview } from "./sop-uplift/SwimlanePreview";
+import HeroSubSection from "@/components/HeroSubSection.tsx";
 
 const API_BASE = "/api/sop-uplift/cases";
 
@@ -1630,8 +1631,9 @@ export default function SopUpliftPage() {
   };
 
   const renderCaseHub = () => (
-    <div className="flex h-full flex-col bg-[#F5F7FB] text-[#0C233C]">
-      <HeroSection
+    // <div className="flex h-full flex-col bg-[#F5F7FB] text-[#0C233C]">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
+      <HeroSubSection
         title="SOP Uplift"
         subtitle="Create, reopen, and govern SOP uplift work from one controlled case portfolio."
         icon={FilePenLine}
