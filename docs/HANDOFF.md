@@ -1732,6 +1732,13 @@ Verification:
 - `npm run check -- --pretty false`
 
 Update:
+- Moved the questionnaire `Save Progress` and `Continue` actions into the Completion Checklist panel.
+- Made the checklist panel compact when embedded actions are present to remove unused whitespace on the questionnaire page.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
 - Redesigned the legacy Control Testing UI surface to match the provided enterprise SaaS reference while preserving the current ControlTestingContext and `/audit/*` flow.
 - Added a slow KPMG blue header glow, subtle network particles, sequential workflow fade-ins, flowing connector pulses, and a dark blue upload card with a soft hover glow and non-interactive upload visual.
 - Opened the Control Testing `How It Works` flow by default, enlarged the process cards/step nodes, and adjusted the page spacing to 20px side padding with a tight 5px bottom gap.

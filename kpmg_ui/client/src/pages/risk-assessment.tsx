@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocation } from "wouter";
@@ -10,7 +10,6 @@ import {
   Download,
   FileBarChart,
   HelpCircle,
-  Lightbulb,
   Loader2,
   Lock,
   Play,
@@ -22,6 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
+import CompletionChecklist from "@/pages/RiskAssessment/components/CompletionChecklist";
 import RecentAssessments from "@/pages/RiskAssessment/components/RecentAssessments";
 import RiskAssessmentOverview from "@/pages/RiskAssessment/components/RiskAssessmentOverview";
 import RiskAssessmentWorkspace, { STATUS_LABELS } from "@/pages/RiskAssessment/components/RiskAssessmentWorkspace";
@@ -311,98 +311,6 @@ function CommandDeckMetric({
   );
 }
 
-function CompletionChecklist({
-  totalQuestions,
-  answeredQuestions,
-  readyForReview,
-  onSaveProgress,
-  onContinue,
-  continueDisabled,
-  continueLabel = "Submit",
-}: {
-  totalQuestions: number;
-  answeredQuestions: number;
-  readyForReview: boolean;
-  onSaveProgress?: () => void;
-  onContinue?: () => void;
-  continueDisabled?: boolean;
-  continueLabel?: string;
-}) {
-  // Keep completion tracking focused on Yes/No answers now that per-question notes are removed.
-  const rows = [
-    { label: "Questions answered", current: answeredQuestions, total: totalQuestions },
-    { label: "Ready for risk review", current: readyForReview ? 1 : 0, total: 1 },
-  ];
-
-  const allComplete = answeredQuestions >= totalQuestions && totalQuestions > 0 && readyForReview;
-
-  return (
-    <div className="rounded-[24px] border border-[#DCE3EE] bg-white p-6 shadow-[0_18px_42px_-34px_rgba(12,35,60,0.26)]">
-      <h2 className="mb-5 text-[22px] font-bold tracking-[-0.03em] text-[#0C233C]">Completion checklist</h2>
-
-      <div className="space-y-5">
-        {rows.map(({ label, current, total }) => {
-          const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
-          const done = current >= total && total > 0;
-          const partial = current > 0 && !done;
-
-          return (
-            <div key={label}>
-              <div className="mb-2 flex items-center gap-3">
-                {done ? (
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#009A44]" />
-                ) : partial ? (
-                  <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[#F6D3A0] bg-[#FFF4E8]">
-                    <span className="text-[10px] font-bold text-[#AB5C00]">!</span>
-                  </div>
-                ) : (
-                  <div className="h-5 w-5 flex-shrink-0 rounded-full border-2 border-[#DCE3EE]" />
-                )}
-                <span className="flex-1 text-[14px] font-medium text-[#0C233C]">{label}</span>
-                <span className="text-[13px] font-bold text-[#7388A8]">{current}/{total}</span>
-              </div>
-              <div className="ml-8 h-1.5 overflow-hidden rounded-full bg-[#E8EDF5]">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    done ? "bg-[#009A44]" : partial ? "bg-[#EAAA00]" : "bg-[#E8EDF5]"
-                  }`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {!allComplete ? (
-        <div className="mt-5 flex items-start gap-2.5 rounded-[14px] border border-[#E6D9A8] bg-[#FFFBEE] px-4 py-3">
-          <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8A6A00]" />
-          <p className="text-[12px] leading-6 text-[#7A5E00]">
-            Complete all questions to proceed to Risk Review.
-          </p>
-        </div>
-      ) : null}
-
-      {(onSaveProgress ?? onContinue) ? (
-        <div className="mt-5 flex flex-wrap gap-3">
-          {onSaveProgress ? (
-            <button className={SECONDARY_BUTTON} onClick={onSaveProgress}>
-              <Save className="h-4 w-4" />
-              Save
-            </button>
-          ) : null}
-          {onContinue ? (
-            <button className={PRIMARY_BUTTON} onClick={onContinue} disabled={continueDisabled}>
-              {continueLabel}
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function SetupProgressReport({
   answeredQuestions,
   totalQuestions,
@@ -573,12 +481,12 @@ function WorkflowContextBar({
 function GuidanceCard({
   answeredQuestions,
   totalQuestions,
+  actions,
 }: {
   answeredQuestions: number;
   totalQuestions: number;
+  actions?: ReactNode;
 }) {
-  const answerPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
-
   return (
     <aside className="flex h-full flex-col gap-4">
       <section className="rounded-[8px] border border-[#D8E0ED] bg-white p-5">
@@ -598,36 +506,7 @@ function GuidanceCard({
         </div>
       </section>
 
-      <section className="flex flex-1 flex-col rounded-[8px] border border-[#D8E0ED] bg-white p-5">
-        <h3 className="mb-4 text-[15px] font-bold text-[#0C233C]">Completion checklist</h3>
-        {[
-          ["Questions answered", answeredQuestions, totalQuestions, "#009A44", answerPct],
-          ["Ready for risk review", answeredQuestions >= totalQuestions && totalQuestions > 0 ? 1 : 0, 1, "#8492A6", answeredQuestions >= totalQuestions && totalQuestions > 0 ? 100 : 0],
-        ].map(([label, current, total, color, pct]) => (
-          <div key={String(label)} className="mb-4 last:mb-0">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {Number(pct) >= 100 ? (
-                  <CheckCircle2 className="h-4 w-4 text-[#009A44]" />
-                ) : (
-                  <span className="h-4 w-4 rounded-full border border-[#B4C1D6]" />
-                )}
-                <span className="text-[12px] font-semibold text-[#0C233C]">{label}</span>
-              </div>
-              <span className="text-[11px] font-bold text-[#6E7787]">{current} / {total}</span>
-            </div>
-            <div className="ml-6 h-1.5 overflow-hidden rounded-full bg-[#E8EDF5]">
-              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: String(color) }} />
-            </div>
-          </div>
-        ))}
-        <div className="mt-auto rounded-[6px] border border-[#F6D3A0] bg-[#FFFBEE] p-3">
-          <div className="flex gap-2 text-[12px] leading-5 text-[#7A5E00]">
-            <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>Complete all questions to proceed to Risk Review.</span>
-          </div>
-        </div>
-      </section>
+      <CompletionChecklist answeredQuestions={answeredQuestions} totalQuestions={totalQuestions} actions={actions} />
     </aside>
   );
 }
@@ -1866,20 +1745,25 @@ export default function RiskAssessmentPage() {
                       )}
                     </section>
                     <div>
-                      <GuidanceCard answeredQuestions={currentAnsweredCount} totalQuestions={currentTotalQuestions} />
-                      {currentAssetId ? (
-                        <div className="mt-4 flex flex-col gap-3 rounded-[8px] border border-[#D8E0ED] bg-white p-4 sm:flex-row">
-                          <button className={SECONDARY_BUTTON} onClick={() => toast({ title: "Progress saved" })}>
-                            <Save className="h-4 w-4" />
-                            Save Progress
-                          </button>
-                          <button className={PRIMARY_BUTTON} onClick={() => void handleSubmitQa()} disabled={submittingQa}>
-                            {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                            Continue
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : null}
+                      <GuidanceCard
+                        answeredQuestions={currentAnsweredCount}
+                        totalQuestions={currentTotalQuestions}
+                        actions={
+                          currentAssetId ? (
+                            <>
+                              <button className={SECONDARY_BUTTON} onClick={() => toast({ title: "Progress saved" })}>
+                                <Save className="h-4 w-4" />
+                                Save Progress
+                              </button>
+                              <button className={PRIMARY_BUTTON} onClick={() => void handleSubmitQa()} disabled={submittingQa}>
+                                {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                Continue
+                                <ArrowRight className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : null
+                        }
+                      />
                     </div>
                   </div>
                 ) : null}
