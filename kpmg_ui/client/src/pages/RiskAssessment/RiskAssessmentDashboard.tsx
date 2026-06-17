@@ -1,13 +1,5 @@
-// <StatusCard
-//     title="Complaints"
-//     value={98}
-//     percentChange={8}
-//     status="complaint"
-// />
-
 import React from 'react';
 import StatusCard from "@/components/custom_ui/cards/StatusCard.tsx";
-import AssessmentProcess from "@/pages/RiskAssessment/AssessmentProcess.tsx";
 
 // Props type definition (remove if no props needed)
 interface RiskAssessmentDashboardProps {
@@ -71,7 +63,6 @@ const RiskAssessmentDashboard: React.FC<RiskAssessmentDashboardProps> = ({ /* de
 
 
             </div>
-            <AssessmentProcess></AssessmentProcess>
         </div>
     );
 };

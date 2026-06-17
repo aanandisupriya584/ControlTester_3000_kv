@@ -43,7 +43,6 @@ import DocumentUpliftCasePage from "@/pages/document-uplift-case";
 import { AssetRegistryProvider } from "@/contexts/AssetRegistryContext";
 import { RiskAssessmentProvider } from "@/contexts/RiskAssessmentContext";
 import { IssueManagementProvider } from "@/contexts/IssueManagementContext";
-import RiskAssessmentDashboard from "@/pages/RiskAssessment/RiskAssessmentDashboard.tsx";
 
 // All pages are kept permanently mounted and CSS-hidden when inactive.
 // This prevents remount on every tab switch, so useEffect runs only once per
@@ -53,7 +52,6 @@ const PAGES = [
   { path: "/regulatory-testing",   Page: RegulatoryTestingPage   },
   { path: "/reports",              Page: ReportsPage             },
   { path: "/risk-assessment",      Page: RiskAssessmentPage      },
-  { path: "/risk-assessment-dashboard",      Page: RiskAssessmentDashboard      },
   { path: "/evidence-assessment",  Page: EvidenceAssessmentPage  },
   { path: "/control-testing",      Page: ControlTestingPage      },
   { path: "/controls-assurance",   Page: ControlsAssurancePage   },
@@ -123,6 +121,10 @@ function Router() {
         </div>
       ) : location === "/risk-assessment/new" ? (
         // Route the Risk Assessment create flow to its own page while reusing the existing module state/provider.
+        <div className="h-full min-h-0 overflow-hidden">
+          <RiskAssessmentPage />
+        </div>
+      ) : location.startsWith("/risk-assessment/") ? (
         <div className="h-full min-h-0 overflow-hidden">
           <RiskAssessmentPage />
         </div>

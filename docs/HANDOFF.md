@@ -1679,6 +1679,22 @@ Verification:
 - `npm run check`
 
 Update:
+- Restored Risk Assessment workflow icon navigation to dedicated route paths.
+- Workflow buttons now route to page-style URLs such as `/risk-assessment/create` and `/risk-assessment/{assessmentId}/questionnaire` while preserving legacy `?step=` parsing.
+- Kept `/risk-assessment/new` as a create-page compatibility alias.
+
+Verification:
+- `npm run check -- --pretty false` currently fails because `client/src/pages/RiskAssessment/RiskAssessmentDashboard.tsx` imports deleted `AssessmentProcess.tsx`.
+
+Update:
+- Extracted the Risk Assessment workflow rail into `RiskAssessment/components/WorkflowStepper.tsx`.
+- Moved the workflow step config, icon button rendering, tooltip summaries, route parsing helpers, and dedicated page navigation into the child component.
+- `risk-assessment.tsx` now consumes the workflow child and only handles page state after a workflow page is opened.
+
+Verification:
+- `npm run check -- --pretty false` still fails because `client/src/pages/RiskAssessment/RiskAssessmentDashboard.tsx` imports deleted `AssessmentProcess.tsx`.
+
+Update:
 - Redesigned the legacy Control Testing UI surface to match the provided enterprise SaaS reference while preserving the current ControlTestingContext and `/audit/*` flow.
 - Added a slow KPMG blue header glow, subtle network particles, sequential workflow fade-ins, flowing connector pulses, and a dark blue upload card with a soft hover glow and non-interactive upload visual.
 - Opened the Control Testing `How It Works` flow by default, enlarged the process cards/step nodes, and adjusted the page spacing to 20px side padding with a tight 5px bottom gap.

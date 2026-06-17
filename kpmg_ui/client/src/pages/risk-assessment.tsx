@@ -2,15 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocation } from "wouter";
-import StatusCard from '../../src/components/custom_ui/cards/StatusCard.tsx';
 import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CirclePlus,
-  ClipboardCheck,
-  Database,
   Download,
   FileBarChart,
   HelpCircle,
@@ -24,12 +20,22 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  SearchCheck,
-  Trash2,
-  type LucideIcon,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
-import HowItWorks from "@/components/HowItWorks";
+import RecentAssessments from "@/pages/RiskAssessment/components/RecentAssessments";
+import RiskAssessmentOverview from "@/pages/RiskAssessment/components/RiskAssessmentOverview";
+import RiskAssessmentWorkspace, { STATUS_LABELS } from "@/pages/RiskAssessment/components/RiskAssessmentWorkspace";
+import WorkflowStepper, {
+  WORKFLOW_PROGRESS_STEP_COUNT,
+  WORKFLOW_STEP_BY_LABEL,
+  WORKFLOW_STEP_BY_SLUG,
+  assessmentIdFromLocation,
+  isCreateRoute,
+  workflowLabelFromWizardStep,
+  workflowPathForAssessment,
+  workflowSlugFromLocation,
+  type WorkflowStepLabel,
+} from "@/pages/RiskAssessment/components/WorkflowStepper";
 import {
   TracePanel,
 } from "@/components/TraceAnalysisPrimitives";
@@ -44,7 +50,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import CiaRatingWidget from "@/components/CiaRatingWidget";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
@@ -59,22 +64,6 @@ import {
   useRiskAssessment,
 } from "@/contexts/RiskAssessmentContext";
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  in_progress: "In Progress",
-  risks_identified: "Risks Identified",
-  controls_applied: "Controls Applied",
-  complete: "Complete",
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  draft: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
-  in_progress: "border-[#C9D7FF] bg-[#EEF2FF] text-[#1E49E2]",
-  risks_identified: "border-[#F6D3A0] bg-[#FFF4E8] text-[#AB5C00]",
-  controls_applied: "border-[#D7C0FA] bg-[#F3F0FF] text-[#7213EA]",
-  complete: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
-};
-
 const BAND_CLASS: Record<string, string> = {
   Critical: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
   High: "border-[#F6D3A0] bg-[#FFF4E8] text-[#AB5C00]",
@@ -86,55 +75,6 @@ const ANSWER_CLASS: Record<AnswerType, string> = {
   yes: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
   no: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
   na: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
-};
-
-// Mirror the reference workflow labels so the progress rail matches the requested UI.
-const WIZARD_STEPS = ["Create", "Assets", "Questionnaire", "Risk Review", "Findings", "Final Report"];
-const WORKFLOW_PROGRESS_STEP_COUNT = 6;
-const WORKFLOW_STEP_CONFIG = [
-  { label: "Create", slug: "create", targetStep: 0 },
-  { label: "Assets", slug: "assets", targetStep: 0 },
-  { label: "Questionnaire", slug: "questionnaire", targetStep: 1 },
-  { label: "Risk Review", slug: "risk-review", targetStep: 3 },
-  { label: "Findings", slug: "findings", targetStep: 4 },
-  { label: "Final Report", slug: "final-report", targetStep: 6 },
-] as const;
-type WorkflowStepLabel = (typeof WORKFLOW_STEP_CONFIG)[number]["label"];
-
-const WORKFLOW_STEP_BY_LABEL = WORKFLOW_STEP_CONFIG.reduce(
-  (acc, step) => ({ ...acc, [step.label]: step }),
-  {} as Record<WorkflowStepLabel, (typeof WORKFLOW_STEP_CONFIG)[number]>,
-);
-const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
-  (acc, step) => ({ ...acc, [step.slug]: step }),
-  {} as Record<string, (typeof WORKFLOW_STEP_CONFIG)[number]>,
-);
-
-function workflowSlugFromLocation(location: string) {
-  const query = location.split("?")[1] ?? "";
-  return new URLSearchParams(query).get("step");
-}
-
-function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
-  const slug = workflowSlugFromLocation(location);
-  const urlStep = slug ? WORKFLOW_STEP_BY_SLUG[slug] : null;
-  if (urlStep && urlStep.targetStep === wizardStep) return urlStep.label;
-  if (wizardStep === 0) return "Assets";
-  if (wizardStep === 1) return "Questionnaire";
-  if (wizardStep === 3) return "Risk Review";
-  if (wizardStep === 4 || wizardStep === 5) return "Findings";
-  if (wizardStep === 6) return "Final Report";
-  return "Risk Review";
-}
-
-// Give each workflow step a compatible icon and hover summary so the rail explains itself without extra page text.
-const WORKFLOW_STEP_DETAILS: Record<string, { Icon: LucideIcon; summary: string }> = {
-  Create: { Icon: CirclePlus, summary: "Create the assessment session and define the initial scope." },
-  Assets: { Icon: Database, summary: "Confirm registry and ad hoc applications included in the assessment." },
-  Questionnaire: { Icon: ClipboardCheck, summary: "Answer each control and risk question for selected applications." },
-  "Risk Review": { Icon: ShieldAlert, summary: "Review inherent risks identified from questionnaire responses." },
-  Findings: { Icon: SearchCheck, summary: "Review findings and control suggestions before residual scoring." },
-  "Final Report": { Icon: FileBarChart, summary: "Generate and preview the formatted risk assessment report." },
 };
 
 // Buttons become full-width on mobile to prevent cramped or clipped action text.
@@ -167,17 +107,6 @@ function statusToStep(status: RiskAssessment["status"]) {
   }
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "Recently updated";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Recently updated";
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function assessmentAppCount(assessment: RiskAssessment) {
-  return assessment.asset_ids.length + (assessment.ad_hoc_applications?.length ?? 0);
-}
-
 function statusToneTitle(assessment: RiskAssessment | null) {
   if (!assessment) return "Ready To Begin";
   return STATUS_LABELS[assessment.status] ?? "Assessment Selected";
@@ -208,92 +137,6 @@ function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): Wo
   if (status === "in_progress") return "Questionnaire";
   if (status === "draft") return "Assets";
   return "Create";
-}
-
-function StepPill({
-  label,
-  index,
-  active,
-  complete,
-  disabled,
-  onSelect,
-}: {
-  label: WorkflowStepLabel;
-  index: number;
-  active: boolean;
-  complete: boolean;
-  disabled: boolean;
-  onSelect?: (label: WorkflowStepLabel) => void;
-}) {
-  const nextStepComplete = complete;
-  const { Icon, summary } = WORKFLOW_STEP_DETAILS[label] ?? WORKFLOW_STEP_DETAILS.Create;
-  const StepIcon = complete ? CheckCircle2 : Icon;
-  const className = active
-    ? "border-white bg-[#00B8F5] text-white shadow-[0_0_0_4px_rgba(255,255,255,0.18)]"
-    : complete
-      ? "border-[#00C853] bg-white text-[#009A44] shadow-[0_0_0_4px_rgba(255,255,255,0.16)]"
-      : disabled
-        ? "border-white/20 bg-white/8 text-white/35"
-        : "border-white/45 bg-white/12 text-white/78";
-  const labelClass = active || complete ? "text-white" : disabled ? "text-white/35" : "text-white/68";
-
-  return (
-    <div
-      className="relative flex min-w-[96px] flex-1 flex-col items-center gap-2 text-center"
-      data-risk-assessment-step={label.toLowerCase()}
-    >
-      {/* Stack each step label below its circle so the stepper matches the requested icon-first layout. */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* Make each workflow step a real navigation button while keeping the tooltip summary. */}
-          <button
-            type="button"
-            role="tab"
-            onClick={() => onSelect?.(label)}
-            className={`relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-[8px] px-1 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#AFC1F8] ${
-              disabled ? "cursor-pointer opacity-70 hover:-translate-y-0.5" : "cursor-pointer hover:-translate-y-0.5"
-            }`}
-            data-risk-assessment-step-tooltip="true"
-            aria-current={active ? "step" : undefined}
-            aria-selected={active}
-            aria-disabled={disabled}
-          >
-            {/* Completed steps switch to a tick mark so the workflow state is visible at a glance. */}
-            <span
-              className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-[12px] font-bold shadow-sm transition-all duration-200 ${
-                disabled ? "" : "hover:scale-110 hover:shadow-[0_10px_22px_-14px_rgba(30,73,226,0.65)]"
-              } ${className}`}
-            >
-              <StepIcon className="h-4 w-4" />
-            </span>
-            <span className={`max-w-[86px] text-[12px] font-semibold leading-4 ${labelClass}`}>{label}</span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[240px] rounded-[10px] border border-[#D8E0ED] bg-white px-3 py-2 text-[#0C233C] shadow-[0_18px_42px_-28px_rgba(12,35,60,0.36)]">
-          <p className="text-[12px] font-bold">{label}</p>
-          <p className="mt-1 text-[11px] leading-5 text-[#5A6478]">{summary}</p>
-        </TooltipContent>
-      </Tooltip>
-      {index < WIZARD_STEPS.length - 1 ? (
-        // Keep connector lines visible on the dark workflow background; turn a segment green only after the next step is complete.
-        <span
-          className={`absolute left-[calc(50%+18px)] right-[calc(-50%+18px)] top-[18px] h-0.5 rounded-full ${
-            nextStepComplete || !disabled ? "bg-[#00C853]" : "bg-white/30"
-          }`}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: RiskAssessment["status"] }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold ${STATUS_CLASS[status] ?? STATUS_CLASS.draft}`}
-    >
-      {STATUS_LABELS[status] ?? status}
-    </span>
-  );
 }
 
 function BandBadge({ band }: { band: string }) {
@@ -459,98 +302,6 @@ function CommandDeckMetric({
       <div className="mt-5 text-[30px] font-bold tracking-[-0.04em] text-[#001B3A]">{value}</div>
       <div className="mt-4 text-[12px] leading-6 text-[#33415C]">{detail}</div>
     </div>
-  );
-}
-
-// Show the requested three summary cards under How It Works so users see the same quick status boxes from the reference UI.
-function RiskAssessmentFeatureCards({
-  activeAssessments,
-  highCriticalRisks,
-  drafts,
-  totalAssessments,
-  totalRisks,
-  assetCount,
-}: {
-  activeAssessments: number;
-  highCriticalRisks: number;
-  drafts: number;
-  totalAssessments: number;
-  totalRisks: number;
-  assetCount: number;
-}) {
-  const cards = [
-    {
-      label: "ACTIVE ASSESSMENTS",
-      value: activeAssessments,
-      detail: "Sessions currently progressing",
-      badge: `${totalAssessments} total sessions`,
-      accent: "#00338D",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-    },
-    {
-      label: "DRAFT ASSESSMENTS",
-      value: drafts,
-      detail: "Waiting to begin questionnaire capture",
-      badge: `${totalAssessments} asset registry applications available`,
-      accent: "#1E49E2",
-      badgeClassName: "bg-[#EDFBF5] text-[#009A44]",
-    },
-    {
-      label: "HIGH / CRITICAL RISKS",
-      value: highCriticalRisks,
-      detail: "Across all fetched assessments",
-      badge: `${totalRisks} total recorded risks`,
-      accent: "#00B8F5",
-      badgeClassName: "bg-[#FFF9E8] text-[#8A6A00]",
-    },
-    {
-      label: "TOTAL ASSESSMENTS",
-      value: activeAssessments,
-      detail: "Includes active, & draft assessments",
-      badge: `${totalRisks} total assessments`,
-      accent: "#ACEAFF",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-    },
-    {
-      label: "TOTAL RISKS",
-      value: totalRisks,
-      detail: "Risks identified across all assessments",
-      badge: `${totalRisks} total risks identified`,
-      accent: "#7213EA",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-    },
-    {
-      label: "ASSET COUNT",
-      value: assetCount,
-      detail: "Total assets in scope across all assessments",
-      badge: `${assetCount} total assets`,
-      accent: "#0C233C",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-    }
-  ];
-
-  return (
-    <section className="mb-9 grid gap-5 md:grid-cols-6" data-risk-assessment-feature-cards="true">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="relative max-h-[200px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
-        >
-          <div className="absolute left-0 right-0 top-0 h-1" style={{ background: card.accent }} />
-          <div className={"min-h-[45px] max-h-[45pxpx] "}>
-            <p className="text-[13px] font-bold uppercase leading-6 tracking-[0.1em] text-[#6D7EA8]">
-              {card.label}
-            </p>
-          </div>
-
-          <div className="mt-5 text-[30px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]">{card.value}</div>
-          <p className="mt-4 max-w-[100%] text-[15px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>
-          <div className={`mt-6 inline-flex max-w-full rounded-full px-4 py-2 text-[8px] font-bold ${card.badgeClassName}`}>
-            <span className="break-words">{card.badge}</span>
-          </div>
-        </div>
-      ))}
-    </section>
   );
 }
 
@@ -811,43 +562,6 @@ function WorkflowContextBar({
   );
 }
 
-// The stepper fills its container on desktop and scrolls only when smaller screens need extra room.
-function WorkflowStepper({
-  activeStep,
-  completedSteps,
-  disabledSteps,
-  onStepSelect,
-}: {
-  activeStep: WorkflowStepLabel;
-  completedSteps: Record<WorkflowStepLabel, boolean>;
-  disabledSteps: Record<WorkflowStepLabel, boolean>;
-  onStepSelect?: (label: WorkflowStepLabel) => void;
-}) {
-  return (
-    // Put the workflow rail in its own card-like box so it reads as a separate workflow section.
-    <section
-      className="m-3 overflow-x-auto rounded-[8px] border border-[#1D5BA6] bg-[linear-gradient(135deg,#0C233C_0%,#00338D_58%,#1E49E2_100%)] px-4 py-4 shadow-[0_22px_46px_-30px_rgba(12,35,60,0.72)] ring-1 ring-white/35 sm:m-5 sm:px-5"
-      data-risk-assessment-stepper="true"
-      role="tablist"
-      aria-label="Risk assessment workflow"
-    >
-      <div className="flex w-full min-w-[760px] gap-2 pb-1 pt-1">
-        {WORKFLOW_STEP_CONFIG.map(({ label }, index) => (
-          <StepPill
-            key={label}
-            label={label}
-            index={index}
-            active={label === activeStep}
-            complete={completedSteps[label]}
-            disabled={disabledSteps[label]}
-            onSelect={onStepSelect}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 // Keep guidance and completion progress beside the questionnaire on desktop and stacked on mobile.
 function GuidanceCard({
   answeredQuestions,
@@ -908,65 +622,6 @@ function GuidanceCard({
         </div>
       </section>
     </aside>
-  );
-}
-
-function LandingAssessmentCard({
-  assessment,
-  onOpen,
-}: {
-  assessment: RiskAssessment;
-  onOpen: () => void;
-}) {
-  const riskCount = assessment.risks.length;
-  const highRiskCount = assessment.risks.filter(
-    (risk) => risk.inherent_risk_band === "Critical" || risk.inherent_risk_band === "High",
-  ).length;
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex h-full flex-col rounded-[24px] border border-[#DCE3EE] bg-white p-5 text-left shadow-[0_18px_42px_-34px_rgba(12,35,60,0.28)] transition-all hover:-translate-y-1 hover:border-[#AFC1F8] hover:shadow-[0_24px_54px_-34px_rgba(12,35,60,0.38)]"
-      data-risk-assessment-session={assessment.id}
-    >
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#8492A6]">
-            {assessmentAppCount(assessment)} application{assessmentAppCount(assessment) === 1 ? "" : "s"}
-          </p>
-          <h3 className="line-clamp-2 text-[18px] font-bold tracking-[-0.03em] text-[#0C233C]">{assessment.title}</h3>
-        </div>
-        <StatusBadge status={assessment.status} />
-      </div>
-
-      <p className="line-clamp-3 flex-1 text-[13px] leading-6 text-[#5A6478]">
-        {assessment.description || getAssessmentRiskSummary(assessment)}
-      </p>
-
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <div className="rounded-[16px] bg-[#F7F9FC] px-3 py-3">
-          <div className="text-[18px] font-bold text-[#0C233C]">{riskCount}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8492A6]">Risks</div>
-        </div>
-        <div className="rounded-[16px] bg-[#FFF9E8] px-3 py-3">
-          <div className="text-[18px] font-bold text-[#8A6A00]">{highRiskCount}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8A6A00]">High</div>
-        </div>
-        <div className="rounded-[16px] bg-[#EDFBF5] px-3 py-3">
-          <div className="text-[18px] font-bold text-[#009A44]">{assessment.applied_controls.length}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#009A44]">Controls</div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex items-center justify-between border-t border-[#E8EDF5] pt-4">
-        <span className="text-[12px] font-semibold text-[#7388A8]">Updated {formatDate(assessment.updated_at)}</span>
-        <span className="inline-flex items-center gap-2 text-[12px] font-bold text-[#1E49E2]">
-          Open
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-        </span>
-      </div>
-    </button>
   );
 }
 
@@ -1116,7 +771,8 @@ export default function RiskAssessmentPage() {
   const { assets, fetchAssets } = useAssetRegistry();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
-  const isCreatePage = location === "/risk-assessment/new";
+  const isCreatePage = isCreateRoute(location);
+  const routeAssessmentId = assessmentIdFromLocation(location);
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
@@ -1155,6 +811,44 @@ export default function RiskAssessmentPage() {
     selectAssessment(null);
     setWizardStep(0);
   }, [isCreatePage]);
+
+  useEffect(() => {
+    if (isCreatePage || !routeAssessmentId) return;
+    const routeAssessment = assessments.find((assessment) => assessment.id === routeAssessmentId);
+    if (!routeAssessment) return;
+
+    setShowCreate(false);
+    if (selectedAssessment?.id !== routeAssessment.id) {
+      selectAssessment(routeAssessment);
+      setQaAssetIdx(0);
+      setExpandedSection(sections[0]?.id ?? null);
+    }
+
+    const slug = workflowSlugFromLocation(location);
+    const routeStep = slug ? WORKFLOW_STEP_BY_SLUG[slug] : null;
+    const nextStep = routeStep?.targetStep ?? statusToStep(routeAssessment.status);
+    if (wizardStep !== nextStep) {
+      setWizardStep(nextStep);
+    }
+  }, [
+    assessments,
+    isCreatePage,
+    location,
+    routeAssessmentId,
+    sections,
+    selectAssessment,
+    selectedAssessment?.id,
+    wizardStep,
+  ]);
+
+  useEffect(() => {
+    const pathname = location.split("?")[0] ?? "";
+    if (pathname !== "/risk-assessment" || isCreatePage || showCreate || !selectedAssessment) return;
+    selectAssessment(null);
+    setWizardStep(0);
+    setQaAssetIdx(0);
+    setExpandedSection(sections[0]?.id ?? null);
+  }, [isCreatePage, location, sections, selectAssessment, selectedAssessment, showCreate]);
 
   useEffect(() => {
     if (wizardStep !== 2 || !selectedAssessment || isAnalyzing) return;
@@ -1228,7 +922,7 @@ export default function RiskAssessmentPage() {
   const disabledWorkflowSteps: Record<WorkflowStepLabel, boolean> = {
     Create: false,
     Assets: false,
-    Questionnaire: !hasAssetsInScope,
+    Questionnaire: false,
     "Risk Review": !hasRisksIdentified,
     Findings: !hasFindingsReady,
     "Final Report": !hasReportPrerequisites,
@@ -1239,8 +933,11 @@ export default function RiskAssessmentPage() {
       openCreate();
       return;
     }
+    if (!selectedAssessment) return;
     const nextStep = WORKFLOW_STEP_BY_LABEL[label].targetStep;
+    setShowCreate(false);
     if (label === "Questionnaire") {
+      setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
     }
     if (label === "Final Report" && disabledWorkflowSteps[label]) {
@@ -1248,15 +945,28 @@ export default function RiskAssessmentPage() {
         title: "Report not ready",
         description: "Generate the final report before opening the audit output.",
       });
+      return;
     }
     setWizardStep(nextStep);
     if (pushHistory) {
-      setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
+      setLocation(workflowPathForAssessment(selectedAssessment?.id, label));
     }
   }
 
-  function handleWorkflowStepSelect(label: WorkflowStepLabel) {
-    navigateWorkflowStep(label);
+  function handleWorkflowStepOpen(label: WorkflowStepLabel, targetStep: number) {
+    setShowCreate(false);
+    if (label === "Questionnaire") {
+      setQaAssetIdx(0);
+      setExpandedSection(sections[0]?.id ?? null);
+    }
+    setWizardStep(targetStep);
+  }
+
+  function handleBlockedFinalReport() {
+    toast({
+      title: "Report not ready",
+      description: "Generate the final report before opening the audit output.",
+    });
   }
 
   useEffect(() => {
@@ -1341,7 +1051,7 @@ export default function RiskAssessmentPage() {
       });
       selectAssessment(assessment);
       setShowCreate(false);
-      setLocation("/risk-assessment?step=assets");
+      setLocation(workflowPathForAssessment(assessment.id, "Assets"));
       setWizardStep(statusToStep(assessment.status));
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
@@ -1391,7 +1101,7 @@ export default function RiskAssessmentPage() {
         setExpandedSection(sections[0]?.id ?? null);
         toast({ title: "Responses saved for this application" });
       } else {
-        setLocation("/risk-assessment?step=risk-review");
+        setLocation(workflowPathForAssessment(selectedAssessment.id, "Risk Review"));
         setWizardStep(2);
         toast({ title: "All responses submitted. Starting analysis." });
       }
@@ -1437,7 +1147,7 @@ export default function RiskAssessmentPage() {
 
   function openCreate() {
     // Route the create icon to the dedicated create URL while showing the existing setup dialog.
-    setLocation("/risk-assessment/new");
+    setLocation(workflowPathForAssessment(null, "Create"));
     setShowCreate(true);
     selectAssessment(null);
     setWizardStep(0);
@@ -1455,7 +1165,7 @@ export default function RiskAssessmentPage() {
     selectAssessment(assessment);
     const nextStep = statusToStep(assessment.status);
     const nextLabel = workflowLabelForAssessmentStatus(assessment.status);
-    setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
+    setLocation(workflowPathForAssessment(assessment.id, nextLabel));
     setWizardStep(nextStep);
     setQaAssetIdx(0);
     setExpandedSection(sections[0]?.id ?? null);
@@ -1514,62 +1224,19 @@ export default function RiskAssessmentPage() {
 
       <main className="relative z-10 mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10">
         {!isCreatePage ? (
-          <>
-            {/* Keep How It Works first on the landing page so users see the assessment process before entering the workspace. */}
-
-
-            {/* Place the requested three KPI boxes immediately after How It Works before the main workspace begins. */}
-            <RiskAssessmentFeatureCards
-              activeAssessments={activeAssessments}
-              highCriticalRisks={highCriticalRisks}
-              drafts={draftAssessments}
-              totalAssessments={assessments.length}
-              totalRisks={allRisks.length}
-              assetCount={assets.length}
-            />
-            <HowItWorks
-                defaultOpen
-                steps={[
-                  {
-                    number: 1,
-                    title: "Create Assessment",
-                    desc: "Start a new assessment and choose the applications or ad hoc systems in scope.",
-                    color: "#1E49E2",
-                  },
-                  {
-                    number: 2,
-                    title: "Answer Questionnaire",
-                    desc: "Capture control and risk responses with evidence notes for each selected asset.",
-                    color: "#098E7E",
-                  },
-                  {
-                    number: 3,
-                    title: "Review Output",
-                    desc: "Validate risks, findings, residual scoring, and the final report.",
-                    color: "#EAAA00",
-                  },
-                ]}
-            />
-          </>
+          <RiskAssessmentOverview
+            activeAssessments={activeAssessments}
+            highCriticalRisks={highCriticalRisks}
+            drafts={draftAssessments}
+            totalAssessments={assessments.length}
+            totalRisks={allRisks.length}
+            assetCount={assets.length}
+          />
         ) : null}
 
         <div className="min-w-0 space-y-6">
             {!selectedAssessment ? (
-              /* This landing workspace replaces the old dashboard while preserving New Assessment access. */
-              <section className="overflow-hidden rounded-[10px] border border-[#D8E0ED] bg-white shadow-[0_20px_48px_-38px_rgba(12,35,60,0.28)]">
-                {/* Match the workflow header background to the dark KPMG/TRACE treatment used by Recent Assessments. */}
-                <div className="flex flex-col items-stretch justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-5 sm:flex-row sm:items-center sm:px-6">
-                  <div className="min-w-0">
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/48">Assessment</p>
-                    <h2 className="text-[24px] font-bold tracking-[-0.03em] text-white">Risk Assessment Workspace</h2>
-                    <p className="mt-2 text-[13px] leading-6 text-white/68">Open an existing assessment or create a new assessment to begin the guided workflow.</p>
-                  </div>
-                  <button className={PRIMARY_BUTTON} onClick={openCreate} data-risk-assessment-new="true">
-                    <Plus className="h-4 w-4" />
-                    New Assessment
-                  </button>
-                </div>
-
+              <RiskAssessmentWorkspace primaryButtonClassName={PRIMARY_BUTTON} onCreate={openCreate}>
                 <WorkflowContextBar
                   assessment={landingAssessment}
                   assetLabel={landingAssessment ? assetName(landingAssessment.asset_ids[0] ?? "") : "Select an assessment"}
@@ -1577,97 +1244,23 @@ export default function RiskAssessmentPage() {
                   currentStage={workflowLabelForAssessmentStatus(landingAssessment?.status)}
                 />
 
-                {/* Stack guidance below the main content until there is enough horizontal room. */}
                 <div className="grid gap-5 bg-[#F7F9FC] p-3 sm:p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
                   <div className="flex h-full min-w-0 flex-col">
-                    {/* Keep this card sized to its own five-row list so the scroll area ends at the box bottom. */}
-                    <div className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#D8E0ED] bg-white">
-                      <div className="flex min-h-[128px] flex-col items-start justify-between gap-4 border-b border-[#123863] bg-[#0C233C] px-4 py-8 sm:flex-row sm:items-center sm:px-6">
-                        <div className="flex min-w-0 items-center gap-4">
-                          <ShieldCheck className="h-12 w-12 rounded-full bg-white/10 p-3 text-white" />
-                          <div>
-                            <h3 className="text-[18px] font-bold text-white">Recent Assessments</h3>
-                            <p className="mt-1 text-[13px] text-white/68">Continue from an existing assessment or start a fresh workflow.</p>
-                          </div>
-                        </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#009A44]">
-                          {assessments.length} available
-                        </span>
-                      </div>
-
-                  {error ? (
-                    <div className="mb-4 rounded-[16px] border border-[#F3C6CF] bg-[#FEEBED] px-4 py-3 text-[12px] font-medium text-[#E5001B]">
-                      {error}
-                    </div>
-                  ) : null}
-
-                      {isLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#1E49E2]" />
-                        </div>
-                      ) : assessments.length > 0 ? (
-                        <div className="max-h-[352px] divide-y divide-[#E8EDF5] overflow-y-auto">
-                          {assessments.map((assessment) => (
-                            <div
-                              key={assessment.id}
-                              className="group grid min-h-[88px] w-full grid-cols-1 items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-[#F8FBFF] sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]"
-                              data-risk-assessment-session={assessment.id}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => selectExistingAssessment(assessment)}
-                                className="min-w-0 text-left"
-                              >
-                                <p className="truncate text-[15px] font-bold text-[#0C233C]">{assessment.title}</p>
-                                <p className="mt-1.5 text-[12px] text-[#5A6478]">
-                                  {assessmentAppCount(assessment)} application{assessmentAppCount(assessment) === 1 ? "" : "s"} - Updated {formatDate(assessment.updated_at)}
-                                </p>
-                              </button>
-                              {/* Give status/action its own wider column so each assessment row looks balanced. */}
-                              <div className="flex w-full items-center justify-between gap-4 lg:justify-end">
-                                <StatusBadge status={assessment.status} />
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteAssessment(assessment)}
-                                  className="grid h-8 w-8 place-items-center rounded-full bg-[#FEEBED] text-[#E5001B] transition-colors hover:bg-[#F9D6DC]"
-                                  title="Delete assessment"
-                                  aria-label={`Delete ${assessment.title}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => selectExistingAssessment(assessment)}
-                                  className="grid h-8 w-8 place-items-center rounded-full bg-[#EEF2FF] text-[#1E49E2] transition-colors group-hover:bg-[#DDE7FF]"
-                                  title="Open assessment"
-                                  aria-label={`Open ${assessment.title}`}
-                                >
-                                  <ArrowRight className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="px-6 py-10 text-center">
-                          <h3 className="text-[18px] font-bold tracking-[-0.03em] text-[#0C233C]">No Risk Assessments Yet</h3>
-                          <p className="mx-auto mt-3 max-w-[520px] text-[13px] leading-6 text-[#7388A8]">
-                            Start the first assessment to define scope, run the questionnaire, analyze risk, and generate the final report.
-                          </p>
-                          <button className={`${PRIMARY_BUTTON} mt-6`} onClick={openCreate}>
-                            <Plus className="h-4 w-4" />
-                            New Assessment
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <RecentAssessments
+                      assessments={assessments}
+                      error={error}
+                      isLoading={isLoading}
+                      primaryButtonClassName={PRIMARY_BUTTON}
+                      onCreate={openCreate}
+                      onOpen={selectExistingAssessment}
+                      onDelete={(assessment) => void handleDeleteAssessment(assessment)}
+                    />
                   </div>
 
                   <GuidanceCard answeredQuestions={0} totalQuestions={sections.reduce((acc, section) => acc + section.questions.length, 0) || 12} />
                 </div>
-              </section>
+              </RiskAssessmentWorkspace>
             ) : null}
-
             {showCreate ? (
               <Dialog open={showCreate} onOpenChange={(open) => (open ? setShowCreate(true) : closeCreate())}>
                 <DialogContent className="flex max-h-[92vh] w-[calc(100vw-24px)] max-w-[1280px] flex-col overflow-hidden rounded-[18px] border border-[#BFD0E5] bg-white p-0 shadow-[0_34px_100px_-42px_rgba(2,10,24,0.72)] sm:w-[calc(100vw-80px)] sm:rounded-[24px]">
@@ -1968,7 +1561,10 @@ export default function RiskAssessmentPage() {
                     activeStep={activeWorkflowStep}
                     completedSteps={completedWorkflowSteps}
                     disabledSteps={disabledWorkflowSteps}
-                    onStepSelect={handleWorkflowStepSelect}
+                    selectedAssessmentId={selectedAssessment.id}
+                    onCreate={openCreate}
+                    onStepOpen={handleWorkflowStepOpen}
+                    onBlockedFinalReport={handleBlockedFinalReport}
                   />
                 </section>
 
@@ -2421,7 +2017,7 @@ export default function RiskAssessmentPage() {
                         <button
                           className={PRIMARY_BUTTON}
                           onClick={() => {
-                            setLocation("/risk-assessment?step=findings");
+                            setLocation(workflowPathForAssessment(selectedAssessment.id, "Findings"));
                             setWizardStep(5);
                           }}
                         >
