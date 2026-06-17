@@ -1679,6 +1679,20 @@ Verification:
 - `npm run check`
 
 Update:
+- Extracted the Risk Assessment page-level CSS block into `RiskAssessmentStyles` under `RiskAssessment/components`.
+- The parent now renders `<RiskAssessmentStyles />` instead of keeping the large inline `<style>` block, preserving the existing CSS selectors and UI behavior.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- Extracted the Risk Assessment final report workflow page into `RiskAssessmentReport` under `components/workflow`.
+- The child component now owns the Cancel, Generate Report, View Report controls and report-ready message while the parent keeps the report preview dialog state.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
 - Restored Risk Assessment workflow icon navigation to dedicated route paths.
 - Workflow buttons now route to page-style URLs such as `/risk-assessment/create` and `/risk-assessment/{assessmentId}/questionnaire` while preserving legacy `?step=` parsing.
 - Kept `/risk-assessment/new` as a create-page compatibility alias.
@@ -2079,6 +2093,20 @@ Update:
 Verification:
 - `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
 - `npm run check`
+
+Update:
+- Extracted the Risk Assessment Apply Controls step into `ApplyControlToRiskPage` under `components/workflow`.
+- The child component now owns the per-risk control panels, applied control chips, suggested control rows, refresh suggestions action, and calculate residual action.
+
+Verification:
+- `npm run check -- --pretty false`
+
+Update:
+- Extracted the Risk Assessment Identify Risk workflow area into `IdentifyRiskPage` under `components/workflow`.
+- The child component now owns both the Running Risk Analysis view and the Identified Risks list view while preserving the existing UI and Apply Controls behavior.
+
+Verification:
+- `npm run check -- --pretty false`
 
 Update:
 - Extracted the active Risk Assessment questionnaire step into `QuestionnaireForm` under `components/workflow`.

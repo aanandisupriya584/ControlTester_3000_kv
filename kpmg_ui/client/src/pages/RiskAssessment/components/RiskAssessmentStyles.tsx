@@ -1,0 +1,700 @@
+export default function RiskAssessmentStyles() {
+  return (
+    <style>{` 
+        .risk-create-animated-bg {
+          background:
+            linear-gradient(145deg, rgba(12, 35, 60, 0.06), transparent 42%),
+            radial-gradient(ellipse at 16% 14%, rgba(30, 73, 226, 0.13), transparent 34%),
+            radial-gradient(ellipse at 86% 28%, rgba(0, 184, 245, 0.10), transparent 36%),
+            radial-gradient(ellipse at 52% 88%, rgba(9, 142, 126, 0.08), transparent 38%),
+            #F0F2F7;
+        }
+
+        .risk-create-grid {
+          background-image:
+            linear-gradient(rgba(30, 73, 226, 0.055) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30, 73, 226, 0.055) 1px, transparent 1px);
+          background-size: 42px 42px;
+          mask-image: linear-gradient(180deg, transparent, black 16%, black 82%, transparent);
+          animation: riskCreateGridDrift 18s linear infinite;
+        }
+
+        .risk-create-blueprint {
+          background-image:
+            linear-gradient(115deg, transparent 0 32%, rgba(30, 73, 226, 0.10) 32.12%, transparent 32.4% 64%, rgba(0, 184, 245, 0.08) 64.12%, transparent 64.4%),
+            linear-gradient(25deg, transparent 0 44%, rgba(12, 35, 60, 0.08) 44.12%, transparent 44.45%);
+          background-size: 620px 420px, 520px 360px;
+          opacity: 0.58;
+          mask-image: radial-gradient(ellipse at 50% 42%, black, transparent 78%);
+          animation: riskCreateBlueprintShift 22s ease-in-out infinite alternate;
+        }
+
+        .risk-create-sheen {
+          background: linear-gradient(105deg, transparent 18%, rgba(255, 255, 255, 0.16) 44%, transparent 62%);
+          opacity: 0.42;
+          transform: translateX(-64%);
+          animation: riskCreateSheen 11s ease-in-out infinite;
+        }
+
+        .risk-create-glow {
+          position: absolute;
+          filter: blur(12px);
+          opacity: 0.42;
+          animation: riskCreateGlowFloat 10s ease-in-out infinite;
+        }
+
+        .risk-create-glow-one {
+          left: 6%;
+          top: 14%;
+          width: 360px;
+          height: 220px;
+          background: linear-gradient(135deg, rgba(30, 73, 226, 0.24), rgba(0, 184, 245, 0.05), transparent 72%);
+          transform: rotate(-12deg);
+        }
+
+        .risk-create-glow-two {
+          right: 5%;
+          top: 28%;
+          width: 420px;
+          height: 250px;
+          background: linear-gradient(135deg, rgba(0, 184, 245, 0.18), rgba(9, 142, 126, 0.09), transparent 72%);
+          transform: rotate(13deg);
+          animation-delay: 1.8s;
+        }
+
+        .risk-create-line {
+          position: absolute;
+          height: 1px;
+          width: 36%;
+          background: linear-gradient(90deg, transparent, rgba(30, 73, 226, 0.18), transparent);
+          animation: riskCreateLinePulse 6s ease-in-out infinite;
+        }
+
+        .risk-create-line-one {
+          left: 6%;
+          top: 34%;
+          transform: rotate(10deg);
+        }
+
+        .risk-create-line-two {
+          right: 5%;
+          top: 58%;
+          transform: rotate(-9deg);
+          animation-delay: 1.2s;
+        }
+
+        .risk-create-track {
+          position: absolute;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(0, 184, 245, 0.18), rgba(30, 73, 226, 0.34), transparent);
+          box-shadow: 0 0 18px rgba(0, 184, 245, 0.12);
+          animation: riskCreateTrackPulse 7.5s ease-in-out infinite;
+        }
+
+        .risk-create-track-1 { left: 8%; top: 24%; width: 38%; transform: rotate(7deg); }
+        .risk-create-track-2 { right: 7%; top: 33%; width: 34%; transform: rotate(-8deg); animation-delay: 900ms; }
+        .risk-create-track-3 { left: 12%; top: 58%; width: 44%; transform: rotate(-5deg); animation-delay: 1.8s; }
+        .risk-create-track-4 { right: 12%; top: 70%; width: 42%; transform: rotate(6deg); animation-delay: 2.6s; }
+        .risk-create-track-5 { left: 30%; top: 86%; width: 46%; transform: rotate(1deg); animation-delay: 3.2s; }
+
+        .risk-create-node {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          border: 1px solid rgba(30, 73, 226, 0.45);
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.68);
+          box-shadow: 0 0 16px rgba(0, 184, 245, 0.28);
+          animation: riskCreateNodePulse 5.2s ease-in-out infinite;
+        }
+
+        .risk-create-node-1 { left: 9%; top: 26%; }
+        .risk-create-node-2 { left: 18%; top: 42%; animation-delay: 300ms; }
+        .risk-create-node-3 { left: 28%; top: 18%; animation-delay: 700ms; }
+        .risk-create-node-4 { left: 39%; top: 63%; animation-delay: 1.1s; }
+        .risk-create-node-5 { left: 48%; top: 33%; animation-delay: 1.5s; }
+        .risk-create-node-6 { left: 57%; top: 79%; animation-delay: 1.9s; }
+        .risk-create-node-7 { left: 68%; top: 22%; animation-delay: 2.3s; }
+        .risk-create-node-8 { left: 82%; top: 47%; animation-delay: 2.7s; }
+        .risk-create-node-9 { left: 90%; top: 74%; animation-delay: 3.1s; }
+        .risk-create-node-10 { left: 15%; top: 81%; animation-delay: 3.5s; }
+        .risk-create-node-11 { left: 34%; top: 88%; animation-delay: 3.9s; }
+        .risk-create-node-12 { left: 73%; top: 86%; animation-delay: 4.3s; }
+        .risk-create-node-13 { left: 88%; top: 18%; animation-delay: 4.7s; }
+        .risk-create-node-14 { left: 6%; top: 60%; animation-delay: 5.1s; }
+
+        .risk-create-glass-field {
+          border-color: rgba(0, 184, 245, 0.20);
+          background: linear-gradient(135deg, rgba(2, 10, 24, 0.92), rgba(12, 35, 60, 0.82));
+          color: #FFFFFF;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 16px 34px -28px rgba(0, 51, 141, 0.65);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+
+        .risk-create-glass-field:focus,
+        .risk-create-glass-field:focus-visible {
+          border-color: rgba(0, 184, 245, 0.62);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.10),
+            0 0 0 3px rgba(0, 184, 245, 0.12),
+            0 18px 38px -30px rgba(0, 51, 141, 0.78);
+        }
+
+        .risk-create-glass-field::placeholder {
+          color: rgba(226, 240, 255, 0.48);
+        }
+
+        .risk-assessment-setup-glass {
+          position: relative;
+          border-color: #D6E0EF;
+          background: #FFFFFF;
+          box-shadow: none;
+        }
+
+        .risk-assessment-setup-glass::before {
+          content: none;
+        }
+
+        .risk-assessment-setup-glass > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-assessment-setup-glass [class*="CommandDeckMetric"],
+        .risk-assessment-setup-glass .rounded-\\[18px\\] {
+          background: #F8FAFD;
+          border-color: #D6E0EF;
+        }
+
+        .risk-ad-hoc-glass-panel,
+        .risk-scope-glass-panel {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.22);
+          background:
+            linear-gradient(135deg, rgba(12, 35, 60, 0.94), rgba(0, 51, 141, 0.74) 56%, rgba(2, 10, 24, 0.88)),
+            rgba(12, 35, 60, 0.82);
+          color: white;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 24px 54px -36px rgba(0, 51, 141, 0.66);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-ad-hoc-glass-panel::before,
+        .risk-scope-glass-panel::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 18% 0%, rgba(0, 184, 245, 0.24), transparent 34%),
+            linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.08), transparent 58%);
+          pointer-events: none;
+        }
+
+        .risk-ad-hoc-glass-panel > *,
+        .risk-scope-glass-panel > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-ad-hoc-glass-panel h2,
+        .risk-scope-glass-panel h2 {
+          color: #FFFFFF;
+        }
+
+        .risk-ad-hoc-glass-panel header p,
+        .risk-scope-glass-panel header p,
+        .risk-ad-hoc-glass-panel .text-\\[13px\\],
+        .risk-scope-glass-panel .text-\\[13px\\],
+        .risk-ad-hoc-glass-panel .text-\\[12px\\],
+        .risk-scope-glass-panel .text-\\[12px\\] {
+          color: rgba(226, 240, 255, 0.74);
+        }
+
+        .risk-ad-hoc-glass-panel button {
+          border: 1px solid rgba(0, 184, 245, 0.26);
+          background: rgba(255, 255, 255, 0.10);
+          color: #FFFFFF;
+          box-shadow: 0 0 22px rgba(0, 184, 245, 0.12);
+        }
+
+        .risk-ad-hoc-glass-panel button:hover {
+          background: rgba(255, 255, 255, 0.16);
+        }
+
+        .risk-scope-glass-panel label {
+          border-color: rgba(0, 184, 245, 0.22);
+          background: rgba(255, 255, 255, 0.10);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        .risk-scope-glass-panel label:hover {
+          background: rgba(255, 255, 255, 0.16);
+        }
+
+        .risk-scope-glass-panel label:has(input:checked) {
+          border-color: rgba(0, 184, 245, 0.52);
+          background: rgba(30, 73, 226, 0.30);
+        }
+
+        .risk-scope-glass-panel label p:first-child {
+          color: #FFFFFF;
+        }
+
+        .risk-scope-glass-panel .bg-\\[\\#FBFCFE\\] {
+          border-color: rgba(0, 184, 245, 0.20);
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(226, 240, 255, 0.78);
+        }
+
+        .risk-summary-scope-glass-panel,
+        .risk-summary-readiness-glass-panel {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 18% 8%, rgba(0, 184, 245, 0.20), transparent 34%),
+            radial-gradient(circle at 88% 0%, rgba(30, 73, 226, 0.22), transparent 30%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: #FFFFFF;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-summary-scope-glass-panel {
+          min-height: 354px;
+        }
+
+        .risk-summary-scope-glass-panel::before,
+        .risk-summary-readiness-glass-panel::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.18), transparent 34%),
+            linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 62%);
+          pointer-events: none;
+        }
+
+        .risk-summary-scope-glass-panel > *,
+        .risk-summary-readiness-glass-panel > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-summary-scope-glass-panel h2,
+        .risk-summary-readiness-glass-panel h2 {
+          color: #FFFFFF;
+        }
+
+        .risk-summary-scope-glass-panel header p,
+        .risk-summary-readiness-glass-panel header p,
+        .risk-summary-scope-glass-panel .text-\\[13px\\],
+        .risk-summary-readiness-glass-panel .text-\\[13px\\],
+        .risk-summary-readiness-glass-panel .text-\\[11px\\],
+        .risk-summary-scope-glass-panel .text-\\[12px\\] {
+          color: rgba(226, 240, 255, 0.76);
+        }
+
+        .risk-summary-scope-glass-panel .rounded-full {
+          border-color: rgba(0, 184, 245, 0.32);
+          background: rgba(255, 255, 255, 0.10);
+          color: #EAF7FF;
+          box-shadow: 0 0 18px rgba(0, 184, 245, 0.12);
+        }
+
+        .risk-summary-scope-glass-panel .border-t {
+          border-color: rgba(0, 184, 245, 0.20);
+        }
+
+        .risk-summary-scope-glass-panel .bg-\\[\\#FBFCFE\\] {
+          border-color: rgba(0, 184, 245, 0.22);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .risk-summary-readiness-glass-panel .bg-\\[\\#F7F9FC\\] {
+          border: 1px solid rgba(0, 184, 245, 0.20);
+          background: rgba(255, 255, 255, 0.08);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .risk-summary-readiness-glass-panel .text-\\[28px\\] {
+          color: #FFFFFF;
+        }
+
+        .risk-summary-readiness-glass-panel .border-\\[\\#F6D3A0\\] {
+          border-color: rgba(234, 170, 0, 0.34);
+          background: rgba(234, 170, 0, 0.12);
+          color: rgba(255, 242, 198, 0.92);
+        }
+
+        .risk-question-answer-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 0;
+          color: #33415C;
+          background: #FFFFFF;
+          border-color: #D6E0EF;
+          box-shadow: none;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .risk-question-answer-button::before {
+          content: none;
+        }
+
+        .risk-question-answer-button--idle:hover {
+          border-color: #1E49E2;
+          background: #F8FBFF;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--yes-selected {
+          border-color: #009A44;
+          color: #007A36;
+          background: #EDFBF5;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--no-selected {
+          border-color: #E5001B;
+          color: #B80016;
+          background: #FEEBED;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button--na-selected {
+          border-color: #8492A6;
+          color: #33415C;
+          background: #F3F6FA;
+          box-shadow: none;
+        }
+
+        .risk-question-answer-button > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-question-answer-button:focus-visible {
+          outline: 2px solid rgba(30, 73, 226, 0.45);
+          outline-offset: 2px;
+        }
+
+        .risk-question-answer-button:active {
+          transform: translateY(1px);
+        }
+
+        .risk-questionnaire-glass-section {
+          background: #FFFFFF;
+          box-shadow: none;
+        }
+
+        .risk-questionnaire-glass-section > button {
+          background: #FFFFFF;
+        }
+
+        .risk-questionnaire-glass-section > div {
+          background: #FFFFFF;
+        }
+
+        .risk-identify-glass-panel,
+        .risk-identified-glass-list {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 18% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 86% 18%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: #FFFFFF;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-identify-glass-panel::before,
+        .risk-identified-glass-list::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-identify-glass-panel > *,
+        .risk-identified-glass-list > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-identify-glass-panel h2,
+        .risk-identify-glass-panel h3,
+        .risk-identify-glass-panel .text-\\[24px\\],
+        .risk-identify-glass-panel .text-\\[13px\\],
+        .risk-identify-glass-panel .text-\\[15px\\] {
+          color: #FFFFFF;
+        }
+
+        .risk-identify-glass-panel p,
+        .risk-identify-glass-panel header p {
+          color: rgba(226, 240, 255, 0.76);
+        }
+
+        .risk-identify-glass-panel .bg-\\[\\#F3F0FF\\] {
+          background: rgba(255, 255, 255, 0.10);
+          color: #ACEAFF;
+          box-shadow: 0 0 24px rgba(0, 184, 245, 0.18);
+        }
+
+        .risk-identify-glass-panel .bg-\\[\\#DCE3EE\\] {
+          background: rgba(255, 255, 255, 0.14);
+        }
+
+        .risk-identify-run-panel .bg-\\[\\#F7F9FC\\] {
+          border: 1px solid rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.94);
+          box-shadow: 0 14px 28px -24px rgba(12, 35, 60, 0.28);
+        }
+
+        .risk-identify-run-panel .text-\\[\\#0C233C\\] {
+          color: #0C233C;
+        }
+
+        .risk-identified-glass-list > .rounded-\\[22px\\],
+        .risk-identified-glass-list > div {
+          border-color: rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 16px 34px -30px rgba(12, 35, 60, 0.32);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+
+        .risk-controls-glass-stage {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 90% 16%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-controls-glass-stage::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-controls-glass-stage > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-controls-risk-panel {
+          border-color: rgba(216, 224, 237, 0.88);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 16px 34px -30px rgba(12, 35, 60, 0.34);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+
+        .risk-controls-risk-panel .bg-\\[\\#FBFCFE\\] {
+          background: rgba(247, 249, 252, 0.92);
+        }
+
+        .risk-control-apply-glass-button {
+          display: inline-flex;
+          min-height: 38px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          border: 1px solid #1E49E2;
+          background: #1E49E2;
+          padding: 0 16px;
+          color: #FFFFFF;
+          font-size: 12px;
+          font-weight: 800;
+          box-shadow: none;
+          transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .risk-control-apply-glass-button:hover {
+          border-color: #00338D;
+          background: #00338D;
+          color: #FFFFFF;
+          box-shadow: none;
+        }
+
+        .risk-control-apply-glass-button:active {
+          transform: translateY(1px);
+        }
+
+        .risk-control-applied-glass-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border-radius: 999px;
+          border: 1px solid #009A44;
+          background: #009A44;
+          padding: 4px 12px;
+          color: #FFFFFF;
+          font-size: 11px;
+          font-weight: 800;
+          box-shadow: none;
+        }
+
+        .risk-residual-glass-stage {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 90% 16%, rgba(30, 73, 226, 0.20), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-residual-glass-stage::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-residual-glass-stage > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-residual-glass-stage > div {
+          background: rgba(255, 255, 255, 0.96);
+          border-color: rgba(216, 224, 237, 0.88);
+        }
+
+        .risk-report-glass-box {
+          position: relative;
+          overflow: hidden;
+          border-color: rgba(0, 184, 245, 0.24);
+          background:
+            radial-gradient(circle at 20% 0%, rgba(0, 184, 245, 0.22), transparent 34%),
+            radial-gradient(circle at 86% 18%, rgba(30, 73, 226, 0.24), transparent 32%),
+            linear-gradient(135deg, rgba(2, 10, 24, 0.94), rgba(0, 51, 141, 0.78) 54%, rgba(12, 35, 60, 0.92));
+          color: rgba(226, 240, 255, 0.80);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 26px 58px -40px rgba(0, 51, 141, 0.78);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+
+        .risk-report-glass-box::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 64%);
+          pointer-events: none;
+        }
+
+        .risk-report-glass-box > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .risk-report-glass-box svg {
+          color: #ACEAFF;
+          filter: drop-shadow(0 0 18px rgba(0, 184, 245, 0.28));
+        }
+
+        .risk-view-report-glass-button {
+          display: inline-flex;
+          min-height: 42px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background:
+            linear-gradient(135deg, rgba(2, 6, 12, 0.94), rgba(14, 18, 26, 0.88) 58%, rgba(0, 0, 0, 0.92));
+          padding: 0 18px;
+          color: #FFFFFF;
+          font-size: 13px;
+          font-weight: 800;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 16px 32px -24px rgba(0, 0, 0, 0.72);
+          transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+        }
+
+        .risk-view-report-glass-button:hover {
+          border-color: rgba(255, 255, 255, 0.32);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 18px 36px -24px rgba(0, 0, 0, 0.82);
+        }
+
+        .risk-view-report-glass-button:active {
+          transform: translateY(1px);
+        }
+
+        @keyframes riskCreateGridDrift {
+          from { background-position: 0 0, 0 0; }
+          to { background-position: 42px 42px, 42px 42px; }
+        }
+
+        @keyframes riskCreateBlueprintShift {
+          from { background-position: 0 0, 0 0; }
+          to { background-position: 86px -42px, -62px 38px; }
+        }
+
+        @keyframes riskCreateSheen {
+          0%, 18% { transform: translateX(-70%); opacity: 0; }
+          42% { opacity: 0.42; }
+          68%, 100% { transform: translateX(70%); opacity: 0; }
+        }
+
+        @keyframes riskCreateGlowFloat {
+          0%, 100% { opacity: 0.34; }
+          50% { opacity: 0.54; }
+        }
+
+        @keyframes riskCreateLinePulse {
+          0%, 100% { opacity: 0.16; }
+          50% { opacity: 0.46; }
+        }
+
+        @keyframes riskCreateTrackPulse {
+          0%, 100% { opacity: 0.12; filter: saturate(1); }
+          50% { opacity: 0.52; filter: saturate(1.45); }
+        }
+
+        @keyframes riskCreateNodePulse {
+          0%, 100% { opacity: 0.24; transform: scale(0.86); }
+          50% { opacity: 0.86; transform: scale(1.18); }
+        }
+    `}</style>
+  );
+}
