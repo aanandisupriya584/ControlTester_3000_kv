@@ -152,7 +152,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                         : `text-[#C8D8F0] hover:bg-white/7 hover:text-white ${collapsed ? "" : "border-l-[3px] border-transparent"}`
                   }`}
                 >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
+                  <tab.icon className="h-4 w-4 flex-shrink-0 z-[100]" />
                   {!collapsed && <span className="flex-1 text-left text-[13px] leading-5">{tab.title}</span>}
                   {!collapsed && tab.badge && !comingSoon && (
                     <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-[#1E49E2] text-white flex-shrink-0">
