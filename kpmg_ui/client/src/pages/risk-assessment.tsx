@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import StatusCard from '../../src/components/custom_ui/cards/StatusCard.tsx';
 import {
   ArrowRight,
+  FileText,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -26,7 +27,7 @@ import {
   Sparkles,
   SearchCheck,
   Trash2,
-  type LucideIcon,
+  type LucideIcon, NotepadText, Layers, ChartSpline, MoveDownRight,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
 import HowItWorks from "@/components/HowItWorks";
@@ -64,6 +65,7 @@ import {
   useRiskAssessment,
 } from "@/contexts/RiskAssessmentContext";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
+import AssessmentProcess from "../components/ui/AssessmentProcess.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -443,44 +445,64 @@ function RiskAssessmentFeatureCards({
 }) {
   const cards = [
     {
-      label: "ACTIVE ASSESSMENTS",
+      label: "Active Assessments",//"ACTIVE ASSESSMENTS",
       value: activeAssessments,
       detail: "Sessions currently progressing",
-      badge: `${totalAssessments} total sessions`,
-      accent: "#00338D",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+      badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
+      badge: `${totalAssessments} added this week `,  //total sessions,
+      accent: "#1E49E2",//"#00338D",
+      badgeClassName: "bg-[#EDFBF5] text-[#009A44]",//"bg-[#EEF2FF] text-[#1E49E2]",
+      icon:NotepadText,
+      iconColor:"text-[#1E49E2]",
+      iconBg:"#E1E5F5"
     },
     {
-      label: "DRAFT ASSESSMENTS",
+      label: "Drafts",//"DRAFTS",
       value: drafts,
       detail: "Waiting to begin questionnaire capture",
-      badge: `${totalAssessments} asset registry applications available`,
+      badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
+      badge: `${totalAssessments} needs your attention`,  //asset registry applications available,
       accent: "#1E49E2",
-      badgeClassName: "bg-[#EDFBF5] text-[#009A44]",
+      badgeClassName: "bg-[#FAF2DE] text-[#F5AD0A]",
+      icon:FileText,
+      iconColor:"text-[#5F5C61]",
+      iconBg:"#E9E8EB"
     },
     {
-      label: "HIGH / CRITICAL RISKS",
+      label: "High Risks",//"HIGH / CRITICAL RISKS",
       value: highCriticalRisks,
       detail: "Across all fetched assessments",
-      badge: `${totalRisks} total recorded risks`,
+      badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
+      badge: `${totalRisks} Critical`,
       accent: "#00B8F5",
-      badgeClassName: "bg-[#FFF9E8] text-[#8A6A00]",
+      badgeClassName: "bg-[#F7E4E5] text-[#E63946]",
+      icon:ShieldAlert,
+      iconColor:" text-[#E63946]",
+      iconBg:"#F7E4E5"
     },
     {
-      label: "TOTAL ASSESSMENTS",
+      label: "Total Assessments",//"TOTAL ASSESSMENTS",
       value: activeAssessments,
       detail: "Includes active, & draft assessments",
-      badge: `${totalRisks} total assessments`,
+      badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
+      badge: `${totalRisks} Across all assessments`,
       accent: "#ACEAFF",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+      badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
+      icon:Layers,
+      iconColor:"text-[#7213EA]",
+      iconBg:"#E6DCF2"
     },
     {
-      label: "TOTAL RISKS",
-      value: totalRisks,
+      label: "Avg Risk Score",//"TOTAL RISKS",
+      value: "Medium",//totalRisks,
       detail: "Risks identified across all assessments",
-      badge: `${totalRisks} total risks identified`,
+      badgeCls:'mt-1 text-[20px] font-bold leading-none tracking-[-0.05em] text-[#FFBB1C]',
+      badge: "Trending down",//`${totalRisks} total risks identified`,
       accent: "#7213EA",
       badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+      icon:ChartSpline,
+      iconColor:"text-[#1E49E2]",
+      iconBg:"#EEF2FF"
     },
     // {
     //   label: "ASSET COUNT",
@@ -497,20 +519,34 @@ function RiskAssessmentFeatureCards({
       {cards.map((card) => (
         <div
           key={card.label}
-          className="relative max-h-[200px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
+          className="relative max-h-[150px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
         >
-          <div className="absolute left-0 right-0 top-0 h-1" style={{ background: card.accent }} />
-          <div className={"min-h-[45px] max-h-[45pxpx] "}>
-            <p className="text-[13px] font-bold uppercase leading-6 tracking-[0.1em] text-[#6D7EA8]">
-              {card.label}
-            </p>
+          {/*<div className="absolute left-0 right-0 top-0 h-1" style={{ background: card.accent }} />*/}
+          <div style={{display:'flex', alignItems:'center', height:'60px'}}>
+            <div style={{padding:'5px', borderRadius:"50%",background:card.iconBg}}>
+             <card.icon className={card.iconColor}/> {/*<NotepadText color={"#1E49E2"} />*/}
+            </div>
+            <div style={{marginLeft:'5px'}}>
+              <div className={"min-h-[30px] max-h-[45pxpx] "}>
+                <p className="text-[13px] font-bold  leading-6 tracking-[0.1em] text-[#6D7EA8]">{/*uppercase*/}
+                  {card.label}
+                </p>
+              </div>
+              <div className={card.badgeCls}>{card.value}</div>
+
+            </div>
           </div>
 
-          <div className="mt-5 text-[30px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]">{card.value}</div>
-          <p className="mt-4 max-w-[100%] text-[11px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>
-          <div className={`mt-1 inline-flex max-w-full rounded-full px-4 py-2 text-[8px] font-bold ${card.badgeClassName}`}>
-            <span className="break-words">{card.badge}</span>
+          <div style={{display:'flex', marginTop:'1rem'}}>
+            <div style={{width:'10px'}}>
+
+            </div>
+          {/*<p className="mt-4 max-w-[100%] text-[11px] leading-[1rem] text-[#5D6FA4]">{card.detail}</p>*/}
+          <div  className={`mt-1 ml-5 inline-flex max-w-full rounded-full px-4 py-2 text-[9px] font-bold ${card.badgeClassName}`} >
+            <span  className="break-words">{card.badge}</span> &nbsp; {card.badge === "Trending down" && <MoveDownRight size={"10px"} />}
           </div>
+        </div>
+
         </div>
       ))}
     </section>
@@ -1474,7 +1510,11 @@ export default function RiskAssessmentPage() {
       ) : null}
 
       <div className="relative z-10">
-        <HeroSubSection title={"Risk Assessment"} subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting." icon={ShieldAlert} />
+        <HeroSubSection title={"Risk Assessment"}
+                        subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting."
+                        icon={ShieldAlert}
+                        actionBtn={'New Assessment'}
+                        actionFn={()=>{}}/>
         {/*<HeroSection*/}
         {/*  title="Risk Assessment"*/}
         {/*  subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting."*/}
@@ -1497,29 +1537,30 @@ export default function RiskAssessmentPage() {
               totalRisks={allRisks.length}
               assetCount={assets.length}
             />
-            <HowItWorks
-                defaultOpen
-                steps={[
-                  {
-                    number: 1,
-                    title: "Create Assessment",
-                    desc: "Start a new assessment and choose the applications or ad hoc systems in scope.",
-                    color: "#1E49E2",
-                  },
-                  {
-                    number: 2,
-                    title: "Answer Questionnaire",
-                    desc: "Capture control and risk responses with evidence notes for each selected asset.",
-                    color: "#098E7E",
-                  },
-                  {
-                    number: 3,
-                    title: "Review Output",
-                    desc: "Validate risks, findings, residual scoring, and the final report.",
-                    color: "#EAAA00",
-                  },
-                ]}
-            />
+            <AssessmentProcess />
+            {/*<HowItWorks*/}
+            {/*    defaultOpen*/}
+            {/*    steps={[*/}
+            {/*      {*/}
+            {/*        number: 1,*/}
+            {/*        title: "Create Assessment",*/}
+            {/*        desc: "Start a new assessment and choose the applications or ad hoc systems in scope.",*/}
+            {/*        color: "#1E49E2",*/}
+            {/*      },*/}
+            {/*      {*/}
+            {/*        number: 2,*/}
+            {/*        title: "Answer Questionnaire",*/}
+            {/*        desc: "Capture control and risk responses with evidence notes for each selected asset.",*/}
+            {/*        color: "#098E7E",*/}
+            {/*      },*/}
+            {/*      {*/}
+            {/*        number: 3,*/}
+            {/*        title: "Review Output",*/}
+            {/*        desc: "Validate risks, findings, residual scoring, and the final report.",*/}
+            {/*        color: "#EAAA00",*/}
+            {/*      },*/}
+            {/*    ]}*/}
+            {/*/>*/}
           </>
         ) : null}
 
