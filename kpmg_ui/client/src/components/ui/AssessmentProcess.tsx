@@ -40,7 +40,7 @@ const AssessmentProcess: React.FC = () => {
             flex-shrink: 0;
             width: 60px;
             height: 2px;
-            background: #d1d5db;
+            background: var(--arrow-color, #d1d5db); /* fallback grey */
             position: relative;
             align-self: center;
             margin: 0 8px;
@@ -52,7 +52,7 @@ const AssessmentProcess: React.FC = () => {
             top: -5px;
             width: 0;
             height: 0;
-            border-left: 8px solid #d1d5db;
+            border-left: 8px solid var(--arrow-color, #d1d5db);
             border-top: 6px solid transparent;
             border-bottom: 6px solid transparent;
           }
@@ -60,26 +60,41 @@ const AssessmentProcess: React.FC = () => {
             </style>
 
             <div style={styles.container}>
-                <h2 style={styles.heading}>Assessment Process</h2>
+                <div style={{height:'2rem', width:'100%', display:'flex', position:'relative'}}>
+                    <div style={styles.heading}>Assessment Process</div>
+                    <div style={{position:'absolute', right:0}}>
+                        <a href="/all-assessments" className="view-all-link">
+                            View all assessments →
+                        </a>
+                    </div>
+                </div>
+
 
                 <div style={styles.stepsRow}>
                     {steps.map((step, index) => (
                         <React.Fragment key={step.id}>
                             <div style={styles.stepBlock}>
-                                <div style={styles.circle}>{step.id}</div>
-                                <h3 style={styles.stepTitle}>{step.title}</h3>
-                                <p style={styles.stepDescription}>{step.description}</p>
+                                <div style={{width:'49px', marginTop:'1rem'}}>
+                                    {step.id<=2?<div style={styles.circle}>{step.id}</div>:<div style={styles.circle2}>{step.id}</div>}
+                                </div>
+                                <div style={{width:'150px', marginLeft:'0.5rem'}}>
+                                    <span style={styles.stepTitle}>{step.title}</span><br/>
+                                    <span style={styles.stepDescription}>{step.description}</span>
+                                </div>
                             </div>
-                            {index < steps.length - 1 && <div className="long-arrow" />}
+                            {index < steps.length - 1 && <div className="long-arrow" style={{
+                                // Example: if step.id === 1, use purple, else default grey
+                                "--arrow-color": step.id === 1 ? "#7213EA" : "#d1d5db",
+                            } as React.CSSProperties}/>}
                         </React.Fragment>
                     ))}
                 </div>
 
-                <div style={styles.footer}>
-                    <a href="#" className="view-all-link">
-                        View all assessments →
-                    </a>
-                </div>
+                {/*<div style={styles.footer}>*/}
+                {/*    <a href="#" className="view-all-link">*/}
+                {/*        View all assessments →*/}
+                {/*    </a>*/}
+                {/*</div>*/}
             </div>
         </>
     );
@@ -88,15 +103,18 @@ const AssessmentProcess: React.FC = () => {
 const styles: { [key: string]: React.CSSProperties } = {
     container: {
         width: "100%",                 // Full width
-        padding: "32px 48px",          // Comfortable side padding
+        padding: "10px 48px",          // Comfortable side padding
         boxSizing: "border-box",
+        borderRadius: '6px',
+        // marginBottom:'1.5rem',
+        paddingBottom:'1.2rem',
         background: "#ffffff",
         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)", // Optional card effect
         fontFamily: "system-ui, -apple-system, sans-serif",
     },
     heading: {
-        fontSize: "2rem",
-        // fontWeight: "600",
+        fontSize: "1.1rem",
+        fontWeight: "600",
         color: "#1a1a2e",
         marginBottom: "32px",
         marginTop: "0",
@@ -108,22 +126,39 @@ const styles: { [key: string]: React.CSSProperties } = {
         gap: "0",
         flexWrap: "wrap",
         width: "100%",
+        marginTop:'1rem'
     },
     stepBlock: {
         flex: "1 1 180px",
         display: "flex",
-        flexDirection: "column",
+        // flexDirection: "column",
         alignItems: "center",
-        textAlign: "center",
+        // textAlign: "center",
         minWidth: "140px",
+        maxWidth:"200px"
     },
     circle: {
         width: "48px",
         height: "48px",
         borderRadius: "50%",
+        background: "#7213EA",//"#eef2ff",
+        color: "#eef2ff",
+        border: "2px solid #7213EA",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: "600",
+        fontSize: "20px",
+        marginBottom: "16px",
+        flexShrink: 0,
+    },
+    circle2: {
+        width: "48px",
+        height: "48px",
+        borderRadius: "50%",
         background: "#eef2ff",
-        color: "#4f46e5",
-        border: "2px solid #4f46e5",
+        color: "#7213EA",
+        border: "2px solid #7213EA",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -133,20 +168,20 @@ const styles: { [key: string]: React.CSSProperties } = {
         flexShrink: 0,
     },
     stepTitle: {
-        fontSize: "18px",
-        fontWeight: "500",
+        fontSize: "0.9rem",
+        // fontWeight: "500",
         color: "#1a1a2e",
         margin: "0 0 6px 0",
     },
     stepDescription: {
-        fontSize: "15px",
+        fontSize: "0.8rem",
         color: "#6b7280",
         margin: "0",
         lineHeight: "1.5",
     },
     footer: {
         marginTop: "40px",
-        borderTop: "1px solid #e5e7eb",
+        // borderTop: "1px solid #e5e7eb",
         paddingTop: "20px",
         textAlign: "right",
     },

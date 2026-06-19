@@ -814,6 +814,7 @@ body, p, span, li {
   min-height: 0;
   overflow: auto;
   padding: 24px;
+  background: #fff;
 }
 
 .trace-page-body--tint {

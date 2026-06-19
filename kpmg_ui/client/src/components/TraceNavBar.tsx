@@ -57,10 +57,10 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
           <Button
             variant="ghost"
             size="sm"
-            className="kpmg-dark-outline-button shrink-0 rounded-full text-xs gap-1.5"
+            className="kpmg-dark-outline-button shrink-0 rounded-full text-xs gap-1.5 ml-3"
             onClick={handleSignOut}
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-3.5 w-3.5 " />
             Sign Out
           </Button>
         </div>

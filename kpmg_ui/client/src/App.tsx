@@ -43,6 +43,8 @@ import DocumentUpliftCasePage from "@/pages/document-uplift-case";
 import { AssetRegistryProvider } from "@/contexts/AssetRegistryContext";
 import { RiskAssessmentProvider } from "@/contexts/RiskAssessmentContext";
 import { IssueManagementProvider } from "@/contexts/IssueManagementContext";
+import RiskReport from "@/pages/RiskAssessment/RiskReport.tsx";
+import ViewAllAssessmentsPage from "@/pages/RiskAssessment/ViewAllRiskAssessment.tsx";
 
 // All pages are kept permanently mounted and CSS-hidden when inactive.
 // This prevents remount on every tab switch, so useEffect runs only once per
@@ -65,6 +67,8 @@ const PAGES = [
   { path: "/issue-management",     Page: IssueManagementPage     },
   { path: "/exception-management", Page: ExceptionManagementPage },
   { path: "/asset-registry",       Page: AssetRegistryPage       },
+  { path: "/risk-report",       Page: RiskReport       },
+  { path: "/all-assessments",  Page:ViewAllAssessmentsPage},
 ] as const;
 
 function Router() {

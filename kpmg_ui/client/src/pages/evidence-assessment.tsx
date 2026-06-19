@@ -305,10 +305,10 @@ export default function EvidenceAssessmentPage() {
     // <div className="h-full flex flex-col">
       <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
       <HeroSubSection title="Final Report" subtitle="Upload evidence files for AI-powered multi-agent risk assessment" icon={Search} />
-      <TracePageBody width="wide">
+      <TracePageBody width="wide"  >
         {!showAgents ? (
           <Card>
-            <CardHeader>
+            <CardHeader >
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Upload Evidence Files
