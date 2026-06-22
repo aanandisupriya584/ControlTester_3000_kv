@@ -120,6 +120,17 @@
    Base
    ================================================================ */
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   background:
     radial-gradient(circle at top right, rgba(30, 73, 226, 0.05), transparent 26%),
@@ -171,6 +182,13 @@ body, p, span, li {
    ================================================================ */
 
 .kpmg-shell {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
   background:
     radial-gradient(circle at top right, rgba(0, 184, 245, 0.04), transparent 22%),
     radial-gradient(circle at bottom left, rgba(0, 51, 141, 0.035), transparent 26%),
@@ -179,7 +197,13 @@ body, p, span, li {
 
 /* ── Sidebar — Dark Navy ── */
 .kpmg-shell-sidebar {
-  position: relative;
+  position: sticky;
+  top: 0;
+  height: 100%;
+  max-height: 100vh;
+  max-height: 100dvh;
+  align-self: flex-start;
+  overflow: hidden;
   background: linear-gradient(180deg, #0c233c 0%, #081a2f 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 8px 0 32px rgba(0, 0, 0, 0.24);
@@ -734,6 +758,9 @@ body, p, span, li {
 }
 
 .trace-shell-main {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at 92% 8%, rgba(30, 73, 226, 0.08), transparent 26%),
     radial-gradient(circle at 12% 90%, rgba(114, 19, 234, 0.05), transparent 24%),
@@ -742,6 +769,9 @@ body, p, span, li {
 
 .trace-shell-canvas {
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .trace-page-hero {
@@ -925,6 +955,7 @@ body, p, span, li {
 }
 
 .trace-footer {
+  flex: 0 0 var(--trace-shell-footer-height);
   height: var(--trace-shell-footer-height);
   min-height: var(--trace-shell-footer-height);
   background: rgba(233, 238, 245, 0.9);

@@ -1562,7 +1562,7 @@ export default function RegulatoryLibraryPage() {
         {/*  icon={Library}*/}
         {/*/>*/}
       <HeroSubSection title={"Regulatory Library"} subtitle="Curate source documents, review obligations, and compare frameworks in one workspace." icon={Library} />
-        <main className="min-h-0 flex-1 overflow-auto px-6 py-6">
+        <main className="mx-auto my-[15px] min-h-0 w-[calc(100%_-_30px)] flex-1 px-6 py-6">
           <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-[#E2E6EF] bg-white p-4 shadow-sm xl:flex-row xl:items-center xl:justify-between">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[2.5px] text-[#00338D]">Feature Workspace</div>

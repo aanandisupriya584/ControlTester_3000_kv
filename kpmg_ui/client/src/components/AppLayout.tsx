@@ -100,7 +100,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="kpmg-shell flex h-screen bg-background">
       <aside
-        className="kpmg-shell-sidebar relative flex-shrink-0 flex flex-col border-r border-border bg-sidebar transition-[width] duration-300 ease-in-out overflow-x-hidden"
+        className="kpmg-shell-sidebar sticky top-0 flex h-full flex-shrink-0 flex-col overflow-x-hidden border-r border-border bg-sidebar transition-[width] duration-300 ease-in-out"
         style={{ width: collapsed ? 68 : 288 }}
       >
         <div
