@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
 import { FileText, ShieldAlert, Layers } from "lucide-react";
-import {processRiskReportData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
+import {
+    processRiskDistribution,
+    processRiskHeatmapData,
+    processRiskReportData
+} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
 import {useRiskAssessment} from "@/contexts/RiskAssessmentContext.tsx";
 import {PdfCodeHelper} from "@/pages/RiskAssessment/PdfCodeHelper.tsx";
+import RiskHeatMap from "@/pages/RiskAssessment/RiskHeatMap.tsx";
+import RiskDistribution from "@/pages/RiskAssessment/RiskDistribution.tsx";
 
 // ===== Types =====
 export interface Risk {
@@ -28,6 +34,9 @@ export interface RiskReportProps {
     draftsCount?: number;
     highRisksCount?: number;
     totalAssessmentsCount?: number;
+    heatmapData?: any; // Define a proper type based on your heatmap data structure
+    totalAssessments?:any;
+    riskItems?:any;
 }
 
 // ===== SummaryCards Component =====
@@ -195,6 +204,9 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                                                    draftsCount = 0,
                                                    highRisksCount = 0,
                                                    totalAssessmentsCount = 0,
+                                                       heatmapData,
+                                                       totalAssessments,
+                                                       riskItems,
                                                }) => {
     const [sortField, setSortField] = useState<keyof Risk>("riskClass");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -432,6 +444,17 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                             </tbody>
                         </table>
                     </div>
+                    <div className={'grid grid-cols-2 mt-2 gap-10'}>
+                        <div className={'w-full'}>
+                            <RiskHeatMap data={heatmapData}  />
+                        </div>
+                        <div className={'w-full'}>
+                            <RiskDistribution
+                                riskItems={riskItems}
+                                totalAssessments={totalAssessments}
+                                />
+                        </div>
+                    </div>
 
                     {/* Footer note */}
                     <div className="mt-4 text-xs text-gray-400 text-center">
@@ -447,13 +470,19 @@ const RiskReport:any=()=>{
     const {
         assessments,
     } = useRiskAssessment();
+    const { totalAssessments, riskItems } = processRiskDistribution(assessments);
+    const heatmapData = processRiskHeatmapData(assessments);
     const { risks, draftsCount, highRisksCount, totalAssessmentsCount } =
         processRiskReportData(assessments);
+
     return  <RiskReportPage
         risks={risks}
         draftsCount={draftsCount}
         highRisksCount={highRisksCount}
         totalAssessmentsCount={totalAssessmentsCount}
+        heatmapData={heatmapData}
+        totalAssessments={totalAssessments}
+        riskItems={riskItems}
         // title, backLink optional
     />
 }

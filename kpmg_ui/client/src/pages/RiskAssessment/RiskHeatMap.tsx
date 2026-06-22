@@ -23,7 +23,7 @@ export interface RiskHeatmapProps {
         text: string;
         href: string;
     };
-    setRiskHeatMap: (value: boolean) => void;
+    setRiskHeatMap?: (value: boolean) => void;
 }
 
 // ===== Dummy Data =====
@@ -201,7 +201,7 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
             {subtitle && (
                 <p className="text-xs sm:text-sm text-gray-500">{subtitle}</p>
             )}
-            {footerLink && (
+            {footerLink && setRiskHeatMap! && (
                 <div className=" ">
                     <a
                         href={footerLink.href}
@@ -265,14 +265,14 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
             </div>
 
             {/* Footer link - back to Risk Distribution */}
-            <div className="w-[120px]" onClick={() => setRiskHeatMap(true)}>
+            {setRiskHeatMap! && <div className="w-[120px]" onClick={() => setRiskHeatMap(true)}>
                 <a
                     href="#"
                     className="text-indigo-600 hover:text-indigo-800 hover:underline text-xs sm:text-sm font-medium"
                 >
                     ← Risk Distribution
                 </a>
-            </div>
+            </div>}
         </div>
     );
 };

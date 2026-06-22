@@ -7,14 +7,14 @@ interface RiskItem {
     barColor: string; // Tailwind background colour class
     textColor: string; // Tailwind text colour class for percentage
 }
-interface RiskDistributionProps {
-    setRiskHeatMap: (value: boolean) => void;   // <-- add this
-}
+// interface RiskDistributionProps {
+//     setRiskHeatMap: (value: boolean) => void;   // <-- add this
+// }
 
 interface RiskDistributionProps {
     riskItems: RiskItem[];          // processed data
     totalAssessments: number;       // total number of assessments
-    setRiskHeatMap: (value: boolean) => void;
+    setRiskHeatMap?: (value: boolean) => void;
 }
 const RiskDistribution: React.FC<RiskDistributionProps> = ({riskItems, totalAssessments,setRiskHeatMap }) => {
     // const risks: RiskItem[] = [
@@ -66,7 +66,7 @@ const RiskDistribution: React.FC<RiskDistributionProps> = ({riskItems, totalAsse
             </div>
 
             {/* Footer link */}
-            <div className="mt-5 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
+            {setRiskHeatMap! && <div className="mt-5 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
                 <a
                     href="#"
                     onClick={(e)=>{setRiskHeatMap(false)}}
@@ -74,7 +74,7 @@ const RiskDistribution: React.FC<RiskDistributionProps> = ({riskItems, totalAsse
                 >
                     View risk heatmap →
                 </a>
-            </div>
+            </div>}
         </div>
     );
 };
