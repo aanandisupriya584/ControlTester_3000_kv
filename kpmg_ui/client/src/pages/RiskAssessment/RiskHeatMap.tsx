@@ -26,45 +26,7 @@ export interface RiskHeatmapProps {
     setRiskHeatMap: (value: boolean) => void;
 }
 
-// ===== Dummy Data (used as fallback) =====
-// const dummyData: HeatmapCell[][] = [
-//     [
-//         { count: 2, riskClass: "Low" },
-//         { count: 1, riskClass: "Low" },
-//         { count: 0, riskClass: "Medium" },
-//         { count: 0, riskClass: "High" },
-//         { count: 0, riskClass: "Very High" },
-//     ],
-//     [
-//         { count: 3, riskClass: "Low" },
-//         { count: 2, riskClass: "Medium" },
-//         { count: 1, riskClass: "Medium" },
-//         { count: 0, riskClass: "High" },
-//         { count: 0, riskClass: "Very High" },
-//     ],
-//     [
-//         { count: 1, riskClass: "Medium" },
-//         { count: 3, riskClass: "Medium" },
-//         { count: 2, riskClass: "High" },
-//         { count: 1, riskClass: "Very High" },
-//         { count: 0, riskClass: "Very High" },
-//     ],
-//     [
-//         { count: 0, riskClass: "Medium" },
-//         { count: 2, riskClass: "High" },
-//         { count: 3, riskClass: "Very High" },
-//         { count: 2, riskClass: "Very High" },
-//         { count: 1, riskClass: "Very High" },
-//     ],
-//     [
-//         { count: 0, riskClass: "High" },
-//         { count: 1, riskClass: "Very High" },
-//         { count: 2, riskClass: "Very High" },
-//         { count: 3, riskClass: "Very High" },
-//         { count: 2, riskClass: "Very High" },
-//     ],
-// ];
-
+// ===== Dummy Data =====
 const dummyData: HeatmapCell[][] = [
     [
         { count: 0, riskClass: "Low" },
@@ -102,24 +64,6 @@ const dummyData: HeatmapCell[][] = [
         { count: 0, riskClass: "Very High" },
     ],
 ];
-// const dummyLikelihoodLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
-// const dummyImpactLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
-
-// const dummyLikelihoodLabels = [
-//     "Rare",
-//     "Unlikely",
-//     "Possible",
-//     "Likely",
-//     "Almost Certain"
-// ];
-//
-// const dummyImpactLabels = [
-//     "Insignificant",
-//     "Minor",
-//     "Moderate",
-//     "Major",
-//     "Severe"
-// ];
 
 const dummyLikelihoodLabels = [
     "Rare",
@@ -136,13 +80,6 @@ const dummyImpactLabels = [
     "Major",
     "Severe",
 ];
-
-// const dummyRiskMapping = {
-//     Low: { label: "Low", bgColor: "bg-green-300", textColor: "text-green-800" },
-//     Medium: { label: "Medium", bgColor: "bg-yellow-300", textColor: "text-yellow-800" },
-//     High: { label: "High", bgColor: "bg-orange-300", textColor: "text-orange-800" },
-//     "Very High": { label: "Very High", bgColor: "bg-red-400", textColor: "text-red-900" },
-// };
 
 const dummyRiskMapping = {
     Low: {
@@ -178,6 +115,17 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
                                                      footerLink = { text: "View full report →", href: "/risk-report" },
                                                      setRiskHeatMap,
                                                  }) => {
+    // ✅ Helper to safely access the mapping with a fallback
+    const getMapping = (cls: string) => {
+        // Use 'as any' to bypass index signature error; we know the object is valid
+        const mapping = (riskClassMapping as any)[cls];
+        return mapping || {
+            label: cls || "Unknown",
+            bgColor: "bg-gray-200",
+            textColor: "text-gray-800",
+        };
+    };
+
     // If no data or empty, show message
     if (!data || data.length === 0) {
         return (
@@ -196,7 +144,7 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
         }
         return newRow;
     });
-console.log("data",data)
+
     // Unique risk classes for legend
     const allClasses = new Set<string>();
     normalizedData.forEach((row) =>
@@ -218,18 +166,28 @@ console.log("data",data)
 
     return (
         <div className="w-full bg-white rounded-lg mt-5 shadow-md p-4 sm:p-6 h-[380px]">
-            <div style={{display:'flex', alignItems:'center', height:'2rem', position:'relative'}}>
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    height: "2rem",
+                    position: "relative",
+                }}
+            >
                 <h3 className="text-base sm:text-xl font-semibold text-gray-900 mb-1">
-                {title}
-            </h3>
+                    {title}
+                </h3>
                 {/* Legend */}
                 {sortedClasses.length > 0 && (
-                    <div className=" flex flex-wrap items-center gap-x-4 gap-y-2 justify-center sm:justify-start" style={{position:'absolute', right:0, top:0}}>
+                    <div
+                        className="flex flex-wrap items-center gap-x-4 gap-y-2 justify-center sm:justify-start"
+                        style={{ position: "absolute", right: 0, top: 0 }}
+                    >
                         <span className="text-xs text-gray-600 mr-1">Risk Level:</span>
                         {sortedClasses.map((cls) => {
-                            const mapping = riskClassMapping[cls];
-                            const bgColor = mapping?.bgColor || "bg-gray-200";
-                            const label = mapping?.label || cls;
+                            const mapping = getMapping(cls);
+                            const bgColor = mapping.bgColor;
+                            const label = mapping.label;
                             return (
                                 <div key={cls} className="flex items-center gap-1">
                                     <div className={`w-4 h-4 ${bgColor} rounded-sm`} />
@@ -241,7 +199,7 @@ console.log("data",data)
                 )}
             </div>
             {subtitle && (
-                <p className="text-xs sm:text-sm text-gray-500 ">{subtitle}</p>
+                <p className="text-xs sm:text-sm text-gray-500">{subtitle}</p>
             )}
             {footerLink && (
                 <div className=" ">
@@ -280,26 +238,21 @@ console.log("data",data)
                             </div>
 
                             {row.map((cell, colIdx) => {
-                                const mapping = riskClassMapping[cell.riskClass];
-                                const bgColor = mapping?.bgColor || "bg-gray-200";
-                                const textColor = mapping?.textColor || "text-gray-800";
-                                const displayLabel = mapping?.label || cell.riskClass || "Unknown";
+                                const mapping = getMapping(cell.riskClass);
+                                const bgColor = mapping.bgColor;
+                                const textColor = mapping.textColor;
+                                const displayLabel = mapping.label;
 
                                 return (
                                     <div
                                         key={`${rowIdx}-${colIdx}`}
                                         className={`${bgColor} rounded-md p-1 sm:p-2 text-center transition-colors relative group`}
                                     >
-                                         <span
-                                             className={`text-xs sm:text-sm font-bold ${textColor} inline-block min-w-[16px]`}
-                                         >
-                                {cell.count > 0 ? cell.count : ""}
-                            </span>
-                      {/*                  {cell.count > 0 && (*/}
-                      {/*                      <span className={`text-xs sm:text-sm font-bold ${textColor}`}>*/}
-                      {/*  {cell.count}*/}
-                      {/*</span>*/}
-                      {/*                  )}*/}
+                    <span
+                        className={`text-xs sm:text-sm font-bold ${textColor} inline-block min-w-[16px]`}
+                    >
+                      {cell.count > 0 ? cell.count : ""}
+                    </span>
                                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                                             {displayLabel} risk {cell.count > 0 && `(${cell.count})`}
                                         </div>
@@ -311,15 +264,13 @@ console.log("data",data)
                 </div>
             </div>
 
-
-
-            {/* Footer link */}
-            <div className="w-[120px]" onClick={()=>{setRiskHeatMap(true)}}>
+            {/* Footer link - back to Risk Distribution */}
+            <div className="w-[120px]" onClick={() => setRiskHeatMap(true)}>
                 <a
-                 href={'#'}
+                    href="#"
                     className="text-indigo-600 hover:text-indigo-800 hover:underline text-xs sm:text-sm font-medium"
                 >
-                   ← Risk Distribution
+                    ← Risk Distribution
                 </a>
             </div>
         </div>

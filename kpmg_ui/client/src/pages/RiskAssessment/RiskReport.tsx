@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
 import { FileText, ShieldAlert, Layers } from "lucide-react";
+import {processRiskReportData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
+import {useRiskAssessment} from "@/contexts/RiskAssessmentContext.tsx";
+import {PdfCodeHelper} from "@/pages/RiskAssessment/PdfCodeHelper.tsx";
 
 // ===== Types =====
 export interface Risk {
@@ -42,7 +45,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
     const cards = [
         {
             label: "Total Risks",
-            value: 6,//totalAssessments,
+            value: totalAssessments,//totalAssessments,
             detail: "Includes active & draft assessments",
             badge: `${totalAssessments} total`,
             badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
@@ -50,7 +53,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
             iconColor: "text-[#7213EA]",
             iconBg: "#E6DCF2",
         }, {
-            label: "Medium Risks",
+            label: "Drafts",
             value: drafts,
             detail: "Waiting to begin questionnaire capture",
             badge: `${drafts} needs your attention`,
@@ -185,7 +188,7 @@ const dummyRisks: Risk[] = [
 ];
 
 // ===== RiskReport Component =====
-const RiskReport: React.FC<RiskReportProps> = ({
+const RiskReportPage: React.FC<RiskReportProps> = ({
                                                    risks = dummyRisks,
                                                    title = "Risk Report",
                                                    backLink = { text: "← Back", href: "/risk-assessment" },
@@ -227,7 +230,15 @@ const RiskReport: React.FC<RiskReportProps> = ({
         }
         return 0;
     });
-
+    const handleDownloadPDF = () => {
+        PdfCodeHelper(
+            risks,                 // your risk array
+            risks.length,          // total risks (or use totalAssessmentsCount if you want)
+            draftsCount,
+            highRisksCount,
+            title
+        );
+    };
     // Export functions
     const exportCSV = () => {
         const headers = [
@@ -334,6 +345,7 @@ const RiskReport: React.FC<RiskReportProps> = ({
                                 ⬇ Export CSV
                             </button>
                             <button
+                                // onClick={handleDownloadPDF}
                                 onClick={printReport}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                             >
@@ -376,10 +388,18 @@ const RiskReport: React.FC<RiskReportProps> = ({
                             {sortedRisks.map((risk) => (
                                 <tr key={risk.id} className="hover:bg-gray-50 transition">
                                     <td className="px-4 py-3 text-sm text-gray-500">{risk.id}</td>
+                                    {/*<td className="px-4 py-3 text-sm font-medium text-gray-900">*/}
+                                    {/*    {risk.name}*/}
+                                    {/*    {risk.description && (*/}
+                                    {/*        <div className="text-xs text-gray-400 truncate max-w-xs">*/}
+                                    {/*            {risk.description}*/}
+                                    {/*        </div>*/}
+                                    {/*    )}*/}
+                                    {/*</td>*/}
                                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                                         {risk.name}
                                         {risk.description && (
-                                            <div className="text-xs text-gray-400 truncate max-w-xs">
+                                            <div className="text-xs text-gray-400 whitespace-normal break-words">
                                                 {risk.description}
                                             </div>
                                         )}
@@ -423,4 +443,18 @@ const RiskReport: React.FC<RiskReportProps> = ({
     );
 };
 
+const RiskReport:any=()=>{
+    const {
+        assessments,
+    } = useRiskAssessment();
+    const { risks, draftsCount, highRisksCount, totalAssessmentsCount } =
+        processRiskReportData(assessments);
+    return  <RiskReportPage
+        risks={risks}
+        draftsCount={draftsCount}
+        highRisksCount={highRisksCount}
+        totalAssessmentsCount={totalAssessmentsCount}
+        // title, backLink optional
+    />
+}
 export default RiskReport;

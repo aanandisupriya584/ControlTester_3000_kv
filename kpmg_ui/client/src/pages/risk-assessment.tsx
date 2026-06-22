@@ -75,7 +75,7 @@ import RecentRiskTable, { Assessment } from "@/pages/RiskAssessment/RecentRiskTa
 import {
   AssessmentTableRow,
   buildHeatMapData,
-  mapAssessmentsToTableData, processRiskDistribution
+  mapAssessmentsToTableData, processRiskDistribution, processRiskHeatmapData
 } from "@/pages/RiskAssessment/helper/HelperFn.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1257,6 +1257,10 @@ export default function RiskAssessmentPage() {
 
   const { totalAssessments, riskItems } = processRiskDistribution(assessments);
 
+  // ... fetch assessments from API ...
+
+  const heatmapData = processRiskHeatmapData(assessments);
+
   useEffect(() => {
     fetchAssessments();
     fetchAssets();
@@ -1990,7 +1994,8 @@ export default function RiskAssessmentPage() {
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.3 }}
                     >
-                      <RiskHeatMap data={heatMapData} setRiskHeatMap={setRiskHeatMapBoolean} />
+                      <RiskHeatMap data={heatmapData} setRiskHeatMap={setRiskHeatMapBoolean} />
+                      {/*data={heatMapData}*/}
                     </motion.div>}
                 </AnimatePresence>
               </div>
