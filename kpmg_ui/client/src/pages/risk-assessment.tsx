@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocation } from "wouter";
+import { AnimatePresence, motion } from 'framer-motion';
 import StatusCard from '../../src/components/custom_ui/cards/StatusCard.tsx';
 import {
   ArrowRight,
@@ -51,7 +52,7 @@ import RiskAssessmentWorkspace from "@/pages/RiskAssessment/components/RiskAsses
 import ApplyControlToRiskPage from "@/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage";
 import IdentifyRiskPage from "@/pages/RiskAssessment/components/workflow/IdentifyRiskPage";
 import RiskAssessmentReport from "@/pages/RiskAssessment/components/workflow/RiskAssessmentReport";
-import "@/styles/RiskAssessmentStyles.css";
+import RiskAssessmentStyles from "@/pages/RiskAssessment/components/RiskAssessmentStyles";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
 import {
@@ -71,6 +72,7 @@ import RiskDistribution from "@/pages/RiskAssessment/RiskDistribution.tsx";
 import RiskHeatMap from "@/pages/RiskAssessment/RiskHeatMap.tsx";
 import RiskReport from "@/pages/RiskAssessment/RiskReport.tsx";
 import RecentRiskTable, { Assessment } from "@/pages/RiskAssessment/RecentRiskTable.tsx";
+import {buildHeatMapData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -124,25 +126,8 @@ const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
 );
 
 function workflowSlugFromLocation(location: string) {
-  const pathname = location.split("?")[0] ?? "";
-  const pathParts = pathname.split("/").filter(Boolean);
-  if (pathParts[0] === "risk-assessment") {
-    const directStep = pathParts[1];
-    if (directStep === "new") return "create";
-    if (directStep && WORKFLOW_STEP_BY_SLUG[directStep]) return directStep;
-  }
-
   const query = location.split("?")[1] ?? "";
   return new URLSearchParams(query).get("step");
-}
-
-function isCreateRoute(location: string) {
-  const pathname = location.split("?")[0] ?? "";
-  return pathname === "/risk-assessment/new" || pathname === "/risk-assessment/create";
-}
-
-function workflowPathForLabel(label: WorkflowStepLabel) {
-  return `/risk-assessment/${WORKFLOW_STEP_BY_LABEL[label].slug}`;
 }
 
 function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
@@ -178,6 +163,16 @@ const SOFT_BUTTON =
 interface LocalAnswer {
   answer: AnswerType;
   details: string;
+}
+
+interface AssessmentTableRow {
+  id: string;
+  name: string;
+  application: string;
+  status: 'Draft' | 'In Progress' | 'Review' | 'Completed';
+  riskScore: 'Low' | 'Medium' | 'High';
+  lastUpdated: string;
+  owner: string;
 }
 
 function statusToStep(status: RiskAssessment["status"]) {
@@ -239,6 +234,61 @@ function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): Wo
   if (status === "draft") return "Assets";
   return "Create";
 }
+const mapAssessmentsToTableData = (
+    assessments: any[]
+): AssessmentTableRow[] => {
+  return assessments.map((assessment) => {
+    const risks = assessment.risks || [];
+
+    const highestRisk =
+        risks.length > 0
+            ? risks.reduce(
+                (max:any, risk:any) =>
+                    risk.inherent_risk_score > max.inherent_risk_score ? risk : max,
+                risks[0]
+            )
+            : null;
+
+    const riskBand =
+        highestRisk?.inherent_risk_band?.toLowerCase() || 'low';
+
+    return {
+      id: assessment.id,
+
+      // Assessment Name
+      name: assessment.title || 'Untitled Assessment',
+
+      // Number of applications/assets
+      application: `${assessment.asset_ids?.length || 0} Application(s)`,
+
+      // Status mapping
+      status:
+          assessment.status === 'draft'
+              ? 'Draft'
+              : assessment.status === 'complete'
+                  ? 'Completed'
+                  : assessment.status === 'review'
+                      ? 'Review'
+                      : 'In Progress',
+
+      // Highest risk found in assessment
+      riskScore:
+          riskBand === 'high'
+              ? 'High'
+              : riskBand === 'medium'
+                  ? 'Medium'
+                  : 'Low',
+
+      // Last updated
+      lastUpdated: new Date(
+          assessment.updated_at
+      ).toLocaleDateString(),
+
+      // Owner not available in API
+      owner: '-'
+    };
+  });
+};
 
 function StepPill({
   label,
@@ -1132,7 +1182,7 @@ export default function RiskAssessmentPage() {
   const { assets, fetchAssets } = useAssetRegistry();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
-  const isCreatePage = isCreateRoute(location);
+  const isCreatePage = location === "/risk-assessment/new";
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
@@ -1190,6 +1240,7 @@ export default function RiskAssessmentPage() {
     integrity: 3,
     availability: 3,
   });
+  {console.log("assessments -> ",assessments)}
   const [qaAssetIdx, setQaAssetIdx] = useState(0);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, Record<string, Record<string, LocalAnswer>>>>({});
@@ -1231,6 +1282,15 @@ export default function RiskAssessmentPage() {
     if (wizardStep !== 5 || !selectedAssessment) return;
     fetchResidual(selectedAssessment.id).catch(() => {});
   }, [fetchResidual, selectedAssessment, wizardStep]);
+
+  const tableData = useMemo<AssessmentTableRow[]>(
+      () => mapAssessmentsToTableData(assessments),
+      [assessments]
+  );
+  const heatMapData = useMemo(
+      () => buildHeatMapData(assessments),
+      [assessments]
+  );
 
   const selectedHighRisks = selectedAssessment
     ? selectedAssessment.risks.filter(
@@ -1306,7 +1366,7 @@ export default function RiskAssessmentPage() {
     }
     setWizardStep(nextStep);
     if (pushHistory) {
-      setLocation(workflowPathForLabel(label));
+      setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
     }
   }
 
@@ -1396,7 +1456,7 @@ export default function RiskAssessmentPage() {
       });
       selectAssessment(assessment);
       setShowCreate(false);
-      setLocation(workflowPathForLabel("Assets"));
+      setLocation("/risk-assessment?step=assets");
       setWizardStep(statusToStep(assessment.status));
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
@@ -1446,7 +1506,7 @@ export default function RiskAssessmentPage() {
         setExpandedSection(sections[0]?.id ?? null);
         toast({ title: "Responses saved for this application" });
       } else {
-        setLocation(workflowPathForLabel("Risk Review"));
+        setLocation("/risk-assessment?step=risk-review");
         setWizardStep(2);
         toast({ title: "All responses submitted. Starting analysis." });
       }
@@ -1492,7 +1552,7 @@ export default function RiskAssessmentPage() {
 
   function openCreate() {
     // Route the create icon to the dedicated create URL while showing the existing setup dialog.
-    setLocation(workflowPathForLabel("Create"));
+    setLocation("/risk-assessment/new");
     setShowCreate(true);
     selectAssessment(null);
     setWizardStep(0);
@@ -1519,7 +1579,7 @@ export default function RiskAssessmentPage() {
     selectAssessment(assessment);
     const nextStep = statusToStep(assessment.status);
     const nextLabel = workflowLabelForAssessmentStatus(assessment.status);
-    setLocation(workflowPathForLabel(nextLabel));
+    setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
     setWizardStep(nextStep);
     setQaAssetIdx(0);
     setExpandedSection(sections[0]?.id ?? null);
@@ -1899,12 +1959,50 @@ export default function RiskAssessmentPage() {
             {/*</div>*/}
             <div className="grid grid-cols-2 gap-4">
               <div><RecentActivity /></div>
-              <div>{riskHeatMapBoolean?<RiskDistribution setRiskHeatMap={setRiskHeatMapBoolean}/>:<RiskHeatMap setRiskHeatMap={setRiskHeatMapBoolean} />}</div>
+              <div className="relative">
+                <AnimatePresence mode="wait">
+                {riskHeatMapBoolean?
+                    <motion.div
+                        key="heatmap"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                      <RiskDistribution setRiskHeatMap={setRiskHeatMapBoolean}/>
+                    </motion.div>:
+                    <motion.div
+                        key="distribution"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                      <RiskHeatMap data={heatMapData} setRiskHeatMap={setRiskHeatMapBoolean} />
+                    </motion.div>}
+                </AnimatePresence>
+              </div>
 
             </div>
             <div className={"mt-4 grid grid-cols-1"}>
-              <RecentRiskTable title="Recent Risks" assessments={sampleData} />
+              <RecentRiskTable assessments={tableData} title={""} />
             </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             {/*<div className="flex flex-wrap gap-2">*/}
               {/* Left column */}
@@ -1948,6 +2046,7 @@ export default function RiskAssessmentPage() {
 
 
       </main>
+      <RiskAssessmentStyles />
     </div>
   );
 }

@@ -42,18 +42,18 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
     const cards = [
         {
             label: "Total Risks",
-            value: 6, //totalAssessments,
+            value: 6,//totalAssessments,
             detail: "Includes active & draft assessments",
-            badge: `6 total`,//`${totalAssessments} total`,
+            badge: `${totalAssessments} total`,
             badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
             icon: Layers,
             iconColor: "text-[#7213EA]",
             iconBg: "#E6DCF2",
         }, {
             label: "Medium Risks",
-            value: 2,//drafts,
+            value: drafts,
             detail: "Waiting to begin questionnaire capture",
-            badge: `2 needs your attention`,//`${drafts} needs your attention`,
+            badge: `${drafts} needs your attention`,
             badgeClassName: "bg-[#FAF2DE] text-[#F5AD0A]",
             icon: FileText,
             iconColor: "text-[#5F5C61]",
@@ -61,9 +61,9 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
         },
         {
             label: "High Risks",
-            value: 4,//highRisks,
+            value: highRisks,
             detail: "Across all fetched assessments",
-            badge: `4 Critical`,//`${highRisks} Critical`,
+            badge: `${highRisks} Critical`,
             badgeClassName: "bg-[#F7E4E5] text-[#E63946]",
             icon: ShieldAlert,
             iconColor: "text-[#E63946]",
@@ -329,13 +329,13 @@ const RiskReport: React.FC<RiskReportProps> = ({
                         <div className="flex gap-2">
                             <button
                                 onClick={exportCSV}
-                                className="px-4 py-2 bg-[#1E49E2] text-white rounded-md hover:bg-[#022569] text-sm font-medium"
+                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                             >
                                 ⬇ Export CSV
                             </button>
                             <button
                                 onClick={printReport}
-                                className="px-4 py-2 bg-[#022569] text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                             >
                                 🖨 Print / PDF
                             </button>

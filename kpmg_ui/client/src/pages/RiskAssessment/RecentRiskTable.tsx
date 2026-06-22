@@ -22,6 +22,7 @@ interface AssessmentsCardProps {
     onDelete?: (id: string) => void;
 }
 
+
 // ------------------------------
 // 2. Badge style helpers
 // ------------------------------
@@ -308,7 +309,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                     </td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.lastUpdated}</td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.owner}</td>
-                                    <td className="px-4 sm:px-6 py-3 text-right relative">
+                                    <td className="px-4 sm:px-6 py-3 text-right ">
                                         {/* Action button */}
                                         <button
                                             onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}
@@ -324,7 +325,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                         {openActionId === item.id && (
                                             <div
                                                 ref={(el) => (actionRefs.current[item.id] = el)}
-                                                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-30 text-left"
+                                                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[9999] text-left"
                                             >
                                                 <button
                                                     onClick={() => handleAction('view', item.id)}

@@ -838,7 +838,7 @@
                         <p className="text-[13px] text-[#7388A8]">Calculating residual risk.</p>
                       </div>
                     )}
-                  </SurfaceSection>
+                  </SurfaceSection>assessments
                 ) : null}
 
                 {wizardStep === 6 ? (

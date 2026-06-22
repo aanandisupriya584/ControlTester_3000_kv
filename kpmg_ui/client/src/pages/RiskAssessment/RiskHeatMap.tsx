@@ -6,20 +6,17 @@ export interface HeatmapCell {
     riskClass: string;
 }
 
-type RiskClassMapping = Record<
-    string,
-    {
-        label: string;
-        bgColor: string;
-        textColor?: string;
-    }
->;
-
 export interface RiskHeatmapProps {
     data?: HeatmapCell[][];
     likelihoodLabels?: string[];
     impactLabels?: string[];
-    riskClassMapping?: RiskClassMapping;
+    riskClassMapping?: {
+        [key: string]: {
+            label: string;
+            bgColor: string;
+            textColor?: string;
+        };
+    };
     title?: string;
     subtitle?: string;
     footerLink?: {
@@ -30,52 +27,144 @@ export interface RiskHeatmapProps {
 }
 
 // ===== Dummy Data (used as fallback) =====
+// const dummyData: HeatmapCell[][] = [
+//     [
+//         { count: 2, riskClass: "Low" },
+//         { count: 1, riskClass: "Low" },
+//         { count: 0, riskClass: "Medium" },
+//         { count: 0, riskClass: "High" },
+//         { count: 0, riskClass: "Very High" },
+//     ],
+//     [
+//         { count: 3, riskClass: "Low" },
+//         { count: 2, riskClass: "Medium" },
+//         { count: 1, riskClass: "Medium" },
+//         { count: 0, riskClass: "High" },
+//         { count: 0, riskClass: "Very High" },
+//     ],
+//     [
+//         { count: 1, riskClass: "Medium" },
+//         { count: 3, riskClass: "Medium" },
+//         { count: 2, riskClass: "High" },
+//         { count: 1, riskClass: "Very High" },
+//         { count: 0, riskClass: "Very High" },
+//     ],
+//     [
+//         { count: 0, riskClass: "Medium" },
+//         { count: 2, riskClass: "High" },
+//         { count: 3, riskClass: "Very High" },
+//         { count: 2, riskClass: "Very High" },
+//         { count: 1, riskClass: "Very High" },
+//     ],
+//     [
+//         { count: 0, riskClass: "High" },
+//         { count: 1, riskClass: "Very High" },
+//         { count: 2, riskClass: "Very High" },
+//         { count: 3, riskClass: "Very High" },
+//         { count: 2, riskClass: "Very High" },
+//     ],
+// ];
+
 const dummyData: HeatmapCell[][] = [
     [
-        { count: 2, riskClass: "Low" },
-        { count: 1, riskClass: "Low" },
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Medium" },
+        { count: 0, riskClass: "Medium" },
+    ],
+    [
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Medium" },
         { count: 0, riskClass: "Medium" },
         { count: 0, riskClass: "High" },
-        { count: 0, riskClass: "Very High" },
     ],
     [
-        { count: 3, riskClass: "Low" },
-        { count: 2, riskClass: "Medium" },
-        { count: 1, riskClass: "Medium" },
+        { count: 0, riskClass: "Low" },
+        { count: 0, riskClass: "Medium" },
+        { count: 0, riskClass: "Medium" },
         { count: 0, riskClass: "High" },
-        { count: 0, riskClass: "Very High" },
+        { count: 0, riskClass: "High" },
     ],
     [
-        { count: 1, riskClass: "Medium" },
-        { count: 3, riskClass: "Medium" },
-        { count: 2, riskClass: "High" },
-        { count: 1, riskClass: "Very High" },
+        { count: 0, riskClass: "Medium" },
+        { count: 0, riskClass: "Medium" },
+        { count: 0, riskClass: "High" },
+        { count: 0, riskClass: "High" },
         { count: 0, riskClass: "Very High" },
     ],
     [
         { count: 0, riskClass: "Medium" },
-        { count: 2, riskClass: "High" },
-        { count: 3, riskClass: "Very High" },
-        { count: 2, riskClass: "Very High" },
-        { count: 1, riskClass: "Very High" },
-    ],
-    [
         { count: 0, riskClass: "High" },
-        { count: 1, riskClass: "Very High" },
-        { count: 2, riskClass: "Very High" },
-        { count: 3, riskClass: "Very High" },
-        { count: 2, riskClass: "Very High" },
+        { count: 0, riskClass: "High" },
+        { count: 0, riskClass: "Very High" },
+        { count: 0, riskClass: "Very High" },
     ],
 ];
+// const dummyLikelihoodLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
+// const dummyImpactLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
 
-const dummyLikelihoodLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
-const dummyImpactLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
+// const dummyLikelihoodLabels = [
+//     "Rare",
+//     "Unlikely",
+//     "Possible",
+//     "Likely",
+//     "Almost Certain"
+// ];
+//
+// const dummyImpactLabels = [
+//     "Insignificant",
+//     "Minor",
+//     "Moderate",
+//     "Major",
+//     "Severe"
+// ];
 
-const dummyRiskMapping: RiskClassMapping = {
-    Low: { label: "Low", bgColor: "bg-green-300", textColor: "text-green-800" },
-    Medium: { label: "Medium", bgColor: "bg-yellow-300", textColor: "text-yellow-800" },
-    High: { label: "High", bgColor: "bg-orange-300", textColor: "text-orange-800" },
-    "Very High": { label: "Very High", bgColor: "bg-red-400", textColor: "text-red-900" },
+const dummyLikelihoodLabels = [
+    "Rare",
+    "Unlikely",
+    "Possible",
+    "Likely",
+    "Almost Certain",
+];
+
+const dummyImpactLabels = [
+    "Insignificant",
+    "Minor",
+    "Moderate",
+    "Major",
+    "Severe",
+];
+
+// const dummyRiskMapping = {
+//     Low: { label: "Low", bgColor: "bg-green-300", textColor: "text-green-800" },
+//     Medium: { label: "Medium", bgColor: "bg-yellow-300", textColor: "text-yellow-800" },
+//     High: { label: "High", bgColor: "bg-orange-300", textColor: "text-orange-800" },
+//     "Very High": { label: "Very High", bgColor: "bg-red-400", textColor: "text-red-900" },
+// };
+
+const dummyRiskMapping = {
+    Low: {
+        label: "Low",
+        bgColor: "bg-green-300",
+        textColor: "text-green-900",
+    },
+    Medium: {
+        label: "Medium",
+        bgColor: "bg-yellow-300",
+        textColor: "text-yellow-900",
+    },
+    High: {
+        label: "High",
+        bgColor: "bg-orange-300",
+        textColor: "text-orange-900",
+    },
+    "Very High": {
+        label: "Very High",
+        bgColor: "bg-red-400",
+        textColor: "text-red-900",
+    },
 };
 
 // ===== Component =====
@@ -107,7 +196,7 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
         }
         return newRow;
     });
-
+console.log("data",data)
     // Unique risk classes for legend
     const allClasses = new Set<string>();
     normalizedData.forEach((row) =>
@@ -133,7 +222,7 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
                 <h3 className="text-base sm:text-xl font-semibold text-gray-900 mb-1">
                 {title}
             </h3>
-                {/* Legend */}/risk-report
+                {/* Legend */}
                 {sortedClasses.length > 0 && (
                     <div className=" flex flex-wrap items-center gap-x-4 gap-y-2 justify-center sm:justify-start" style={{position:'absolute', right:0, top:0}}>
                         <span className="text-xs text-gray-600 mr-1">Risk Level:</span>
@@ -201,11 +290,16 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
                                         key={`${rowIdx}-${colIdx}`}
                                         className={`${bgColor} rounded-md p-1 sm:p-2 text-center transition-colors relative group`}
                                     >
-                                        {cell.count > 0 && (
-                                            <span className={`text-xs sm:text-sm font-bold ${textColor}`}>
-                        {cell.count}
-                      </span>
-                                        )}
+                                         <span
+                                             className={`text-xs sm:text-sm font-bold ${textColor} inline-block min-w-[16px]`}
+                                         >
+                                {cell.count > 0 ? cell.count : ""}
+                            </span>
+                      {/*                  {cell.count > 0 && (*/}
+                      {/*                      <span className={`text-xs sm:text-sm font-bold ${textColor}`}>*/}
+                      {/*  {cell.count}*/}
+                      {/*</span>*/}
+                      {/*                  )}*/}
                                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                                             {displayLabel} risk {cell.count > 0 && `(${cell.count})`}
                                         </div>

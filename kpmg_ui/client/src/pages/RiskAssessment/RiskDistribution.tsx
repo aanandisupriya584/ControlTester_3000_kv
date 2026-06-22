@@ -45,7 +45,7 @@ const RiskDistribution: React.FC<RiskDistributionProps> = ({ setRiskHeatMap }) =
             </span>
 
                         {/* Bar container */}
-                        <div className="flex-1 h-4 sm:h-5 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="flex-1 h-4 sm:h-3 bg-gray-200 rounded-full overflow-hidden">
                             <div
                                 className={`h-full ${item.barColor} rounded-full transition-all duration-500`}
                                 style={{ width: `${item.percentage}%` }}

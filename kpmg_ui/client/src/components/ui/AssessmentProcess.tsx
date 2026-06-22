@@ -61,7 +61,7 @@ const AssessmentProcess: React.FC = () => {
 
             <div style={styles.container}>
                 <div style={{height:'2rem', width:'100%', display:'flex', position:'relative'}}>
-                    <div style={styles.heading}>Assessment Process</div>
+                    <div style={styles.heading}>How It Works</div>
                     <div style={{position:'absolute', right:0}}>
                         <a href="/all-assessments" className="view-all-link">
                             View all assessments →

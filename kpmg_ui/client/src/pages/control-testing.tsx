@@ -379,34 +379,34 @@ export default function ControlTestingPage() {
           )}
 
           {currentStep === "upload_script" && (
-            <Card>
+            <Card style={{background:"white"}}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-[#0C233C]">
+                  <FileSpreadsheet className="h-5 w-5 " />
                   Upload Test Script
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className={"text-[#45556B]"}>
                   Upload the Excel test script that defines the controls, test steps, and expected evidence.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 ">
                 <div
                   {...getScriptRootProps()}
                   className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
                     isScriptDragActive
                       ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50"
-                  }`}
+                  } `}
                   data-testid="dropzone-script"
                 >
                   <input {...getScriptInputProps()} data-testid="input-script-file" />
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4"  color={'#0C233C'}/>
                   {isScriptDragActive ? (
-                    <p className="text-primary font-medium">Drop the test script here...</p>
+                    <p className="text-primary font-medium text-[#45556B]">Drop the test script here...</p>
                   ) : (
                     <>
-                      <p className="text-foreground font-medium">Drag and drop the Excel test script here</p>
-                      <p className="text-muted-foreground text-sm mt-1">or click to browse (`.xlsx`, `.xlsm`)</p>
+                      <p className="text-foreground font-medium text-[#45556B]">Drag and drop the Excel test script here</p>
+                      <p className="text-muted-foreground text-sm mt-1 text-[#45556B]">or click to browse (`.xlsx`, `.xlsm`)</p>
                     </>
                   )}
                 </div>
@@ -434,7 +434,7 @@ export default function ControlTestingPage() {
                 <Button
                   onClick={handleStartAudit}
                   disabled={!testScriptFile || isProcessing}
-                  className="w-full"
+                  className="w-full bg-[#1E49E2] hover:bg-[#00338D] text-white"
                   data-testid="button-start-audit"
                 >
                   {isProcessing ? (
