@@ -1717,7 +1717,7 @@ export default function RiskAssessmentPage() {
 
   return (
     <div
-      className={`relative h-full overflow-auto bg-[#F0F2F7] ${isCreatePage ? "risk-create-animated-bg" : ""}`}
+      className={`relative h-full overflow-y-auto overscroll-contain bg-[#F0F2F7] ${isCreatePage ? "risk-create-animated-bg" : ""}`}
       data-risk-assessment-page="true"
     >
       {isCreatePage ? (
@@ -2048,7 +2048,24 @@ export default function RiskAssessmentPage() {
         {/*/>*/}
       </div>
 
-      <main className="relative  mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10">
+      <main
+        className={
+          !isCreatePage && !selectedAssessment
+            ? "relative flex flex-col"
+            : "relative mx-auto max-w-[1460px] px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-8 lg:px-10 lg:pb-5 lg:pt-10"
+        }
+        style={
+          !isCreatePage && !selectedAssessment
+            ? {
+                width: "calc(100% - 30px)",
+                maxWidth: "none",
+                padding: "16px",
+                margin: "15px",
+                alignSelf: "center",
+              }
+            : undefined
+        }
+      >
         {!isCreatePage && !selectedAssessment ? (
           <>
             {/* Keep How It Works first on the landing page so users see the assessment process before entering the workspace. */}
@@ -2113,7 +2130,7 @@ export default function RiskAssessmentPage() {
               </div>
 
             </div>
-            <div className={"mt-4 grid grid-cols-1"}>
+            <div className="mt-4 flex min-h-0 flex-1">
               <RecentRiskTable
                 assessments={tableData}
                 title={""}

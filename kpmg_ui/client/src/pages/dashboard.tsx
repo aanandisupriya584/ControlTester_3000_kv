@@ -663,7 +663,7 @@ export default function DashboardPage() {
       {/*  icon={Grid2X2}*/}
       {/*/>*/}
 
-      <TracePageBody width="wide" tint contentClassName="gap-5">
+      <TracePageBody width="wide" tint className="mx-auto my-[15px] w-[calc(100%_-_30px)]" contentClassName="gap-5">
         <section
           data-dashboard-banner="true"
           className="rounded-lg border border-[#D8E3F2] bg-white px-5 py-4 text-[#0C233C] shadow-sm"

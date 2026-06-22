@@ -889,7 +889,7 @@ export default function ControlsLibraryPage() {
       {/*  icon={ShieldCheck}*/}
       {/*/>*/}
 
-      <main className="max-w-[1200px] mx-auto px-8 md:px-12 py-12 pb-24">
+      <main className="mx-auto mb-[10px] mt-[15px] w-[calc(100%_-_30px)] max-w-none px-8 pb-0 pt-12 md:px-12">
         <section className="mb-9">
           <SectionHeader
             label="Data Inputs"

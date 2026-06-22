@@ -462,7 +462,7 @@ export default function AssetRegistryPage() {
   const isFormValid = Boolean(form.name.trim() && form.description.trim());
 
   return (
-    <div className="h-full overflow-auto bg-[#F0F2F7]">
+    <div className="h-full overflow-auto bg-[#F0F2F7] pb-[15px]">
       <div data-asset-registry-hero="true">
         <HeroSubSection
           title="Asset Registry"
@@ -471,7 +471,7 @@ export default function AssetRegistryPage() {
         />
       </div>
 
-      <main className="mx-auto max-w-[1200px] px-8 py-12 pb-24 md:px-12">
+      <main className="mx-auto mb-0 mt-[15px] w-[calc(100%_-_30px)] max-w-none px-8 pb-0 pt-12 md:px-12">
         <section data-asset-registry-kpis="true" className="mb-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard label="Total Assets" value={kpis.total} note={`${filteredAssets.length} currently shown`} accent="#1E49E2" />
           <KpiCard label="Critical Assets" value={kpis.critical} note="Highest CIA exposure band" accent="#E5001B" />
