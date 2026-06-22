@@ -1,4 +1,3 @@
-import { useLocation } from "wouter";
 import {
   CheckCircle2,
   CirclePlus,
@@ -29,11 +28,6 @@ export const WORKFLOW_STEP_BY_LABEL = WORKFLOW_STEP_CONFIG.reduce(
   {} as Record<WorkflowStepLabel, (typeof WORKFLOW_STEP_CONFIG)[number]>,
 );
 
-export const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
-  (acc, step) => ({ ...acc, [step.slug]: step }),
-  {} as Record<string, (typeof WORKFLOW_STEP_CONFIG)[number]>,
-);
-
 const WORKFLOW_STEP_DETAILS: Record<string, { Icon: LucideIcon; summary: string }> = {
   Create: { Icon: CirclePlus, summary: "Create the assessment session and define the initial scope." },
   Assets: { Icon: Database, summary: "Confirm registry and ad hoc applications included in the assessment." },
@@ -43,43 +37,7 @@ const WORKFLOW_STEP_DETAILS: Record<string, { Icon: LucideIcon; summary: string 
   "Final Report": { Icon: FileBarChart, summary: "Generate and preview the formatted risk assessment report." },
 };
 
-export function workflowSlugFromLocation(location: string) {
-  const pathname = location.split("?")[0] ?? "";
-  const pathParts = pathname.split("/").filter(Boolean);
-  if (pathParts[0] === "risk-assessment") {
-    const directStep = pathParts[1];
-    const assessmentStep = pathParts[2];
-    if (directStep && WORKFLOW_STEP_BY_SLUG[directStep]) return directStep;
-    if (assessmentStep && WORKFLOW_STEP_BY_SLUG[assessmentStep]) return assessmentStep;
-  }
-
-  const query = location.split("?")[1] ?? "";
-  return new URLSearchParams(query).get("step");
-}
-
-export function isCreateRoute(location: string) {
-  const pathname = location.split("?")[0] ?? "";
-  return pathname === "/risk-assessment/new" || pathname === "/risk-assessment/create";
-}
-
-export function assessmentIdFromLocation(location: string) {
-  const pathname = location.split("?")[0] ?? "";
-  const pathParts = pathname.split("/").filter(Boolean);
-  if (pathParts[0] !== "risk-assessment" || !pathParts[1]) return null;
-  if (pathParts[1] === "new" || pathParts[1] === "create" || WORKFLOW_STEP_BY_SLUG[pathParts[1]]) return null;
-  return decodeURIComponent(pathParts[1]);
-}
-
-export function workflowPathForAssessment(assessmentId: string | null | undefined, label: WorkflowStepLabel) {
-  const slug = WORKFLOW_STEP_BY_LABEL[label].slug;
-  if (label === "Create") return "/risk-assessment/create";
-  return `/risk-assessment/${slug}`;
-}
-
-export function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
-  const slug = workflowSlugFromLocation(location);
-  const urlStep = slug ? WORKFLOW_STEP_BY_SLUG[slug] : null;
-  if (urlStep && urlStep.targetStep === wizardStep) return urlStep.label;
+export function workflowLabelFromWizardStep(wizardStep: number): WorkflowStepLabel {
   if (wizardStep === 0) return "Assets";
   if (wizardStep === 1) return "Questionnaire";
   if (wizardStep === 3) return "Risk Review";
@@ -177,11 +135,8 @@ export default function WorkflowStepper({
   onStepOpen: (label: WorkflowStepLabel, targetStep: number) => boolean | void;
   onBlockedFinalReport: () => void;
 }) {
-  const [, setLocation] = useLocation();
-
   function handleStepSelect(label: WorkflowStepLabel) {
     if (label === "Create") {
-      setLocation(workflowPathForAssessment(null, "Create"));
       onCreate();
       return;
     }
@@ -196,8 +151,6 @@ export default function WorkflowStepper({
     const targetStep = WORKFLOW_STEP_BY_LABEL[label].targetStep;
     const canOpen = onStepOpen(label, targetStep);
     if (canOpen === false) return;
-
-    setLocation(workflowPathForAssessment(selectedAssessmentId, label));
   }
 
   return (

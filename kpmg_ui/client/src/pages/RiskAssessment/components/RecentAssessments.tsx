@@ -1,9 +1,7 @@
 import { ArrowRight, Loader2, ShieldCheck, Trash2 } from "lucide-react";
-import { useLocation } from "wouter";
 import type { RiskAssessment } from "@/contexts/RiskAssessmentContext";
 import NewAssessmentButton from "./NewAssessmentButton";
 import { STATUS_LABELS } from "./RiskAssessmentWorkspace";
-import { workflowPathForAssessment, type WorkflowStepLabel } from "./workflow/WorkflowStepper";
 
 const STATUS_CLASS: Record<string, string> = {
   draft: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
@@ -36,14 +34,6 @@ function assessmentAppCount(assessment: RiskAssessment) {
   return assessment.asset_ids.length + (assessment.ad_hoc_applications?.length ?? 0);
 }
 
-function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): WorkflowStepLabel {
-  if (status === "complete") return "Final Report";
-  if (status === "controls_applied") return "Findings";
-  if (status === "risks_identified") return "Risk Review";
-  if (status === "in_progress") return "Questionnaire";
-  return "Assets";
-}
-
 interface RecentAssessmentsProps {
   assessments: RiskAssessment[];
   error: string | null;
@@ -63,11 +53,7 @@ export default function RecentAssessments({
   onOpen,
   onDelete,
 }: RecentAssessmentsProps) {
-  const [, setLocation] = useLocation();
-
   function openAssessmentWorkspace(assessment: RiskAssessment) {
-    const stepLabel = workflowLabelForAssessmentStatus(assessment.status);
-    setLocation(workflowPathForAssessment(assessment.id, stepLabel));
     onOpen(assessment);
   }
 

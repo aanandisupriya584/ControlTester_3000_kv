@@ -6,17 +6,20 @@ export interface HeatmapCell {
     riskClass: string;
 }
 
+type RiskClassMapping = Record<
+    string,
+    {
+        label: string;
+        bgColor: string;
+        textColor?: string;
+    }
+>;
+
 export interface RiskHeatmapProps {
     data?: HeatmapCell[][];
     likelihoodLabels?: string[];
     impactLabels?: string[];
-    riskClassMapping?: {
-        [key: string]: {
-            label: string;
-            bgColor: string;
-            textColor?: string;
-        };
-    };
+    riskClassMapping?: RiskClassMapping;
     title?: string;
     subtitle?: string;
     footerLink?: {
@@ -68,7 +71,7 @@ const dummyData: HeatmapCell[][] = [
 const dummyLikelihoodLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
 const dummyImpactLabels = ["Very Low", "Low", "Medium", "High", "Very High"];
 
-const dummyRiskMapping = {
+const dummyRiskMapping: RiskClassMapping = {
     Low: { label: "Low", bgColor: "bg-green-300", textColor: "text-green-800" },
     Medium: { label: "Medium", bgColor: "bg-yellow-300", textColor: "text-yellow-800" },
     High: { label: "High", bgColor: "bg-orange-300", textColor: "text-orange-800" },

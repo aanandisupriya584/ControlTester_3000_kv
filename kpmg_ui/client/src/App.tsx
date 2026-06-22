@@ -124,7 +124,6 @@ function Router() {
           <ControlsAssuranceNewPage />
         </div>
       ) : location.startsWith("/risk-assessment/") ? (
-        // Route Risk Assessment workflow steps to the same module while preserving provider state.
         <div className="h-full min-h-0 overflow-hidden">
           <RiskAssessmentPage />
         </div>

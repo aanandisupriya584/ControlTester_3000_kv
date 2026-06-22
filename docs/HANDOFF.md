@@ -1687,8 +1687,8 @@ Verification:
 - `GET http://localhost:3000/risk-assessment` returned `200`
 
 Update:
-- Extracted the Risk Assessment page-level CSS block into `RiskAssessmentStyles` under `RiskAssessment/components`.
-- The parent now renders `<RiskAssessmentStyles />` instead of keeping the large inline `<style>` block, preserving the existing CSS selectors and UI behavior.
+- Moved the Risk Assessment page-level CSS block into `RiskAssessmentStyles` under `client/src/styles`.
+- The parent now imports the shared stylesheet instead of keeping the large inline `<style>` block, preserving the existing CSS selectors and UI behavior.
 
 Verification:
 - `npm run check -- --pretty false`
@@ -1784,6 +1784,14 @@ Update:
 
 Verification:
 - `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
+- `npm run check`
+
+Update:
+- Centralized Risk Assessment child workflow URL parsing and generation in `risk-assessment.tsx`.
+- The parent now supports `/risk-assessment/create`, `/risk-assessment/assets`, `/risk-assessment/questionnaire`, `/risk-assessment/risk-review`, `/risk-assessment/findings`, and `/risk-assessment/final-report`.
+- Removed direct risk-assessment URL writes from child workflow/list components so the parent owns navigation.
+
+Verification:
 - `npm run check`
 
 Update:

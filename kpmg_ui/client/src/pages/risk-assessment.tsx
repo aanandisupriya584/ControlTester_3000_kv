@@ -51,7 +51,7 @@ import RiskAssessmentWorkspace from "@/pages/RiskAssessment/components/RiskAsses
 import ApplyControlToRiskPage from "@/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage";
 import IdentifyRiskPage from "@/pages/RiskAssessment/components/workflow/IdentifyRiskPage";
 import RiskAssessmentReport from "@/pages/RiskAssessment/components/workflow/RiskAssessmentReport";
-import RiskAssessmentStyles from "@/pages/RiskAssessment/components/RiskAssessmentStyles";
+import "@/styles/RiskAssessmentStyles.css";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
 import {
@@ -124,8 +124,25 @@ const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
 );
 
 function workflowSlugFromLocation(location: string) {
+  const pathname = location.split("?")[0] ?? "";
+  const pathParts = pathname.split("/").filter(Boolean);
+  if (pathParts[0] === "risk-assessment") {
+    const directStep = pathParts[1];
+    if (directStep === "new") return "create";
+    if (directStep && WORKFLOW_STEP_BY_SLUG[directStep]) return directStep;
+  }
+
   const query = location.split("?")[1] ?? "";
   return new URLSearchParams(query).get("step");
+}
+
+function isCreateRoute(location: string) {
+  const pathname = location.split("?")[0] ?? "";
+  return pathname === "/risk-assessment/new" || pathname === "/risk-assessment/create";
+}
+
+function workflowPathForLabel(label: WorkflowStepLabel) {
+  return `/risk-assessment/${WORKFLOW_STEP_BY_LABEL[label].slug}`;
 }
 
 function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
@@ -1115,7 +1132,7 @@ export default function RiskAssessmentPage() {
   const { assets, fetchAssets } = useAssetRegistry();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
-  const isCreatePage = location === "/risk-assessment/new";
+  const isCreatePage = isCreateRoute(location);
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
@@ -1289,7 +1306,7 @@ export default function RiskAssessmentPage() {
     }
     setWizardStep(nextStep);
     if (pushHistory) {
-      setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
+      setLocation(workflowPathForLabel(label));
     }
   }
 
@@ -1379,7 +1396,7 @@ export default function RiskAssessmentPage() {
       });
       selectAssessment(assessment);
       setShowCreate(false);
-      setLocation("/risk-assessment?step=assets");
+      setLocation(workflowPathForLabel("Assets"));
       setWizardStep(statusToStep(assessment.status));
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
@@ -1429,7 +1446,7 @@ export default function RiskAssessmentPage() {
         setExpandedSection(sections[0]?.id ?? null);
         toast({ title: "Responses saved for this application" });
       } else {
-        setLocation("/risk-assessment?step=risk-review");
+        setLocation(workflowPathForLabel("Risk Review"));
         setWizardStep(2);
         toast({ title: "All responses submitted. Starting analysis." });
       }
@@ -1475,7 +1492,7 @@ export default function RiskAssessmentPage() {
 
   function openCreate() {
     // Route the create icon to the dedicated create URL while showing the existing setup dialog.
-    setLocation("/risk-assessment/new");
+    setLocation(workflowPathForLabel("Create"));
     setShowCreate(true);
     selectAssessment(null);
     setWizardStep(0);
@@ -1502,7 +1519,7 @@ export default function RiskAssessmentPage() {
     selectAssessment(assessment);
     const nextStep = statusToStep(assessment.status);
     const nextLabel = workflowLabelForAssessmentStatus(assessment.status);
-    setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
+    setLocation(workflowPathForLabel(nextLabel));
     setWizardStep(nextStep);
     setQaAssetIdx(0);
     setExpandedSection(sections[0]?.id ?? null);
@@ -1886,7 +1903,7 @@ export default function RiskAssessmentPage() {
 
             </div>
             <div className={"mt-4 grid grid-cols-1"}>
-              <RecentRiskTable assessments={sampleData} />
+              <RecentRiskTable title="Recent Risks" assessments={sampleData} />
             </div>
 
             {/*<div className="flex flex-wrap gap-2">*/}
@@ -1931,7 +1948,6 @@ export default function RiskAssessmentPage() {
 
 
       </main>
-      <RiskAssessmentStyles />
     </div>
   );
 }
