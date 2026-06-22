@@ -11,16 +11,21 @@ interface RiskDistributionProps {
     setRiskHeatMap: (value: boolean) => void;   // <-- add this
 }
 
-const RiskDistribution: React.FC<RiskDistributionProps> = ({ setRiskHeatMap }) => {
-    const risks: RiskItem[] = [
-        { label: "High Risk", count: 8, percentage: 15, barColor: "bg-red-500", textColor: "text-red-600" },
-        { label: "Medium Risk", count: 18, percentage: 35, barColor: "bg-yellow-500", textColor: "text-yellow-600" },
-        { label: "Low Risk", count: 20, percentage: 38, barColor: "bg-green-500", textColor: "text-green-600" },
-        { label: "Very Low Risk", count: 6, percentage: 12, barColor: "bg-blue-500", textColor: "text-blue-600" },
-    ];
+interface RiskDistributionProps {
+    riskItems: RiskItem[];          // processed data
+    totalAssessments: number;       // total number of assessments
+    setRiskHeatMap: (value: boolean) => void;
+}
+const RiskDistribution: React.FC<RiskDistributionProps> = ({riskItems, totalAssessments,setRiskHeatMap }) => {
+    // const risks: RiskItem[] = [
+    //     { label: "High Risk", count: 8, percentage: 15, barColor: "bg-red-500", textColor: "text-red-600" },
+    //     { label: "Medium Risk", count: 18, percentage: 35, barColor: "bg-yellow-500", textColor: "text-yellow-600" },
+    //     { label: "Low Risk", count: 20, percentage: 38, barColor: "bg-green-500", textColor: "text-green-600" },
+    //     { label: "Very Low Risk", count: 6, percentage: 12, barColor: "bg-blue-500", textColor: "text-blue-600" },
+    // ];
 
     // Find max percentage for bar scaling (if needed)
-    const maxPercentage = Math.max(...risks.map(r => r.percentage));
+    const maxPercentage = Math.max(...riskItems.map(r => r.percentage));
 
     return (
         <div className="w-full bg-white rounded-lg mt-5 shadow-md p-4 sm:p-6 h-[380px]">
@@ -37,7 +42,7 @@ const RiskDistribution: React.FC<RiskDistributionProps> = ({ setRiskHeatMap }) =
 
             {/* Bar chart */}
             <div className="space-y-3">
-                {risks.map((item) => (
+                {riskItems.map((item) => (
                     <div key={item.label} className="flex items-center gap-2 sm:gap-3">
                         {/* Label */}
                         <span className="text-xs sm:text-sm text-gray-700 w-20 sm:w-24 flex-shrink-0">

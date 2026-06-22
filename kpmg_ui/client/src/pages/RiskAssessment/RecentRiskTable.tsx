@@ -141,7 +141,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
 
     return (
         <div
-            className="w-full rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
             style={{
                 background: `
           radial-gradient(ellipse 30% 95% at 6% 115%, rgba(114, 19, 234, 0.45) 0%, transparent 68%),

@@ -1,7 +1,9 @@
-import React from "react";
+import React, {useMemo} from "react";
 // import { useNavigate } from "react-router-dom";
 import RecentRiskTable, { Assessment } from "./RecentRiskTable"; // adjust import path
 import HeroSubSection from "@/components/HeroSubSection.tsx";
+import {AssessmentTableRow, mapAssessmentsToTableData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
+import {useRiskAssessment} from "@/contexts/RiskAssessmentContext.tsx";
 
 // Sample data (you can replace with API data)
 const sampleData: Assessment[] = [
@@ -43,9 +45,36 @@ const sampleData: Assessment[] = [
     },
 ];
 
+
+
 const ViewAllAssessmentsPage: React.FC = () => {
     // const navigate = useNavigate();
-
+    const {
+        assessments,
+        // selectedAssessment,
+        // sections,
+        // residualResults,
+        // isLoading,
+        // isAnalyzing,
+        // isGeneratingReport,
+        // error,
+        // report,
+        // fetchAssessments,
+        // selectAssessment,
+        // createAssessment,
+        // fetchSections,
+        // submitResponseBatch,
+        // analyzeAssessment,
+        // applyControl,
+        // fetchResidual,
+        // suggestControls,
+        // generateReport,
+        // deleteAssessment,
+    } = useRiskAssessment();
+    const tableData = useMemo<AssessmentTableRow[]>(
+        () => mapAssessmentsToTableData(assessments),
+        [assessments]
+    );
     // Action handlers (optional – you can replace with your own logic)
     const handleView = (id: string) => {
         console.log("View assessment", id);
@@ -78,8 +107,8 @@ const ViewAllAssessmentsPage: React.FC = () => {
                     </a>
                 </div>
                 <RecentRiskTable
-                    title={"Assessments"}
-                    assessments={sampleData}
+                    title={"All Assessments"}
+                    assessments={tableData}
                     onView={handleView}
                     onEdit={handleEdit}
                     onDelete={handleDelete}

@@ -72,7 +72,11 @@ import RiskDistribution from "@/pages/RiskAssessment/RiskDistribution.tsx";
 import RiskHeatMap from "@/pages/RiskAssessment/RiskHeatMap.tsx";
 import RiskReport from "@/pages/RiskAssessment/RiskReport.tsx";
 import RecentRiskTable, { Assessment } from "@/pages/RiskAssessment/RecentRiskTable.tsx";
-import {buildHeatMapData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
+import {
+  AssessmentTableRow,
+  buildHeatMapData,
+  mapAssessmentsToTableData, processRiskDistribution
+} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -165,15 +169,15 @@ interface LocalAnswer {
   details: string;
 }
 
-interface AssessmentTableRow {
-  id: string;
-  name: string;
-  application: string;
-  status: 'Draft' | 'In Progress' | 'Review' | 'Completed';
-  riskScore: 'Low' | 'Medium' | 'High';
-  lastUpdated: string;
-  owner: string;
-}
+// interface AssessmentTableRow {
+//   id: string;
+//   name: string;
+//   application: string;
+//   status: 'Draft' | 'In Progress' | 'Review' | 'Completed';
+//   riskScore: 'Low' | 'Medium' | 'High';
+//   lastUpdated: string;
+//   owner: string;
+// }
 
 function statusToStep(status: RiskAssessment["status"]) {
   switch (status) {
@@ -234,61 +238,61 @@ function workflowLabelForAssessmentStatus(status?: RiskAssessment["status"]): Wo
   if (status === "draft") return "Assets";
   return "Create";
 }
-const mapAssessmentsToTableData = (
-    assessments: any[]
-): AssessmentTableRow[] => {
-  return assessments.map((assessment) => {
-    const risks = assessment.risks || [];
-
-    const highestRisk =
-        risks.length > 0
-            ? risks.reduce(
-                (max:any, risk:any) =>
-                    risk.inherent_risk_score > max.inherent_risk_score ? risk : max,
-                risks[0]
-            )
-            : null;
-
-    const riskBand =
-        highestRisk?.inherent_risk_band?.toLowerCase() || 'low';
-
-    return {
-      id: assessment.id,
-
-      // Assessment Name
-      name: assessment.title || 'Untitled Assessment',
-
-      // Number of applications/assets
-      application: `${assessment.asset_ids?.length || 0} Application(s)`,
-
-      // Status mapping
-      status:
-          assessment.status === 'draft'
-              ? 'Draft'
-              : assessment.status === 'complete'
-                  ? 'Completed'
-                  : assessment.status === 'review'
-                      ? 'Review'
-                      : 'In Progress',
-
-      // Highest risk found in assessment
-      riskScore:
-          riskBand === 'high'
-              ? 'High'
-              : riskBand === 'medium'
-                  ? 'Medium'
-                  : 'Low',
-
-      // Last updated
-      lastUpdated: new Date(
-          assessment.updated_at
-      ).toLocaleDateString(),
-
-      // Owner not available in API
-      owner: '-'
-    };
-  });
-};
+// const mapAssessmentsToTableData = (
+//     assessments: any[]
+// ): AssessmentTableRow[] => {
+//   return assessments.map((assessment) => {
+//     const risks = assessment.risks || [];
+//
+//     const highestRisk =
+//         risks.length > 0
+//             ? risks.reduce(
+//                 (max:any, risk:any) =>
+//                     risk.inherent_risk_score > max.inherent_risk_score ? risk : max,
+//                 risks[0]
+//             )
+//             : null;
+//
+//     const riskBand =
+//         highestRisk?.inherent_risk_band?.toLowerCase() || 'low';
+//
+//     return {
+//       id: assessment.id,
+//
+//       // Assessment Name
+//       name: assessment.title || 'Untitled Assessment',
+//
+//       // Number of applications/assets
+//       application: `${assessment.asset_ids?.length || 0} Application(s)`,
+//
+//       // Status mapping
+//       status:
+//           assessment.status === 'draft'
+//               ? 'Draft'
+//               : assessment.status === 'complete'
+//                   ? 'Completed'
+//                   : assessment.status === 'review'
+//                       ? 'Review'
+//                       : 'In Progress',
+//
+//       // Highest risk found in assessment
+//       riskScore:
+//           riskBand === 'high'
+//               ? 'High'
+//               : riskBand === 'medium'
+//                   ? 'Medium'
+//                   : 'Low',
+//
+//       // Last updated
+//       lastUpdated: new Date(
+//           assessment.updated_at
+//       ).toLocaleDateString(),
+//
+//       // Owner not available in API
+//       owner: '-'
+//     };
+//   });
+// };
 
 function StepPill({
   label,
@@ -1248,6 +1252,11 @@ export default function RiskAssessmentPage() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
 
+
+  // ... fetch assessments from API ...
+
+  const { totalAssessments, riskItems } = processRiskDistribution(assessments);
+
   useEffect(() => {
     fetchAssessments();
     fetchAssets();
@@ -1969,7 +1978,10 @@ export default function RiskAssessmentPage() {
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.3 }}
                     >
-                      <RiskDistribution setRiskHeatMap={setRiskHeatMapBoolean}/>
+                      <RiskDistribution
+                          riskItems={riskItems}
+                          totalAssessments={totalAssessments}
+                          setRiskHeatMap={setRiskHeatMapBoolean}/>
                     </motion.div>:
                     <motion.div
                         key="distribution"
