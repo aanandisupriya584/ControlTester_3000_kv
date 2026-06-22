@@ -19,18 +19,51 @@ const SESSION_KEY = "ct3_current_user";
 const AuthContext = createContext<AuthContextType | null>(null);
 
 async function apiCall(path: string, body: unknown): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  try {
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data.detail ?? "Request failed" };
-    return { ok: true, data };
-  } catch {
-    return { ok: false, error: "Network error" };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const responseText = await res.text();
+      let data: any = null;
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          data = null;
+        }
+      }
+
+      if (!res.ok) {
+        const retryable = [502, 503, 504].includes(res.status);
+        if (retryable && attempt === 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, 500));
+          continue;
+        }
+        return {
+          ok: false,
+          error: data?.detail ?? data?.error ?? (responseText || `Request failed (${res.status})`),
+        };
+      }
+
+      if (!data) {
+        return { ok: false, error: "The server returned an invalid response. Please refresh and try again." };
+      }
+      return { ok: true, data };
+    } catch (error) {
+      if (attempt === 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        continue;
+      }
+      const detail = error instanceof Error ? `: ${error.message}` : "";
+      return { ok: false, error: `Unable to reach the login API${detail}` };
+    }
   }
+
+  return { ok: false, error: "Unable to reach the login API" };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
