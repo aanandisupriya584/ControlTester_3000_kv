@@ -52,7 +52,7 @@ import RiskAssessmentWorkspace from "@/pages/RiskAssessment/components/RiskAsses
 import ApplyControlToRiskPage from "@/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage";
 import IdentifyRiskPage from "@/pages/RiskAssessment/components/workflow/IdentifyRiskPage";
 import RiskAssessmentReport from "@/pages/RiskAssessment/components/workflow/RiskAssessmentReport";
-import RiskAssessmentStyles from "@/pages/RiskAssessment/components/RiskAssessmentStyles";
+// import RiskAssessmentStyles from "@/pages/RiskAssessment/components/RiskAssessmentStyles";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
 import {
@@ -2046,7 +2046,7 @@ export default function RiskAssessmentPage() {
 
 
       </main>
-      <RiskAssessmentStyles />
+      {/*<RiskAssessmentStyles />*/}
     </div>
   );
 }
