@@ -8,38 +8,40 @@ interface ActivityItem {
     timestamp: string;
     status?: "draft" | "completed" | "high-risk" | "imported"; // optional for styling
 }
-
-const RecentActivity: React.FC = () => {
-    const activities: ActivityItem[] = [
-        {
-            id: 1,
-            title: "Payment Gateway Assessment",
-            subtitle: "Draft updated",
-            timestamp: "10:24 AM",
-            status: "draft",
-        },
-        {
-            id: 2,
-            title: "HRMS Risk Review",
-            subtitle: "Assessment completed",
-            timestamp: "Yesterday",
-            status: "completed",
-        },
-        {
-            id: 3,
-            title: "Vendor Portal Assessment",
-            subtitle: "High risk identified",
-            timestamp: "Yesterday",
-            status: "high-risk",
-        },
-        {
-            id: 4,
-            title: "Asset Registry Imported",
-            subtitle: "52 assets added",
-            timestamp: "May 12, 2026",
-            status: "imported",
-        },
-    ];
+interface RecentActivityProps {
+    activities: ActivityItem[];
+}
+const RecentActivity: React.FC<RecentActivityProps> = ({activities}) => {
+    // const activities: ActivityItem[] = [
+    //     {
+    //         id: 1,
+    //         title: "Payment Gateway Assessment",
+    //         subtitle: "Draft updated",
+    //         timestamp: "10:24 AM",
+    //         status: "draft",
+    //     },
+    //     {
+    //         id: 2,
+    //         title: "HRMS Risk Review",
+    //         subtitle: "Assessment completed",
+    //         timestamp: "Yesterday",
+    //         status: "completed",
+    //     },
+    //     {
+    //         id: 3,
+    //         title: "Vendor Portal Assessment",
+    //         subtitle: "High risk identified",
+    //         timestamp: "Yesterday",
+    //         status: "high-risk",
+    //     },
+    //     {
+    //         id: 4,
+    //         title: "Asset Registry Imported",
+    //         subtitle: "52 assets added",
+    //         timestamp: "May 12, 2026",
+    //         status: "imported",
+    //     },
+    // ];
 
     // Helper to get colour for status dot (optional)
     const getStatusColor = (status?: string): string => {
@@ -62,9 +64,9 @@ const RecentActivity: React.FC = () => {
             {/* Header */}
             <div style={styles.header}>
                 <h3 style={styles.title}>Recent Activity</h3>
-                <a href="#" style={styles.viewAllLink}>
-                    View all →
-                </a>
+                {/*<a href="#" style={styles.viewAllLink}>*/}
+                {/*    View all →*/}
+                {/*</a>*/}
             </div>
 
             {/* Activity list */}

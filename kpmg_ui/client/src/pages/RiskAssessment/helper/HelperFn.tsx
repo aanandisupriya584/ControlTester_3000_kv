@@ -491,3 +491,217 @@ export function processRiskReportData(assessments: any[]): RiskReportData {
 }
 
 
+
+//Recent Assessment
+// utils/activityUtils.ts
+
+export interface ActivityItem {
+    id: string | number;
+    title: string;
+    subtitle: string;
+    timestamp: string;
+    status?: "draft" | "completed" | "high-risk" | "imported";
+}
+
+/**
+ * Process assessments into recent activity items, sorted by latest update.
+ * Returns at most 4 items.
+ */
+export function processRecentActivity(assessments: any[]): ActivityItem[] {
+    if (!assessments || assessments.length === 0) {
+        return [];
+    }
+
+    // Map each assessment to an activity
+    const activities: ActivityItem[] = assessments.map((assessment) => {
+        const id = assessment.id;
+        const title = assessment.title || "Untitled Assessment";
+        const status = assessment.status?.toLowerCase();
+        const updatedAt = assessment.updated_at || assessment.created_at;
+        const hasHighRisk = assessment.risks?.some(
+            (risk: any) => risk.inherent_risk_band === "High"
+        );
+
+        // Determine subtitle and activity status
+        let subtitle = "";
+        let activityStatus: ActivityItem["status"] = undefined;
+
+        if (status === "complete") {
+            subtitle = "Assessment completed";
+            activityStatus = "completed";
+        } else if (status === "draft") {
+            subtitle = "Draft updated";
+            activityStatus = "draft";
+        } else {
+            subtitle = "Assessment updated";
+        }
+
+        // If there are high risks, override status to "high-risk" (but only if not already draft/complete?)
+        // We can keep it separate; we'll set status to "high-risk" if any high risk exists, regardless of assessment status?
+        // In the component, "high-risk" dot is red; we can use that for high-risk items.
+        if (hasHighRisk && status !== "complete") {
+            // If it's complete, we might still want to show as completed; but we can combine: "Completed with high risks"
+            // For simplicity, we will use "high-risk" if any high risks exist, overriding other statuses.
+            // But maybe we want to show "Assessment completed" even with high risks? Let's prioritize: if status === "complete", keep completed.
+            // Else if high risks exist, show "high-risk".
+            // Let's implement: if status === "complete", it's completed; else if high risks, it's high-risk; else draft.
+            if (status !== "complete") {
+                activityStatus = "high-risk";
+                subtitle = "High risk identified";
+            } else {
+                // For complete assessments with high risks, we can still keep completed, but maybe add note: "High risks found" in subtitle?
+                // For now, keep subtitle as "Assessment completed" and status completed.
+            }
+        }
+
+        // Format timestamp
+        const timestamp = formatTimestamp(updatedAt);
+
+        return {
+            id,
+            title,
+            subtitle,
+            timestamp,
+            status: activityStatus,
+        };
+    });
+
+    // Sort by updated_at descending (most recent first)
+    activities.sort((a, b) => {
+        const dateA = new Date(
+            assessments.find((ass) => ass.id === a.id)?.updated_at ||
+            assessments.find((ass) => ass.id === a.id)?.created_at ||
+            0
+        );
+        const dateB = new Date(
+            assessments.find((ass) => ass.id === b.id)?.updated_at ||
+            assessments.find((ass) => ass.id === b.id)?.created_at ||
+            0
+        );
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    // Return first 4
+    return activities.slice(0, 4);
+}
+
+/**
+ * Format a timestamp to a human-readable string: "10:24 AM", "Yesterday", or "May 12, 2026"
+ */
+function formatTimestamp(dateString: string): string {
+    if (!dateString) return "Just now";
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date >= today) {
+        // Today: show time
+        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else if (date >= yesterday) {
+        return "Yesterday";
+    } else {
+        // Show date
+        return date.toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    }
+}
+
+
+
+//Card Data
+// utils/riskStatsUtils.ts
+
+export function processRiskStats(assessments: any[]) {
+    if (!assessments || !Array.isArray(assessments) || assessments.length === 0) {
+        return {
+            activeAssessments: 0,
+            highCriticalRisks: 0,
+            drafts: 0,
+            totalAssessments: 0,
+            totalRisks: 0,
+            assetCount: 0,
+            addedThisWeek: 0,
+            avgRiskScore: 0,
+            avgRiskLabel: "Low",
+            trend: "Stable",
+        };
+    }
+
+    let totalAssessments = assessments.length;
+    let activeAssessments = assessments.filter(
+        (a) => a.status !== "draft" && a.status !== "complete"
+    ).length;
+    let drafts = assessments.filter((a) => a.status === "draft").length;
+
+    let totalRisks = 0;
+    let highCriticalRisks = 0;
+    let sumRiskScores = 0;
+
+    assessments.forEach((assessment) => {
+        const risks = assessment?.risks || [];
+        totalRisks += risks.length;
+        risks.forEach((risk: any) => {
+            const band = risk.inherent_risk_band || "Low";
+            if (band === "High" || band === "Very High") highCriticalRisks++;
+            const score = risk.inherent_risk_score ?? bandToScore(band);
+            sumRiskScores += score;
+        });
+    });
+
+    const avgScore = totalRisks > 0 ? sumRiskScores / totalRisks : 0;
+    let avgLabel = "Low";
+    if (avgScore >= 4.5) avgLabel = "Very High";
+    else if (avgScore >= 3.5) avgLabel = "High";
+    else if (avgScore >= 2.5) avgLabel = "Medium";
+    else avgLabel = "Low";
+
+    // Compute a simple trend based on average relative to a baseline (3.0)
+    const baseline = 3.0;
+    let trend = "Stable";
+    if (avgScore > baseline + 0.5) trend = "Trending up";
+    else if (avgScore < baseline - 0.5) trend = "Trending down";
+
+    // Assessments added this week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const addedThisWeek = assessments.filter((a) => {
+        const created = new Date(a.created_at);
+        return created >= oneWeekAgo;
+    }).length;
+
+    // Unique assets
+    const assetIds = new Set<string>();
+    assessments.forEach((a) => {
+        (a.asset_ids || []).forEach((id: string) => assetIds.add(id));
+    });
+    const assetCount = assetIds.size;
+
+    return {
+        activeAssessments,
+        highCriticalRisks,
+        drafts,
+        totalAssessments,
+        totalRisks,
+        assetCount,
+        addedThisWeek,
+        avgRiskScore: avgScore,
+        avgRiskLabel: avgLabel,   // "Low", "Medium", "High", "Very High"
+        trend,                    // "Trending up", "Trending down", "Stable"
+    };
+}
+
+function bandToScore(band: string): number {
+    const map: Record<string, number> = {
+        "Very Low": 1,
+        Low: 2,
+        Medium: 3,
+        High: 4,
+        "Very High": 5,
+    };
+    return map[band] || 2;
+}

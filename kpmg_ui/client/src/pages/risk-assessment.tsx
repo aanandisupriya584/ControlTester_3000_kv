@@ -75,7 +75,7 @@ import RecentRiskTable, { Assessment } from "@/pages/RiskAssessment/RecentRiskTa
 import {
   AssessmentTableRow,
   buildHeatMapData,
-  mapAssessmentsToTableData, processRiskDistribution, processRiskHeatmapData
+  mapAssessmentsToTableData, processRecentActivity, processRiskDistribution, processRiskHeatmapData, processRiskStats
 } from "@/pages/RiskAssessment/helper/HelperFn.tsx";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -505,27 +505,58 @@ function CommandDeckMetric({
 
 // Show the requested three summary cards under How It Works so users see the same quick status boxes from the reference UI.
 function RiskAssessmentFeatureCards({
-  activeAssessments,
-  highCriticalRisks,
-  drafts,
-  totalAssessments,
-  totalRisks,
-  // assetCount,
-}: {
+  // activeAssessments,
+  // highCriticalRisks,
+  // drafts,
+  // totalAssessments,
+  // totalRisks,
+  //                                     // assetCount,
+  // addedThisWeek,
+  //                                     avgRiskScore
+                                      activeAssessments,
+                                      highCriticalRisks,
+                                      drafts,
+                                      totalAssessments,
+                                      totalRisks,
+                                      assetCount,
+                                      addedThisWeek,
+                                      avgRiskScore,    // numeric (for badge)
+                                      avgRiskLabel,    // "Low", "Medium", "High", "Very High"
+                                      trend,
+                                    }: {
   activeAssessments: number;
   highCriticalRisks: number;
   drafts: number;
   totalAssessments: number;
   totalRisks: number;
-  assetCount: number;
+  assetCount?: number;
+  addedThisWeek:number;
+  avgRiskScore:number;
+  avgRiskLabel: string;
+  trend: string;
 }) {
+  // Helper to get color classes based on risk label
+  const getRiskColors = (label: string) => {
+    switch (label) {
+      case "Very High":
+        return { accent: "#991b1b", text: "text-red-700", bg: "bg-red-100" };
+      case "High":
+        return { accent: "#9a3412", text: "text-orange-700", bg: "bg-orange-100" };
+      case "Medium":
+        return { accent: "#854d0e", text: "text-yellow-700", bg: "bg-yellow-100" };
+      default:
+        return { accent: "#166534", text: "text-green-700", bg: "bg-green-100" };
+    }
+  };
+
+  const riskColors = getRiskColors(avgRiskLabel);
   const cards = [
     {
       label: "Active Assessments",//"ACTIVE ASSESSMENTS",
       value: activeAssessments,
       detail: "Sessions currently progressing",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `${totalAssessments} added this week `,  //total sessions,
+      badge: `${addedThisWeek} added this week `,  //total sessions,
       accent: "#1E49E2",//"#00338D",
       badgeClassName: "bg-[#EDFBF5] text-[#009A44]",//"bg-[#EEF2FF] text-[#1E49E2]",
       icon:NotepadText,
@@ -537,7 +568,7 @@ function RiskAssessmentFeatureCards({
       value: drafts,
       detail: "Waiting to begin questionnaire capture",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `${totalAssessments} needs your attention`,  //asset registry applications available,
+      badge: `Needs your attention`,  //asset registry applications available,
       accent: "#1E49E2",
       badgeClassName: "bg-[#FAF2DE] text-[#F5AD0A]",
       icon:FileText,
@@ -549,7 +580,7 @@ function RiskAssessmentFeatureCards({
       value: highCriticalRisks,
       detail: "Across all fetched assessments",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `${totalRisks} Critical`,
+      badge: `Critical`,
       accent: "#00B8F5",
       badgeClassName: "bg-[#F7E4E5] text-[#E63946]",
       icon:ShieldAlert,
@@ -558,28 +589,46 @@ function RiskAssessmentFeatureCards({
     },
     {
       label: "Total Assessments",//"TOTAL ASSESSMENTS",
-      value: activeAssessments,
+      value: totalAssessments,
       detail: "Includes active, & draft assessments",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `${totalRisks} Across all assessments`,
+      badge: `Across all assessments`,
       accent: "#ACEAFF",
       badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
       icon:Layers,
       iconColor:"text-[#7213EA]",
       iconBg:"#E6DCF2"
     },
+    // {
+    //   label: "Avg Risk Score",
+    //   value: avgRiskScore.toFixed(1),           // "Low", "Medium", "High", "Very High"
+    //   detail: "Average inherent risk score",
+    //   badgeCls: 'mt-1 text-[20px] font-bold leading-none tracking-[-0.05em] text-[#FFBB1C]',
+    //   badge: `${avgRiskScore >= 4.5 ? "High" : avgRiskScore >= 3.5 ? "Medium-High" : "Low-Medium"}`,
+    //       // `Score: ${avgScore.toFixed(1)}`,
+    //   // label: "Avg Risk Score",//"TOTAL RISKS",
+    //   // value: "Medium",//totalRisks,
+    //   // detail: "Risks identified across all assessments",
+    //   // badgeCls:'mt-1 text-[20px] font-bold leading-none tracking-[-0.05em] text-[#FFBB1C]',
+    //   // badge: "Trending down",//`${totalRisks} total risks identified`,
+    //   accent: "#7213EA",
+    //   badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
+    //   icon:ChartSpline,
+    //   iconColor:"text-[#1E49E2]",
+    //   iconBg:"#EEF2FF"
+    // },
     {
-      label: "Avg Risk Score",//"TOTAL RISKS",
-      value: "Medium",//totalRisks,
-      detail: "Risks identified across all assessments",
-      badgeCls:'mt-1 text-[20px] font-bold leading-none tracking-[-0.05em] text-[#FFBB1C]',
-      badge: "Trending down",//`${totalRisks} total risks identified`,
-      accent: "#7213EA",
-      badgeClassName: "bg-[#EEF2FF] text-[#1E49E2]",
-      icon:ChartSpline,
-      iconColor:"text-[#1E49E2]",
-      iconBg:"#EEF2FF"
-    },
+      label: "Avg Risk Score",
+      value: avgRiskLabel,                     // shows "Low", "Medium", etc.
+      valueClass: `mt-1 text-[25px] font-bold leading-none tracking-[-0.05em] ${riskColors.text}`,
+      detail: "Average inherent risk score",
+      badge: trend,                            // e.g., "Trending up"
+      badgeClassName: `bg-[#EEF2FF] text-[#1E49E2]`, // or change based on trend? Keep static for now
+      accent: riskColors.accent,               // top bar color
+      icon: ChartSpline,
+      iconColor: "text-[#1E49E2]",
+      iconBg: "#EEF2FF",
+    }
     // {
     //   label: "ASSET COUNT",
     //   value: assetCount,
@@ -593,23 +642,23 @@ function RiskAssessmentFeatureCards({
   return (
     <section className="mb-9 grid gap-5 md:grid-cols-5" data-risk-assessment-feature-cards="true">
       {cards.map((card) => (
-        <div
-          key={card.label}
-          className="relative max-h-[150px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
-        >
+          <div
+              key={card.label}
+              className="relative max-h-[150px] overflow-hidden rounded-[18px] border border-[#DCE3EE] bg-white px-6 py-7 shadow-sm"
+          >
           {/*<div className="absolute left-0 right-0 top-0 h-1" style={{ background: card.accent }} />*/}
-          <div style={{display:'flex', alignItems:'center', height:'60px'}}>
+          <div style={{display:'flex', alignItems:'center', height:'60px', position:'relative'}}>
             <div style={{padding:'5px', borderRadius:"50%",background:card.iconBg}}>
              <card.icon className={card.iconColor}/> {/*<NotepadText color={"#1E49E2"} />*/}
             </div>
-            <div style={{marginLeft:'5px'}}>
+            <div style={{marginLeft:'5px', marginTop:'0px'}}>
               <div className={"min-h-[30px] max-h-[45pxpx] "}>
                 <p className="text-[13px] font-bold  leading-6 tracking-[0.1em] text-[#6D7EA8]">{/*uppercase*/}
                   {card.label}
                 </p>
               </div>
-              <div className={card.badgeCls}>{card.value}</div>
-
+              {card.label!="Avg Risk Score"?<div className={card.badgeCls}>{card.value}</div>:
+              <div className={card.valueClass}>{card.value}</div>}
             </div>
           </div>
 
@@ -1260,6 +1309,20 @@ export default function RiskAssessmentPage() {
   // ... fetch assessments from API ...
 
   const heatmapData = processRiskHeatmapData(assessments);
+  const recentActivitiesData = processRecentActivity(assessments);
+
+  const {
+    activeAssessments: activeCount,
+    highCriticalRisks: highRiskCount,
+    drafts: draftCount,
+    totalAssessments: totalAssessCount,
+    totalRisks: totalRiskCount,
+    assetCount: assetTotal,
+    addedThisWeek,
+    avgRiskScore,
+    avgRiskLabel,
+    trend,
+  } = processRiskStats(assessments);
 
   useEffect(() => {
     fetchAssessments();
@@ -1960,20 +2023,35 @@ export default function RiskAssessmentPage() {
 
 
             {/* Place the requested three KPI boxes immediately after How It Works before the main workspace begins. */}
+            {/*<RiskAssessmentFeatureCards*/}
+            {/*  activeAssessments={activeAssessments}*/}
+            {/*  highCriticalRisks={highCriticalRisks}*/}
+            {/*  drafts={draftAssessments}*/}
+            {/*  totalAssessments={assessments.length}*/}
+            {/*  totalRisks={allRisks.length}*/}
+            {/*  assetCount={assets.length}*/}
+            {/*/>*/}
+            {console.log("assessments.length - ", assessments.length)}
             <RiskAssessmentFeatureCards
-              activeAssessments={activeAssessments}
-              highCriticalRisks={highCriticalRisks}
-              drafts={draftAssessments}
-              totalAssessments={assessments.length}
-              totalRisks={allRisks.length}
-              assetCount={assets.length}
+                activeAssessments={activeAssessments}
+                highCriticalRisks={highRiskCount}
+                drafts={draftCount}
+                totalAssessments={assessments.length}
+                totalRisks={totalRiskCount}
+                // assetCount={assetTotal}
+                addedThisWeek={addedThisWeek}
+                avgRiskScore={avgRiskScore}
+                avgRiskLabel={avgRiskLabel}
+                trend={trend}
+                // For the badge, you can use addedThisWeek
+                // and avgRiskLabel for the Avg Risk Score card
             />
             <AssessmentProcess />
             {/*<div className={""}>*/}
             {/*  <RecentActivity />*/}
             {/*</div>*/}
             <div className="grid grid-cols-2 gap-4">
-              <div><RecentActivity /></div>
+              <div><RecentActivity activities={recentActivitiesData} /></div>
               <div className="relative">
                 <AnimatePresence mode="wait">
                 {riskHeatMapBoolean?
