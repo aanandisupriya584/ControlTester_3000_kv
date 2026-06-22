@@ -37,7 +37,7 @@ const RiskDistribution: React.FC<RiskDistributionProps> = ({riskItems, totalAsse
             {/* Total row */}
             <div className="flex justify-between items-center pb-2 border-b border-gray-100 mb-3 "  >
                 <span className="text-sm sm:text-base font-medium text-gray-700">Total</span>
-                <span className="text-sm sm:text-base font-semibold text-gray-900">52 Assessments</span>
+                <span className="text-sm sm:text-base font-semibold text-gray-900">{totalAssessments} Assessments</span>
             </div>
 
             {/* Bar chart */}
