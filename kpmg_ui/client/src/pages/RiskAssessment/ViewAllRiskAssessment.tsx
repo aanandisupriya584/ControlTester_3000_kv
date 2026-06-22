@@ -1,5 +1,5 @@
 import React, {useMemo} from "react";
-// import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import RecentRiskTable, { Assessment } from "./RecentRiskTable"; // adjust import path
 import HeroSubSection from "@/components/HeroSubSection.tsx";
 import {AssessmentTableRow, mapAssessmentsToTableData} from "@/pages/RiskAssessment/helper/HelperFn.tsx";
@@ -48,7 +48,7 @@ const sampleData: Assessment[] = [
 
 
 const ViewAllAssessmentsPage: React.FC = () => {
-    // const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const {
         assessments,
         // selectedAssessment,
@@ -77,8 +77,7 @@ const ViewAllAssessmentsPage: React.FC = () => {
     );
     // Action handlers (optional – you can replace with your own logic)
     const handleView = (id: string) => {
-        console.log("View assessment", id);
-        // e.g., navigate(`/risk-assessment/${id}`);
+        setLocation(`/risk-assessment/${encodeURIComponent(id)}`);
     };
     const handleEdit = (id: string) => {
         console.log("Edit assessment", id);

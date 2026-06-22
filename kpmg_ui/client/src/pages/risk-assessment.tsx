@@ -50,8 +50,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import CiaRatingWidget from "@/components/CiaRatingWidget";
 import RiskAssessmentWorkspace from "@/pages/RiskAssessment/components/RiskAssessmentWorkspace";
 import ApplyControlToRiskPage from "@/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage";
+import AssessmentSummaryForm from "@/pages/RiskAssessment/components/workflow/AssessmentSummaryForm";
 import IdentifyRiskPage from "@/pages/RiskAssessment/components/workflow/IdentifyRiskPage";
+import QuestionnaireForm from "@/pages/RiskAssessment/components/workflow/QuestionnaireForm";
 import RiskAssessmentReport from "@/pages/RiskAssessment/components/workflow/RiskAssessmentReport";
+import ComponentWorkflowStepper from "@/pages/RiskAssessment/components/workflow/WorkflowStepper";
 // import RiskAssessmentStyles from "@/pages/RiskAssessment/components/RiskAssessmentStyles";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
@@ -132,6 +135,13 @@ const WORKFLOW_STEP_BY_SLUG = WORKFLOW_STEP_CONFIG.reduce(
 function workflowSlugFromLocation(location: string) {
   const query = location.split("?")[1] ?? "";
   return new URLSearchParams(query).get("step");
+}
+
+function assessmentIdFromLocation(location: string) {
+  const pathname = location.split("?")[0];
+  const match = pathname.match(/^\/risk-assessment\/([^/]+)$/);
+  if (!match || match[1] === "new") return null;
+  return decodeURIComponent(match[1]);
 }
 
 function workflowLabelFromWizardStep(wizardStep: number, location: string): WorkflowStepLabel {
@@ -1236,6 +1246,7 @@ export default function RiskAssessmentPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const isCreatePage = location === "/risk-assessment/new";
+  const routeAssessmentId = assessmentIdFromLocation(location);
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
@@ -1337,6 +1348,24 @@ export default function RiskAssessmentPage() {
     selectAssessment(null);
     setWizardStep(0);
   }, [isCreatePage]);
+
+  useEffect(() => {
+    if (!routeAssessmentId || assessments.length === 0) return;
+    if (selectedAssessment?.id === routeAssessmentId) return;
+
+    const assessment = assessments.find((item) => item.id === routeAssessmentId);
+    if (!assessment) {
+      toast({ title: "Assessment not found", variant: "destructive" });
+      setLocation("/risk-assessment");
+      return;
+    }
+
+    setShowCreate(false);
+    selectAssessment(assessment);
+    setWizardStep(statusToStep(assessment.status));
+    setQaAssetIdx(0);
+    setExpandedSection(sections[0]?.id ?? null);
+  }, [assessments, routeAssessmentId, sections, selectedAssessment?.id, selectAssessment, setLocation, toast]);
 
   useEffect(() => {
     if (wizardStep !== 2 || !selectedAssessment || isAnalyzing) return;
@@ -1442,7 +1471,10 @@ export default function RiskAssessmentPage() {
     }
     setWizardStep(nextStep);
     if (pushHistory) {
-      setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
+      const assessmentPath = selectedAssessment
+        ? `/risk-assessment/${encodeURIComponent(selectedAssessment.id)}`
+        : "/risk-assessment";
+      setLocation(`${assessmentPath}?step=${WORKFLOW_STEP_BY_LABEL[label].slug}`);
     }
   }
 
@@ -1532,7 +1564,7 @@ export default function RiskAssessmentPage() {
       });
       selectAssessment(assessment);
       setShowCreate(false);
-      setLocation("/risk-assessment?step=assets");
+      setLocation(`/risk-assessment/${encodeURIComponent(assessment.id)}?step=assets`);
       setWizardStep(statusToStep(assessment.status));
       setQaAssetIdx(0);
       setExpandedSection(sections[0]?.id ?? null);
@@ -1582,7 +1614,7 @@ export default function RiskAssessmentPage() {
         setExpandedSection(sections[0]?.id ?? null);
         toast({ title: "Responses saved for this application" });
       } else {
-        setLocation("/risk-assessment?step=risk-review");
+        setLocation(`/risk-assessment/${encodeURIComponent(selectedAssessment.id)}?step=risk-review`);
         setWizardStep(2);
         toast({ title: "All responses submitted. Starting analysis." });
       }
@@ -1657,7 +1689,7 @@ export default function RiskAssessmentPage() {
     selectAssessment(assessment);
     const nextStep = statusToStep(assessment.status);
     const nextLabel = workflowLabelForAssessmentStatus(assessment.status);
-    setLocation(`/risk-assessment?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
+    setLocation(`/risk-assessment/${encodeURIComponent(assessment.id)}?step=${WORKFLOW_STEP_BY_LABEL[nextLabel].slug}`);
     setWizardStep(nextStep);
     setQaAssetIdx(0);
     setExpandedSection(sections[0]?.id ?? null);
@@ -1707,11 +1739,11 @@ export default function RiskAssessmentPage() {
       ) : null}
 
       <div className="relative ">
-        <HeroSubSection title={"Risk Assessment"}
+        <HeroSubSection title={selectedAssessment && !showCreate ? "Risk Assessment Workspace" : "Risk Assessment"}
                         subtitle="Application risk assessments, structured questionnaires, inherent scoring, residual analysis, and reporting."
                         icon={ShieldAlert}
-                        actionBtn={'New Assessment'}
-                        actionFn={()=>{setShowCreate(true)}}/>
+                        actionBtn={selectedAssessment && !showCreate ? undefined : 'New Assessment'}
+                        actionFn={selectedAssessment && !showCreate ? undefined : ()=>{setShowCreate(true)}}/>
 
         {/*-----Pop-up code------*/}
         {showCreate ? (
@@ -2082,7 +2114,14 @@ export default function RiskAssessmentPage() {
 
             </div>
             <div className={"mt-4 grid grid-cols-1"}>
-              <RecentRiskTable assessments={tableData} title={""} />
+              <RecentRiskTable
+                assessments={tableData}
+                title={""}
+                onView={(id) => {
+                  const assessment = assessments.find((item) => item.id === id);
+                  if (assessment) selectExistingAssessment(assessment);
+                }}
+              />
             </div>
 
 
@@ -2139,6 +2178,168 @@ export default function RiskAssessmentPage() {
             {/*    ]}*/}
             {/*/>*/}
           </>
+        ) : null}
+
+        {!isCreatePage && selectedAssessment && !showCreate ? (
+          <div ref={workflowContentRef} className="min-w-0 space-y-6">
+            <RiskAssessmentWorkspace
+              primaryButtonClassName={PRIMARY_BUTTON}
+              onCreate={openCreate}
+              showCreateButton={false}
+              onBack={backToLanding}
+            >
+              <WorkflowContextBar
+                assessment={selectedAssessment}
+                assetLabel={assetName(currentAssetId || selectedAssessment.asset_ids[0] || "")}
+                progress={Math.min(
+                  100,
+                  Math.max(
+                    17,
+                    Math.round(
+                      ((Math.min(wizardStep, WORKFLOW_PROGRESS_STEP_COUNT - 1) + 1) /
+                        WORKFLOW_PROGRESS_STEP_COUNT) *
+                        100,
+                    ),
+                  ),
+                )}
+                currentStage={activeWorkflowStep}
+              />
+              <ComponentWorkflowStepper
+                activeStep={activeWorkflowStep}
+                completedSteps={completedWorkflowSteps}
+                disabledSteps={disabledWorkflowSteps}
+                selectedAssessmentId={selectedAssessment.id}
+                onCreate={openCreate}
+                onStepOpen={(label) => {
+                  navigateWorkflowStep(label);
+                  return true;
+                }}
+                onBlockedFinalReport={() =>
+                  toast({
+                    title: "Report not ready",
+                    description: "Complete the findings and residual-risk steps before opening the final report.",
+                  })
+                }
+              />
+            </RiskAssessmentWorkspace>
+
+            {wizardStep === 0 ? (
+              <AssessmentSummaryForm
+                assessment={selectedAssessment}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                assetName={assetName}
+                onStartQuestionnaire={() => navigateWorkflowStep("Questionnaire")}
+              />
+            ) : null}
+
+            {wizardStep === 1 ? (
+              <QuestionnaireForm
+                assessment={selectedAssessment}
+                sections={sections}
+                answers={answers}
+                currentAssetId={currentAssetId}
+                currentAnsweredCount={currentAnsweredCount}
+                currentTotalQuestions={currentTotalQuestions}
+                expandedSection={expandedSection}
+                submittingQa={submittingQa}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                secondaryButtonClassName={SECONDARY_BUTTON}
+                onExpandedSectionChange={setExpandedSection}
+                onAnswer={setAnswer}
+                onSaveProgress={() => toast({ title: "Progress retained in this assessment" })}
+                onContinue={() => void handleSubmitQa()}
+              />
+            ) : null}
+
+            {wizardStep === 2 ? (
+              <IdentifyRiskPage
+                mode="analysis"
+                risks={selectedAssessment.risks}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                onApplyControls={() => navigateWorkflowStep("Findings")}
+              />
+            ) : null}
+
+            {wizardStep === 3 ? (
+              <IdentifyRiskPage
+                mode="identified"
+                risks={selectedAssessment.risks}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                onApplyControls={() => navigateWorkflowStep("Findings")}
+              />
+            ) : null}
+
+            {wizardStep === 4 ? (
+              <ApplyControlToRiskPage
+                risks={selectedAssessment.risks}
+                suggestedControls={selectedAssessment.suggested_controls ?? []}
+                appliedControls={selectedAssessment.applied_controls}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                softButtonClassName={SOFT_BUTTON}
+                onRefreshSuggestions={() =>
+                  void suggestControls(selectedAssessment.id)
+                    .then(() => toast({ title: "Suggestions refreshed" }))
+                    .catch(() => toast({ title: "Failed to refresh suggestions", variant: "destructive" }))
+                }
+                onCalculateResidual={() => {
+                  setLocation(`/risk-assessment/${encodeURIComponent(selectedAssessment.id)}?step=findings`);
+                  setWizardStep(5);
+                }}
+                onApplySuggestion={handleApplySuggestion}
+              />
+            ) : null}
+
+            {wizardStep === 5 ? (
+              <SurfaceSection
+                eyebrow="Residual"
+                title="Residual Risk Review"
+                action={
+                  <div className="flex flex-wrap gap-2" data-risk-assessment-residual="true">
+                    <button className={SOFT_BUTTON} onClick={() => void fetchResidual(selectedAssessment.id)}>
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh
+                    </button>
+                    <button className={PRIMARY_BUTTON} onClick={() => navigateWorkflowStep("Final Report")}>
+                      Generate Report
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                }
+              >
+                {residualResults.length > 0 ? (
+                  <div className="risk-residual-glass-stage grid gap-4 rounded-[22px] border p-4 lg:grid-cols-2">
+                    {residualResults.map((result) => (
+                      <ResidualCard key={result.risk_id} result={result} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 rounded-[18px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-10 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#7E91AE]" />
+                    <p className="text-[13px] text-[#7388A8]">Calculating residual risk.</p>
+                  </div>
+                )}
+              </SurfaceSection>
+            ) : null}
+
+            {wizardStep === 6 ? (
+              <RiskAssessmentReport
+                report={currentReport}
+                isGeneratingReport={isGeneratingReport}
+                primaryButtonClassName={PRIMARY_BUTTON}
+                secondaryButtonClassName={SECONDARY_BUTTON}
+                onCancel={backToLanding}
+                onGenerateReport={() => void handleGenerateReport()}
+                onViewReport={() => setShowReportDialog(true)}
+              />
+            ) : null}
+
+            <ReportPreviewDialog
+              open={showReportDialog}
+              onOpenChange={setShowReportDialog}
+              title={selectedAssessment.title}
+              report={currentReport}
+            />
+          </div>
         ) : null}
 
 

@@ -2235,3 +2235,9 @@ Update:
 Verification:
 - `node --import tsx .\client\src\risk-assessment.overhaul.test.ts`
 - `npm run check`
+## 2026-06-22 - Web container port alignment
+
+- Fixed the Express production server default port to `5000`, matching `docker-compose.yml`, the Dockerfile, and the container health check. The previous `3000` default made rebuilt web containers unreachable at `http://localhost:5000`.
+- Added a matching `PORT=5000` Compose setting and made authentication requests retry transient upstream failures while preserving the real HTTP/server error message.
+- Wired Risk Assessment table `View` actions to the existing assessment workspace. Direct assessment URLs restore the selected session, and the component workflow stepper opens the existing summary, questionnaire, risk review, findings, residual-risk, and final-report components.
+- Fixed questionnaire answer labels so `YES`, `NO`, and `NA` render above the button treatment, and corrected the Recent Risk table Actions dropdown positioning/clipping so View/Edit/Delete remain visible.

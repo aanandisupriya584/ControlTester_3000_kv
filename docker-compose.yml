@@ -198,6 +198,7 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
+      - PORT=5000
       - VITE_API_URL=${VITE_API_URL:-http://fastapi_api:8000}
     depends_on:
       fastapi_api:

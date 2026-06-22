@@ -36,8 +36,8 @@ interface QuestionnaireFormProps {
 }
 
 const ANSWER_LABEL: Record<AnswerType, string> = {
-  yes: "Yes",
-  no: "No",
+  yes: "YES",
+  no: "NO",
   na: "NA",
 };
 
@@ -168,8 +168,9 @@ export default function QuestionnaireForm({
                                 <div className="grid min-w-0 grid-cols-3 gap-3">
                                   {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
                                     <button
+                                      type="button"
                                       key={answer}
-                                      className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold transition-all ${
+                                      className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold text-[#33415C] transition-all ${
                                         local?.answer === answer
                                           ? answer === "yes"
                                             ? "risk-question-answer-button--yes-selected"
@@ -179,8 +180,9 @@ export default function QuestionnaireForm({
                                           : "risk-question-answer-button--idle"
                                       }`}
                                       onClick={() => onAnswer(currentAssetId, section.id, question.id, answer)}
+                                      aria-label={`Answer ${ANSWER_LABEL[answer]}`}
                                     >
-                                      {ANSWER_LABEL[answer]}
+                                      <span className="relative z-10 block text-current">{ANSWER_LABEL[answer]}</span>
                                     </button>
                                   ))}
                                 </div>

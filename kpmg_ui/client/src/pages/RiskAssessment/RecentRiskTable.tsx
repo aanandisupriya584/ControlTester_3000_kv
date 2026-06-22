@@ -141,7 +141,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
 
     return (
         <div
-            className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible"
             style={{
                 background: `
           radial-gradient(ellipse 30% 95% at 6% 115%, rgba(114, 19, 234, 0.45) 0%, transparent 68%),
@@ -150,7 +150,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
             }}
         >
             {/* Inner white card with slight transparency */}
-            <div className="bg-white/90 backdrop-blur-sm">
+            <div className="overflow-visible rounded-xl bg-white/90 backdrop-blur-sm">
 
                 {/* -------- Header with Title + Search + Filter Button -------- */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 gap-3">
@@ -274,7 +274,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                 </div>
 
                 {/* -------- Table -------- */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto md:overflow-visible">
                     <table className="w-full text-sm text-left text-gray-700">
                         <thead className="text-xs text-white uppercase bg-[#7213EA] border-b border-gray-200">
                         <tr>
@@ -309,7 +309,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                     </td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.lastUpdated}</td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.owner}</td>
-                                    <td className="px-4 sm:px-6 py-3 text-right ">
+                                    <td className="relative px-4 py-3 text-right sm:px-6">
                                         {/* Action button */}
                                         <button
                                             onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}
@@ -325,7 +325,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                         {openActionId === item.id && (
                                             <div
                                                 ref={(el) => (actionRefs.current[item.id] = el)}
-                                                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[9999] text-left"
+                                                className="absolute right-4 top-[calc(100%-4px)] z-[9999] w-48 rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl sm:right-6"
                                             >
                                                 <button
                                                     onClick={() => handleAction('view', item.id)}
