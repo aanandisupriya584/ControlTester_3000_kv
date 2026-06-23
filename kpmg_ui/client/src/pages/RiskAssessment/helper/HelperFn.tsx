@@ -225,6 +225,24 @@ export const mapAssessmentsToTableData = (
  * Process an array of assessment objects (as returned by the API)
  * and produce data for the RiskDistribution component.
  */
+// processRiskDistribution.ts (or wherever your helper lives)
+
+interface RiskItem {
+    label: string;
+    count: number;
+    percentage: number;
+}
+
+interface ProcessedRiskData {
+    totalAssessments: number;
+    riskItems: RiskItem[];
+}
+
+/**
+ * Process an array of assessment objects (as returned by the API)
+ * and produce data for the RiskDistribution component.
+ * Colours are now handled inside the component itself.
+ */
 export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
     // 1. Count risks per inherent_risk_band
     const bandCounts: Record<string, number> = {};
@@ -239,53 +257,41 @@ export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
         });
     });
 
-    // 2. Mapping from band to display label and colors
-    const bandMapping: Record<
-        string,
-        { label: string; barColor: string; textColor: string }
-    > = {
-        High: {
-            label: 'High Risk',
-            barColor: 'bg-red-500',
-            textColor: 'text-red-600',
-        },
-        Medium: {
-            label: 'Medium Risk',
-            barColor: 'bg-yellow-500',
-            textColor: 'text-yellow-600',
-        },
-        Low: {
-            label: 'Low Risk',
-            barColor: 'bg-green-500',
-            textColor: 'text-green-600',
-        },
-        'Very Low': {
-            label: 'Very Low Risk',
-            barColor: 'bg-blue-500',
-            textColor: 'text-blue-600',
-        },
+    // 2. Mapping from band to the label that should appear in the UI.
+    //    The labels must match the keys used in RISK_COLORS inside RiskDistribution.
+    //    Currently supported: "Low", "Medium", "High", "Very High".
+    const bandToLabel: Record<string, string> = {
+        High: 'High',
+        Medium: 'Medium',
+        Low: 'Low',
+        'Very High': 'Very High',
+        // You can add more bands here if needed, e.g.:
+        // 'Very Low': 'Low',  // map to an existing label
     };
 
-    // 3. Build risk items in the order: High → Medium → Low → Very Low
-    const order = ['High', 'Medium', 'Low', 'Very Low'];
+    // 3. Build risk items in the order: High → Medium → Low → Very High
+    const order = [ 'Very High','High', 'Medium', 'Low'];
     const riskItems: RiskItem[] = [];
 
     order.forEach((band) => {
         const count = bandCounts[band] || 0;
-        const percentage =
-            totalRisks > 0 ? Math.round((count / totalRisks) * 100) : 0;
-        const mapping = bandMapping[band];
-        if (mapping) {
+        const percentage = totalRisks > 0 ? Math.round((count / totalRisks) * 100) : 0;
+        const label = bandToLabel[band];
+
+        // Only include if we have a label mapping (otherwise skip or handle separately)
+        if (label) {
             riskItems.push({
-                label: mapping.label,
+                label,
                 count,
                 percentage,
-                barColor: mapping.barColor,
-                textColor: mapping.textColor,
             });
         }
-        // If a band is not in the mapping (e.g., 'Critical'), you can handle it separately.
     });
+
+    // Optional: handle any remaining bands that are not in the order
+    // (e.g., "Unknown" or "Very Low") – you could add them with a fallback label.
+    // For example, you might want to include them as "Other" or map to an existing one.
+    // Here we skip them, but you can adjust based on your requirements.
 
     return {
         totalAssessments: assessments.length,
@@ -303,81 +309,131 @@ export interface HeatmapCell {
 }
 
 /**
- * Processes an array of assessment objects (as returned by the API)
- * and returns a 5x5 matrix for the RiskHeatmap component.
- *
- * The matrix rows correspond to Likelihood (index 0 = Rare, 4 = Almost Certain)
- * and columns correspond to Impact (index 0 = Insignificant, 4 = Severe).
- *
- * Each cell contains:
- *   - count: number of risks with that likelihood/impact combination
- *   - riskClass: the highest risk band among risks in that cell
- *                (mapped to "Low", "Medium", "High", "Very High")
+ * Processes an array of assessment objects and returns a 5x5 matrix.
+ * - Counts risks by (likelihood, impact) position.
+ * - Colors are fixed by position (matches the dummy data pattern).
  */
 export function processRiskHeatmapData(assessments: any[]): HeatmapCell[][] {
-    // 1. Initialize a 5x5 matrix with empty data
-    const matrix: {
-        count: number;
-        bands: Set<string>;
-    }[][] = Array.from({ length: 5 }, () =>
-        Array.from({ length: 5 }, () => ({
-            count: 0,
-            bands: new Set<string>(),
-        }))
+    // 1. Initialize a 5x5 matrix with counts only
+    const matrix: number[][] = Array.from({ length: 5 }, () =>
+        Array.from({ length: 5 }, () => 0)
     );
 
-    // 2. Mapping from inherent_risk_band to the class used in the heatmap
-    const bandToClass: Record<string, string> = {
-        'Very High': 'Very High',
-        High: 'High',
-        Medium: 'Medium',
-        Low: 'Low',
-        'Very Low': 'Low', // treat Very Low as Low
-        // Add any other bands you might receive
-    };
-
-    // 3. Severity order for selecting the highest band per cell
-    const severityOrder = ['Very High', 'High', 'Medium', 'Low'];
-
-    // 4. Iterate over all assessments and their risks
+    // 2. Count risks per cell (ignoring their risk band)
     assessments.forEach((assessment) => {
         const risks = assessment?.risks || [];
         risks.forEach((risk: any) => {
             const likelihood = risk.likelihood_score ?? 1;
             const impact = risk.impact_score ?? 1;
-            // Clamp to 1–5 range (just in case)
             const lIndex = Math.min(Math.max(likelihood - 1, 0), 4);
             const iIndex = Math.min(Math.max(impact - 1, 0), 4);
-
-            const cell = matrix[lIndex][iIndex];
-            cell.count += 1;
-
-            const band = risk.inherent_risk_band || 'Low';
-            const cls = bandToClass[band] || 'Low';
-            cell.bands.add(cls);
+            matrix[lIndex][iIndex] += 1;
         });
     });
 
-    // 5. Build the final HeatmapCell matrix
-    const result: HeatmapCell[][] = matrix.map((row) =>
-        row.map((cell) => {
-            // Choose the highest risk class from the set
-            let riskClass = 'Low';
-            for (const level of severityOrder) {
-                if (cell.bands.has(level)) {
-                    riskClass = level;
-                    break;
-                }
-            }
-            return {
-                count: cell.count,
-                riskClass: riskClass,
-            };
-        })
+    // 3. Define the fixed colour pattern (same as dummy data)
+    // Rows = Likelihood (0=Rare … 4=Almost Certain)
+    // Cols = Impact      (0=Insignificant … 4=Severe)
+    const positionRiskClass: string[][] = [
+        ["Low", "Low", "Low", "Medium", "Medium"],
+        ["Low", "Low", "Medium", "Medium", "High"],
+        ["Low", "Medium", "Medium", "High", "High"],
+        ["Medium", "Medium", "High", "High", "Very High"],
+        ["Medium", "High", "High", "Very High", "Very High"],
+    ];
+
+    // 4. Build the final HeatmapCell matrix with fixed colours and counts
+    const result: HeatmapCell[][] = matrix.map((row, rowIdx) =>
+        row.map((count, colIdx) => ({
+            count: count,
+            riskClass: positionRiskClass[rowIdx][colIdx],
+        }))
     );
 
     return result;
 }
+// // types/riskHeatmap.ts (or inline)
+// export interface HeatmapCell {
+//     count: number;
+//     riskClass: string;
+// }
+//
+// /**
+//  * Processes an array of assessment objects (as returned by the API)
+//  * and returns a 5x5 matrix for the RiskHeatmap component.
+//  *
+//  * The matrix rows correspond to Likelihood (index 0 = Rare, 4 = Almost Certain)
+//  * and columns correspond to Impact (index 0 = Insignificant, 4 = Severe).
+//  *
+//  * Each cell contains:
+//  *   - count: number of risks with that likelihood/impact combination
+//  *   - riskClass: the highest risk band among risks in that cell
+//  *                (mapped to "Low", "Medium", "High", "Very High")
+//  */
+// export function processRiskHeatmapData(assessments: any[]): HeatmapCell[][] {
+//     // 1. Initialize a 5x5 matrix with empty data
+//     const matrix: {
+//         count: number;
+//         bands: Set<string>;
+//     }[][] = Array.from({ length: 5 }, () =>
+//         Array.from({ length: 5 }, () => ({
+//             count: 0,
+//             bands: new Set<string>(),
+//         }))
+//     );
+//
+//     // 2. Mapping from inherent_risk_band to the class used in the heatmap
+//     const bandToClass: Record<string, string> = {
+//         'Very High': 'Very High',
+//         High: 'High',
+//         Medium: 'Medium',
+//         Low: 'Low',
+//         'Very Low': 'Low', // treat Very Low as Low
+//         // Add any other bands you might receive
+//     };
+//
+//     // 3. Severity order for selecting the highest band per cell
+//     const severityOrder = ['Very High', 'High', 'Medium', 'Low'];
+//
+//     // 4. Iterate over all assessments and their risks
+//     assessments.forEach((assessment) => {
+//         const risks = assessment?.risks || [];
+//         risks.forEach((risk: any) => {
+//             const likelihood = risk.likelihood_score ?? 1;
+//             const impact = risk.impact_score ?? 1;
+//             // Clamp to 1–5 range (just in case)
+//             const lIndex = Math.min(Math.max(likelihood - 1, 0), 4);
+//             const iIndex = Math.min(Math.max(impact - 1, 0), 4);
+//
+//             const cell = matrix[lIndex][iIndex];
+//             cell.count += 1;
+//
+//             const band = risk.inherent_risk_band || 'Low';
+//             const cls = bandToClass[band] || 'Low';
+//             cell.bands.add(cls);
+//         });
+//     });
+//
+//     // 5. Build the final HeatmapCell matrix
+//     const result: HeatmapCell[][] = matrix.map((row) =>
+//         row.map((cell) => {
+//             // Choose the highest risk class from the set
+//             let riskClass = 'Low';
+//             for (const level of severityOrder) {
+//                 if (cell.bands.has(level)) {
+//                     riskClass = level;
+//                     break;
+//                 }
+//             }
+//             return {
+//                 count: cell.count,
+//                 riskClass: riskClass,
+//             };
+//         })
+//     );
+//
+//     return result;
+// }
 
 
 // Risk Report
@@ -626,6 +682,7 @@ export function processRiskStats(assessments: any[]) {
             totalRisks: 0,
             assetCount: 0,
             addedThisWeek: 0,
+            addedThisMonth: 0,    // NEW
             avgRiskScore: 0,
             avgRiskLabel: "Low",
             trend: "Stable",
@@ -660,7 +717,7 @@ export function processRiskStats(assessments: any[]) {
     else if (avgScore >= 2.5) avgLabel = "Medium";
     else avgLabel = "Low";
 
-    // Compute a simple trend based on average relative to a baseline (3.0)
+    // Trend based on avgScore vs baseline 3.0
     const baseline = 3.0;
     let trend = "Stable";
     if (avgScore > baseline + 0.5) trend = "Trending up";
@@ -672,6 +729,14 @@ export function processRiskStats(assessments: any[]) {
     const addedThisWeek = assessments.filter((a) => {
         const created = new Date(a.created_at);
         return created >= oneWeekAgo;
+    }).length;
+
+    // --- NEW: Assessments added this month ---
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const addedThisMonth = assessments.filter((a) => {
+        const created = new Date(a.created_at);
+        return created >= firstDayOfMonth;
     }).length;
 
     // Unique assets
@@ -689,9 +754,10 @@ export function processRiskStats(assessments: any[]) {
         totalRisks,
         assetCount,
         addedThisWeek,
+        addedThisMonth,          // NEW
         avgRiskScore: avgScore,
-        avgRiskLabel: avgLabel,   // "Low", "Medium", "High", "Very High"
-        trend,                    // "Trending up", "Trending down", "Stable"
+        avgRiskLabel: avgLabel,
+        trend,
     };
 }
 
@@ -705,3 +771,94 @@ function bandToScore(band: string): number {
     };
     return map[band] || 2;
 }
+//
+
+// export function processRiskStats(assessments: any[]) {
+//     if (!assessments || !Array.isArray(assessments) || assessments.length === 0) {
+//         return {
+//             activeAssessments: 0,
+//             highCriticalRisks: 0,
+//             drafts: 0,
+//             totalAssessments: 0,
+//             totalRisks: 0,
+//             assetCount: 0,
+//             addedThisWeek: 0,
+//             avgRiskScore: 0,
+//             avgRiskLabel: "Low",
+//             trend: "Stable",
+//         };
+//     }
+//
+//     let totalAssessments = assessments.length;
+//     let activeAssessments = assessments.filter(
+//         (a) => a.status !== "draft" && a.status !== "complete"
+//     ).length;
+//     let drafts = assessments.filter((a) => a.status === "draft").length;
+//
+//     let totalRisks = 0;
+//     let highCriticalRisks = 0;
+//     let sumRiskScores = 0;
+//
+//     assessments.forEach((assessment) => {
+//         const risks = assessment?.risks || [];
+//         totalRisks += risks.length;
+//         risks.forEach((risk: any) => {
+//             const band = risk.inherent_risk_band || "Low";
+//             if (band === "High" || band === "Very High") highCriticalRisks++;
+//             const score = risk.inherent_risk_score ?? bandToScore(band);
+//             sumRiskScores += score;
+//         });
+//     });
+//
+//     const avgScore = totalRisks > 0 ? sumRiskScores / totalRisks : 0;
+//     let avgLabel = "Low";
+//     if (avgScore >= 4.5) avgLabel = "Very High";
+//     else if (avgScore >= 3.5) avgLabel = "High";
+//     else if (avgScore >= 2.5) avgLabel = "Medium";
+//     else avgLabel = "Low";
+//
+//     // Compute a simple trend based on average relative to a baseline (3.0)
+//     const baseline = 3.0;
+//     let trend = "Stable";
+//     if (avgScore > baseline + 0.5) trend = "Trending up";
+//     else if (avgScore < baseline - 0.5) trend = "Trending down";
+//
+//     // Assessments added this week
+//     const oneWeekAgo = new Date();
+//     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+//     const addedThisWeek = assessments.filter((a) => {
+//         const created = new Date(a.created_at);
+//         return created >= oneWeekAgo;
+//     }).length;
+//
+//     // Unique assets
+//     const assetIds = new Set<string>();
+//     assessments.forEach((a) => {
+//         (a.asset_ids || []).forEach((id: string) => assetIds.add(id));
+//     });
+//     const assetCount = assetIds.size;
+//
+//     return {
+//         activeAssessments,
+//         highCriticalRisks,
+//         drafts,
+//         totalAssessments,
+//         totalRisks,
+//         assetCount,
+//         addedThisWeek,
+//         avgRiskScore: avgScore,
+//         avgRiskLabel: avgLabel,   // "Low", "Medium", "High", "Very High"
+//         trend,                    // "Trending up", "Trending down", "Stable"
+//     };
+// }
+//
+// function bandToScore(band: string): number {
+//     const map: Record<string, number> = {
+//         "Very Low": 1,
+//         Low: 2,
+//         Medium: 3,
+//         High: 4,
+//         "Very High": 5,
+//     };
+//     return map[band] || 2;
+// }

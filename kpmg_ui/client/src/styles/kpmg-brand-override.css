@@ -66,8 +66,8 @@
   --chart-4:              171 87% 30%;
   --chart-5:              43 100% 46%;
 
-  --font-sans:    Arial, sans-serif;
-  --font-display: Arial, sans-serif;
+  --font-sans:    'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
   --font-mono:    "Courier New", monospace;
   --radius:       0.75rem;
 
@@ -145,17 +145,17 @@ body {
 
 /* ── Typography ── */
 h1, h2, h3, h4 {
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 700;
 }
 
 .font-display {
-  font-family: Arial, sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
 }
 
 body, p, span, li {
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* ── Refined scrollbars ── */
@@ -668,7 +668,7 @@ body, p, span, li {
   font-weight: 700;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .kpmg-module-tag {
@@ -807,7 +807,7 @@ body, p, span, li {
   font-size: clamp(26px, 2.4vw, 34px);
   line-height: 1;
   letter-spacing: -0.03em;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .trace-page-hero__subtitle {
@@ -966,7 +966,7 @@ body, p, span, li {
 
 .trace-footer__copy {
   color: #5f6f86;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

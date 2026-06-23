@@ -2246,3 +2246,13 @@ Verification:
 - Standardized Dashboard, Regulatory Library, Controls Library, and Asset Registry to centered content viewports using `calc(100% - 30px)`, 15px vertical margins, and automatic horizontal margins while leaving their shared hero headers unchanged.
 - Reduced the Controls Library content-to-footer gap to 10px by removing its oversized bottom padding and using a 10px bottom margin.
 - Set the Asset Registry content-to-footer gap at the page boundary using exactly 15px bottom padding and zero content bottom margin.
+
+## 2026-06-23 - Dynamic Risk Assessment progress
+
+- Changed the Assessment Details circular progress indicator from wizard-navigation progress to live assessment completion.
+- Progress now accounts for scoped applications, saved and unsaved questionnaire answers, identified risks, applied controls/residual results, and the generated report.
+- Questionnaire progress advances answer by answer and remains capped between 0% and 100%.
+- Made questionnaire Yes/No/NA choices visibly interactive with green, red, and blue selected states respectively.
+- Saved questionnaire choices are rehydrated when an assessment is reopened, and each choice exposes its selected state with `aria-pressed`.
+- Questionnaire choices also keep immediate component-local selection state so visual feedback is not lost while the parent assessment state rerenders.
+- Added authoritative global `aria-pressed` selectors for questionnaire choices so shared white-button theme rules cannot override selected colours.

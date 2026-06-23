@@ -111,7 +111,7 @@
   --chart-4: 147 78% 42%;
   --chart-5: 341 75% 51%;
   --font-sans: 'Inter', sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
   --font-serif: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius: 0.5rem;
@@ -259,7 +259,7 @@
   --spacing: 0.25rem;
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Inter', sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
   --font-serif: 'Inter', sans-serif;
   --tracking-normal: 0em;
 
@@ -292,6 +292,25 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+}
+
+/* Keep questionnaire selection colours authoritative over shared button/theme rules. */
+button[data-risk-question-answer="true"][aria-pressed="true"][data-answer="yes"] {
+  background-color: #009A44 !important;
+  border-color: #009A44 !important;
+  color: #FFFFFF !important;
+}
+
+button[data-risk-question-answer="true"][aria-pressed="true"][data-answer="no"] {
+  background-color: #E5001B !important;
+  border-color: #E5001B !important;
+  color: #FFFFFF !important;
+}
+
+button[data-risk-question-answer="true"][aria-pressed="true"][data-answer="na"] {
+  background-color: #1E49E2 !important;
+  border-color: #1E49E2 !important;
+  color: #FFFFFF !important;
 }
 
 @layer utilities {

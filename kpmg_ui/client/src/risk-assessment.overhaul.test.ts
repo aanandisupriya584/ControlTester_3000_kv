@@ -10,6 +10,7 @@ const source = read("client/src/pages/risk-assessment.tsx");
 const appSource = read("client/src/App.tsx");
 const contextSource = read("client/src/contexts/RiskAssessmentContext.tsx");
 const ciaWidgetSource = read("client/src/components/CiaRatingWidget.tsx");
+const questionnaireSource = read("client/src/pages/RiskAssessment/components/workflow/QuestionnaireForm.tsx");
 
 assert.doesNotMatch(
   source,
@@ -37,6 +38,33 @@ assert.match(
   contextSource,
   /\/api\/risk-assessment\/sections/,
   "Risk Assessment should preserve section loading through the existing context endpoint",
+);
+
+assert.match(
+  source,
+  /selectedAssessment\.responses\s*\.filter/,
+  "Assessment Details progress should include saved questionnaire responses",
+);
+
+for (const expected of [
+  'aria-pressed={selectedAnswer === answer}',
+  'setSelectedAnswers',
+  'bg-[#009A44] text-white',
+  'bg-[#E5001B] text-white',
+  'bg-[#1E49E2] text-white',
+  'backgroundColor:',
+]) {
+  assert.match(
+    questionnaireSource,
+    new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    `Questionnaire choices should include ${expected}`,
+  );
+}
+
+assert.match(
+  source,
+  /progress=\{workflowProgress\}/,
+  "Assessment Details should render the dynamic workflow progress value",
 );
 
 assert.match(

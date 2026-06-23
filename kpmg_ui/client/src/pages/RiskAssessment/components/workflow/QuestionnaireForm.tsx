@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -97,6 +97,26 @@ export default function QuestionnaireForm({
   onSaveProgress,
   onContinue,
 }: QuestionnaireFormProps) {
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, AnswerType>>({});
+
+  useEffect(() => {
+    const restoredSelections: Record<string, AnswerType> = {};
+    Object.entries(answers[currentAssetId] ?? {}).forEach(([sectionId, questionAnswers]) => {
+      Object.entries(questionAnswers).forEach(([questionId, localAnswer]) => {
+        restoredSelections[`${sectionId}:${questionId}`] = localAnswer.answer;
+      });
+    });
+    setSelectedAnswers(restoredSelections);
+  }, [answers, currentAssetId]);
+
+  function selectAnswer(sectionId: string, questionId: string, answer: AnswerType) {
+    setSelectedAnswers((previous) => ({
+      ...previous,
+      [`${sectionId}:${questionId}`]: answer,
+    }));
+    onAnswer(currentAssetId, sectionId, questionId, answer);
+  }
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]" data-risk-assessment-questionnaire="true">
       <section className="min-w-0">
@@ -154,6 +174,7 @@ export default function QuestionnaireForm({
                       <div className="space-y-5">
                         {section.questions.map((question, questionIndex) => {
                           const local = answers[currentAssetId]?.[section.id]?.[question.id];
+                          const selectedAnswer = selectedAnswers[`${section.id}:${question.id}`] ?? local?.answer;
                           return (
                             <div key={question.id} className="border-t border-[#EFF2F7] pt-4 first:border-t-0 first:pt-0">
                               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
@@ -170,17 +191,31 @@ export default function QuestionnaireForm({
                                     <button
                                       type="button"
                                       key={answer}
-                                      className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold text-[#33415C] transition-all ${
-                                        local?.answer === answer
+                                      className={`risk-question-answer-button h-11 cursor-pointer rounded-[8px] border text-[12px] font-bold transition-all duration-150 active:translate-y-px ${
+                                        selectedAnswer === answer
                                           ? answer === "yes"
-                                            ? "risk-question-answer-button--yes-selected"
+                                            ? "risk-question-answer-button--yes-selected border-[#009A44] bg-[#009A44] text-white shadow-sm"
                                             : answer === "no"
-                                              ? "risk-question-answer-button--no-selected"
-                                              : "risk-question-answer-button--na-selected"
-                                          : "risk-question-answer-button--idle"
+                                              ? "risk-question-answer-button--no-selected border-[#E5001B] bg-[#E5001B] text-white shadow-sm"
+                                              : "risk-question-answer-button--na-selected border-[#1E49E2] bg-[#1E49E2] text-white shadow-sm"
+                                          : "risk-question-answer-button--idle border-[#D6E0EF] bg-white text-[#33415C] hover:border-[#1E49E2] hover:bg-[#F8FBFF]"
                                       }`}
-                                      onClick={() => onAnswer(currentAssetId, section.id, question.id, answer)}
+                                      onClick={() => selectAnswer(section.id, question.id, answer)}
                                       aria-label={`Answer ${ANSWER_LABEL[answer]}`}
+                                      aria-pressed={selectedAnswer === answer}
+                                      data-risk-question-answer="true"
+                                      data-answer={answer}
+                                      style={
+                                        selectedAnswer === answer
+                                          ? {
+                                              backgroundColor:
+                                                answer === "yes" ? "#009A44" : answer === "no" ? "#E5001B" : "#1E49E2",
+                                              borderColor:
+                                                answer === "yes" ? "#009A44" : answer === "no" ? "#E5001B" : "#1E49E2",
+                                              color: "#FFFFFF",
+                                            }
+                                          : undefined
+                                      }
                                     >
                                       <span className="relative z-10 block text-current">{ANSWER_LABEL[answer]}</span>
                                     </button>

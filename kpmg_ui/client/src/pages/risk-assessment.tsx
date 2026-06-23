@@ -530,6 +530,7 @@ function RiskAssessmentFeatureCards({
                                       totalRisks,
                                       assetCount,
                                       addedThisWeek,
+                                      addedThisMonth,
                                       avgRiskScore,    // numeric (for badge)
                                       avgRiskLabel,    // "Low", "Medium", "High", "Very High"
                                       trend,
@@ -541,6 +542,7 @@ function RiskAssessmentFeatureCards({
   totalRisks: number;
   assetCount?: number;
   addedThisWeek:number;
+  addedThisMonth:number;
   avgRiskScore:number;
   avgRiskLabel: string;
   trend: string;
@@ -602,7 +604,7 @@ function RiskAssessmentFeatureCards({
       value: totalAssessments,
       detail: "Includes active, & draft assessments",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `Across all assessments`,
+      badge: `+${addedThisMonth} added his month`,
       accent: "#ACEAFF",
       badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
       icon:Layers,
@@ -1312,6 +1314,27 @@ export default function RiskAssessmentPage() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if (!selectedAssessment) {
+      setAnswers({});
+      return;
+    }
+
+    // Rehydrate saved questionnaire choices so reopened assessments keep their visible Yes/No/NA selection.
+    const savedAnswers = selectedAssessment.responses.reduce<
+      Record<string, Record<string, Record<string, LocalAnswer>>>
+    >((acc, response) => {
+      acc[response.asset_id] ??= {};
+      acc[response.asset_id][response.section_id] ??= {};
+      acc[response.asset_id][response.section_id][response.question_id] = {
+        answer: response.answer,
+        details: response.details ?? "",
+      };
+      return acc;
+    }, {});
+    setAnswers(savedAnswers);
+  }, [selectedAssessment?.id]);
+
 
   // ... fetch assessments from API ...
 
@@ -1330,6 +1353,7 @@ export default function RiskAssessmentPage() {
     totalRisks: totalRiskCount,
     assetCount: assetTotal,
     addedThisWeek,
+    addedThisMonth,
     avgRiskScore,
     avgRiskLabel,
     trend,
@@ -1445,6 +1469,65 @@ export default function RiskAssessmentPage() {
     Findings: hasReportPrerequisites,
     "Final Report": Boolean(currentReport || selectedAssessment?.status === "complete"),
   };
+  const workflowProgress = useMemo(() => {
+    if (!selectedAssessment) return 0;
+
+    const scopedAssetIds = [
+      ...selectedAssessment.asset_ids,
+      ...(selectedAssessment.ad_hoc_applications ?? []).map((app) => app.id).filter((id): id is string => Boolean(id)),
+    ];
+    const scopedAssetIdSet = new Set(scopedAssetIds);
+    const questionIdsBySection = new Map(
+      sections.map((section) => [section.id, new Set(section.questions.map((question) => question.id))]),
+    );
+    const questionCount = sections.reduce((total, section) => total + section.questions.length, 0);
+    const totalExpectedAnswers = scopedAssetIds.length * questionCount;
+    const answeredQuestionKeys = new Set(
+      selectedAssessment.responses
+        .filter(
+          (response) =>
+            scopedAssetIdSet.has(response.asset_id) &&
+            questionIdsBySection.get(response.section_id)?.has(response.question_id),
+        )
+        .map((response) => `${response.asset_id}:${response.section_id}:${response.question_id}`),
+    );
+
+    Object.entries(answers).forEach(([assetId, sectionAnswers]) => {
+      if (!scopedAssetIdSet.has(assetId)) return;
+      Object.entries(sectionAnswers).forEach(([sectionId, questionAnswers]) => {
+        Object.keys(questionAnswers).forEach((questionId) => {
+          if (!questionIdsBySection.get(sectionId)?.has(questionId)) return;
+          answeredQuestionKeys.add(`${assetId}:${sectionId}:${questionId}`);
+        });
+      });
+    });
+
+    const questionnaireIsComplete = ["risks_identified", "controls_applied", "complete"].includes(
+      selectedAssessment.status,
+    );
+    const questionnaireProgress = questionnaireIsComplete
+      ? 1
+      : totalExpectedAnswers > 0
+        ? Math.min(answeredQuestionKeys.size / totalExpectedAnswers, 1)
+        : 0;
+    const findingsAreComplete = Boolean(
+      selectedAssessment.applied_controls.length > 0 ||
+        selectedAssessment.status === "controls_applied" ||
+        selectedAssessment.status === "complete" ||
+        residualResults.length > 0,
+    );
+
+    // Weight each of the six workflow stages equally, while allowing questionnaire progress to advance answer by answer.
+    const completedStageUnits =
+      1 +
+      (scopedAssetIds.length > 0 ? 1 : 0) +
+      questionnaireProgress +
+      (hasRisksIdentified ? 1 : 0) +
+      (findingsAreComplete ? 1 : 0) +
+      (currentReport || selectedAssessment.status === "complete" ? 1 : 0);
+
+    return Math.min(100, Math.max(0, Math.round((completedStageUnits / WORKFLOW_PROGRESS_STEP_COUNT) * 100)));
+  }, [answers, currentReport, hasRisksIdentified, residualResults.length, sections, selectedAssessment]);
   const disabledWorkflowSteps: Record<WorkflowStepLabel, boolean> = {
     Create: false,
     Assets: false,
@@ -2089,6 +2172,7 @@ export default function RiskAssessmentPage() {
                 totalRisks={totalRiskCount}
                 // assetCount={assetTotal}
                 addedThisWeek={addedThisWeek}
+                addedThisMonth={addedThisMonth}
                 avgRiskScore={avgRiskScore}
                 avgRiskLabel={avgRiskLabel}
                 trend={trend}
@@ -2208,17 +2292,7 @@ export default function RiskAssessmentPage() {
               <WorkflowContextBar
                 assessment={selectedAssessment}
                 assetLabel={assetName(currentAssetId || selectedAssessment.asset_ids[0] || "")}
-                progress={Math.min(
-                  100,
-                  Math.max(
-                    17,
-                    Math.round(
-                      ((Math.min(wizardStep, WORKFLOW_PROGRESS_STEP_COUNT - 1) + 1) /
-                        WORKFLOW_PROGRESS_STEP_COUNT) *
-                        100,
-                    ),
-                  ),
-                )}
+                progress={workflowProgress}
                 currentStage={activeWorkflowStep}
               />
               <ComponentWorkflowStepper
