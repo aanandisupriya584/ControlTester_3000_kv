@@ -530,6 +530,7 @@ function RiskAssessmentFeatureCards({
                                       totalRisks,
                                       assetCount,
                                       addedThisWeek,
+                                      addedThisMonth,
                                       avgRiskScore,    // numeric (for badge)
                                       avgRiskLabel,    // "Low", "Medium", "High", "Very High"
                                       trend,
@@ -541,6 +542,7 @@ function RiskAssessmentFeatureCards({
   totalRisks: number;
   assetCount?: number;
   addedThisWeek:number;
+  addedThisMonth:number;
   avgRiskScore:number;
   avgRiskLabel: string;
   trend: string;
@@ -602,7 +604,7 @@ function RiskAssessmentFeatureCards({
       value: totalAssessments,
       detail: "Includes active, & draft assessments",
       badgeCls:'mt-1 text-[45px] font-bold leading-none tracking-[-0.05em] text-[#001B3A]',
-      badge: `Across all assessments`,
+      badge: `+${addedThisMonth} added his month`,
       accent: "#ACEAFF",
       badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
       icon:Layers,
@@ -1330,6 +1332,7 @@ export default function RiskAssessmentPage() {
     totalRisks: totalRiskCount,
     assetCount: assetTotal,
     addedThisWeek,
+    addedThisMonth,
     avgRiskScore,
     avgRiskLabel,
     trend,
@@ -2089,6 +2092,7 @@ export default function RiskAssessmentPage() {
                 totalRisks={totalRiskCount}
                 // assetCount={assetTotal}
                 addedThisWeek={addedThisWeek}
+                addedThisMonth={addedThisMonth}
                 avgRiskScore={avgRiskScore}
                 avgRiskLabel={avgRiskLabel}
                 trend={trend}

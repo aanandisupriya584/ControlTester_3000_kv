@@ -682,6 +682,7 @@ export function processRiskStats(assessments: any[]) {
             totalRisks: 0,
             assetCount: 0,
             addedThisWeek: 0,
+            addedThisMonth: 0,    // NEW
             avgRiskScore: 0,
             avgRiskLabel: "Low",
             trend: "Stable",
@@ -716,7 +717,7 @@ export function processRiskStats(assessments: any[]) {
     else if (avgScore >= 2.5) avgLabel = "Medium";
     else avgLabel = "Low";
 
-    // Compute a simple trend based on average relative to a baseline (3.0)
+    // Trend based on avgScore vs baseline 3.0
     const baseline = 3.0;
     let trend = "Stable";
     if (avgScore > baseline + 0.5) trend = "Trending up";
@@ -728,6 +729,14 @@ export function processRiskStats(assessments: any[]) {
     const addedThisWeek = assessments.filter((a) => {
         const created = new Date(a.created_at);
         return created >= oneWeekAgo;
+    }).length;
+
+    // --- NEW: Assessments added this month ---
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const addedThisMonth = assessments.filter((a) => {
+        const created = new Date(a.created_at);
+        return created >= firstDayOfMonth;
     }).length;
 
     // Unique assets
@@ -745,9 +754,10 @@ export function processRiskStats(assessments: any[]) {
         totalRisks,
         assetCount,
         addedThisWeek,
+        addedThisMonth,          // NEW
         avgRiskScore: avgScore,
-        avgRiskLabel: avgLabel,   // "Low", "Medium", "High", "Very High"
-        trend,                    // "Trending up", "Trending down", "Stable"
+        avgRiskLabel: avgLabel,
+        trend,
     };
 }
 
@@ -761,3 +771,94 @@ function bandToScore(band: string): number {
     };
     return map[band] || 2;
 }
+//
+
+// export function processRiskStats(assessments: any[]) {
+//     if (!assessments || !Array.isArray(assessments) || assessments.length === 0) {
+//         return {
+//             activeAssessments: 0,
+//             highCriticalRisks: 0,
+//             drafts: 0,
+//             totalAssessments: 0,
+//             totalRisks: 0,
+//             assetCount: 0,
+//             addedThisWeek: 0,
+//             avgRiskScore: 0,
+//             avgRiskLabel: "Low",
+//             trend: "Stable",
+//         };
+//     }
+//
+//     let totalAssessments = assessments.length;
+//     let activeAssessments = assessments.filter(
+//         (a) => a.status !== "draft" && a.status !== "complete"
+//     ).length;
+//     let drafts = assessments.filter((a) => a.status === "draft").length;
+//
+//     let totalRisks = 0;
+//     let highCriticalRisks = 0;
+//     let sumRiskScores = 0;
+//
+//     assessments.forEach((assessment) => {
+//         const risks = assessment?.risks || [];
+//         totalRisks += risks.length;
+//         risks.forEach((risk: any) => {
+//             const band = risk.inherent_risk_band || "Low";
+//             if (band === "High" || band === "Very High") highCriticalRisks++;
+//             const score = risk.inherent_risk_score ?? bandToScore(band);
+//             sumRiskScores += score;
+//         });
+//     });
+//
+//     const avgScore = totalRisks > 0 ? sumRiskScores / totalRisks : 0;
+//     let avgLabel = "Low";
+//     if (avgScore >= 4.5) avgLabel = "Very High";
+//     else if (avgScore >= 3.5) avgLabel = "High";
+//     else if (avgScore >= 2.5) avgLabel = "Medium";
+//     else avgLabel = "Low";
+//
+//     // Compute a simple trend based on average relative to a baseline (3.0)
+//     const baseline = 3.0;
+//     let trend = "Stable";
+//     if (avgScore > baseline + 0.5) trend = "Trending up";
+//     else if (avgScore < baseline - 0.5) trend = "Trending down";
+//
+//     // Assessments added this week
+//     const oneWeekAgo = new Date();
+//     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+//     const addedThisWeek = assessments.filter((a) => {
+//         const created = new Date(a.created_at);
+//         return created >= oneWeekAgo;
+//     }).length;
+//
+//     // Unique assets
+//     const assetIds = new Set<string>();
+//     assessments.forEach((a) => {
+//         (a.asset_ids || []).forEach((id: string) => assetIds.add(id));
+//     });
+//     const assetCount = assetIds.size;
+//
+//     return {
+//         activeAssessments,
+//         highCriticalRisks,
+//         drafts,
+//         totalAssessments,
+//         totalRisks,
+//         assetCount,
+//         addedThisWeek,
+//         avgRiskScore: avgScore,
+//         avgRiskLabel: avgLabel,   // "Low", "Medium", "High", "Very High"
+//         trend,                    // "Trending up", "Trending down", "Stable"
+//     };
+// }
+//
+// function bandToScore(band: string): number {
+//     const map: Record<string, number> = {
+//         "Very Low": 1,
+//         Low: 2,
+//         Medium: 3,
+//         High: 4,
+//         "Very High": 5,
+//     };
+//     return map[band] || 2;
+// }
