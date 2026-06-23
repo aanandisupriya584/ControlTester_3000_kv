@@ -2256,3 +2256,6 @@ Verification:
 - Saved questionnaire choices are rehydrated when an assessment is reopened, and each choice exposes its selected state with `aria-pressed`.
 - Questionnaire choices also keep immediate component-local selection state so visual feedback is not lost while the parent assessment state rerenders.
 - Added authoritative global `aria-pressed` selectors for questionnaire choices so shared white-button theme rules cannot override selected colours.
+- Guarded questionnaire Continue until every question for the current application is answered and show a "Please answer all questions" popup when blocked.
+- Removed the previous fallback that silently converted unanswered questions to NA.
+- Restored visible per-suggestion Apply buttons using self-contained styling and added a Load Control Suggestions action for empty risk-control lists.

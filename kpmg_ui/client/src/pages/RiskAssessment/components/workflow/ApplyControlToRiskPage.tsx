@@ -79,12 +79,16 @@ function SuggestedControlRow({
           </div>
         </div>
         {alreadyApplied ? (
-          <span className="risk-control-applied-glass-pill">
+          <span className="risk-control-applied-glass-pill inline-flex items-center gap-2 rounded-[8px] border border-[#BFE7D1] bg-[#EDFBF5] px-4 py-2 text-[12px] font-bold text-[#009A44]">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Applied
           </span>
         ) : (
-          <button className="risk-control-apply-glass-button" onClick={() => void onApply()}>
+          <button
+            type="button"
+            className="risk-control-apply-glass-button inline-flex min-h-10 flex-shrink-0 items-center justify-center rounded-[8px] border border-[#1E49E2] bg-[#1E49E2] px-4 py-2 text-[12px] font-bold text-white transition-colors hover:border-[#00338D] hover:bg-[#00338D]"
+            onClick={() => void onApply()}
+          >
             Apply
           </button>
         )}
@@ -161,8 +165,12 @@ export default function ApplyControlToRiskPage({
                       />
                     ))
                   ) : (
-                    <div className="rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-6 text-[13px] text-[#7388A8]">
-                      Loading suggestions or no control suggestions are available yet.
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-5 text-[13px] text-[#7388A8]">
+                      <span>No control suggestions are loaded for this risk yet.</span>
+                      <button type="button" className={softButtonClassName} onClick={onRefreshSuggestions}>
+                        <RefreshCw className="h-4 w-4" />
+                        Load Control Suggestions
+                      </button>
                     </div>
                   )}
                 </div>

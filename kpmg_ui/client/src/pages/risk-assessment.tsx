@@ -1674,6 +1674,22 @@ export default function RiskAssessmentPage() {
 
   async function handleSubmitQa() {
     if (!selectedAssessment || !currentAssetId) return;
+    const unansweredQuestions = sections.reduce(
+      (count, section) =>
+        count +
+        section.questions.filter(
+          (question) => !answers[currentAssetId]?.[section.id]?.[question.id]?.answer,
+        ).length,
+      0,
+    );
+    if (unansweredQuestions > 0) {
+      toast({
+        title: "Please answer all questions",
+        description: `${unansweredQuestions} question${unansweredQuestions === 1 ? "" : "s"} remaining before you can continue.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmittingQa(true);
 
     try {
@@ -1684,7 +1700,7 @@ export default function RiskAssessmentPage() {
             asset_id: currentAssetId,
             section_id: section.id,
             question_id: question.id,
-            answer: (local?.answer ?? "na") as AnswerType,
+            answer: local!.answer,
             details: local?.details ?? "",
           };
         }),

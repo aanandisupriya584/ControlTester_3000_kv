@@ -11,6 +11,7 @@ const appSource = read("client/src/App.tsx");
 const contextSource = read("client/src/contexts/RiskAssessmentContext.tsx");
 const ciaWidgetSource = read("client/src/components/CiaRatingWidget.tsx");
 const questionnaireSource = read("client/src/pages/RiskAssessment/components/workflow/QuestionnaireForm.tsx");
+const applyControlsSource = read("client/src/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage.tsx");
 
 assert.doesNotMatch(
   source,
@@ -46,6 +47,18 @@ assert.match(
   "Assessment Details progress should include saved questionnaire responses",
 );
 
+assert.match(
+  applyControlsSource,
+  /bg-\[\#1E49E2\][^\n]*text-white/,
+  "Suggested controls should expose a visible blue Apply button without optional stylesheet dependencies",
+);
+
+assert.match(
+  applyControlsSource,
+  /Load Control Suggestions/,
+  "Risks without suggestions should expose a control-loading action",
+);
+
 for (const expected of [
   'aria-pressed={selectedAnswer === answer}',
   'setSelectedAnswers',
@@ -53,6 +66,7 @@ for (const expected of [
   'bg-[#E5001B] text-white',
   'bg-[#1E49E2] text-white',
   'backgroundColor:',
+  'aria-disabled={!allQuestionsAnswered}',
 ]) {
   assert.match(
     questionnaireSource,
@@ -65,6 +79,18 @@ assert.match(
   source,
   /progress=\{workflowProgress\}/,
   "Assessment Details should render the dynamic workflow progress value",
+);
+
+assert.match(
+  source,
+  /if \(unansweredQuestions > 0\)/,
+  "Questionnaire submission should guard against advancing with unanswered questions",
+);
+
+assert.match(
+  source,
+  /title: "Please answer all questions"/,
+  "Incomplete questionnaire submission should show the requested popup message",
 );
 
 assert.match(

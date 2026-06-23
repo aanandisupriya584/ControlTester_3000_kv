@@ -98,6 +98,7 @@ export default function QuestionnaireForm({
   onContinue,
 }: QuestionnaireFormProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, AnswerType>>({});
+  const allQuestionsAnswered = currentTotalQuestions > 0 && currentAnsweredCount >= currentTotalQuestions;
 
   useEffect(() => {
     const restoredSelections: Record<string, AnswerType> = {};
@@ -245,7 +246,13 @@ export default function QuestionnaireForm({
                   <Save className="h-4 w-4" />
                   Save Progress
                 </button>
-                <button className={primaryButtonClassName} onClick={onContinue} disabled={submittingQa}>
+                <button
+                  className={primaryButtonClassName}
+                  onClick={onContinue}
+                  disabled={submittingQa}
+                  aria-disabled={!allQuestionsAnswered}
+                  title={allQuestionsAnswered ? "Continue to the next step" : "Answer every question before continuing"}
+                >
                   {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Continue
                   <ArrowRight className="h-4 w-4" />
