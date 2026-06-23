@@ -847,12 +847,6 @@
                     isGeneratingReport={isGeneratingReport}
                     primaryButtonClassName={PRIMARY_BUTTON}
                     secondaryButtonClassName={SECONDARY_BUTTON}
-                    onCancel={() => {
-                      setLocation("/risk-assessment");
-                      setShowCreate(false);
-                      selectAssessment(null);
-                      setWizardStep(0);
-                    }}
                     onGenerateReport={() => void handleGenerateReport()}
                     onViewReport={() => setShowReportDialog(true)}
                   />

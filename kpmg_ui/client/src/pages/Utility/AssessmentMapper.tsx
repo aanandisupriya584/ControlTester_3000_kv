@@ -1,6 +1,6 @@
 // src/utils/assessmentMapper.ts
-import { Assessment as ApiAssessment } from "@/contexts/RiskAssessmentContext";
-import { Assessment as TableAssessment } from "@/components/RecentRiskTable";
+import type { RiskAssessment as ApiAssessment } from "@/contexts/RiskAssessmentContext";
+import type { Assessment as TableAssessment } from "@/pages/RiskAssessment/RecentRiskTable";
 
 // Map API status to table status
 const mapStatus = (apiStatus: string): TableAssessment['status'] => {

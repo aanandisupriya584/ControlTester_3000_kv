@@ -93,8 +93,8 @@ export interface RiskItem {
     label: string;
     count: number;
     percentage: number;
-    barColor: string;   // Tailwind background class
-    textColor: string;  // Tailwind text class for percentage
+    barColor?: string;   // Tailwind background class
+    textColor?: string;  // Tailwind text class for percentage
 }
 
 export interface ProcessedRiskData {
@@ -225,19 +225,6 @@ export const mapAssessmentsToTableData = (
  * Process an array of assessment objects (as returned by the API)
  * and produce data for the RiskDistribution component.
  */
-// processRiskDistribution.ts (or wherever your helper lives)
-
-interface RiskItem {
-    label: string;
-    count: number;
-    percentage: number;
-}
-
-interface ProcessedRiskData {
-    totalAssessments: number;
-    riskItems: RiskItem[];
-}
-
 /**
  * Process an array of assessment objects (as returned by the API)
  * and produce data for the RiskDistribution component.

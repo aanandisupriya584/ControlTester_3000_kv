@@ -2434,7 +2434,6 @@ export default function RiskAssessmentPage() {
                 isGeneratingReport={isGeneratingReport}
                 primaryButtonClassName={PRIMARY_BUTTON}
                 secondaryButtonClassName={SECONDARY_BUTTON}
-                onCancel={backToLanding}
                 onGenerateReport={() => void handleGenerateReport()}
                 onViewReport={() => setShowReportDialog(true)}
               />
