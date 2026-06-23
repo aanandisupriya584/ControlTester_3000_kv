@@ -75,7 +75,8 @@ const AssessmentProcess: React.FC = () => {
                         <React.Fragment key={step.id}>
                             <div style={styles.stepBlock}>
                                 <div style={{width:'49px', marginTop:'1rem'}}>
-                                    {step.id<=2?<div style={styles.circle}>{step.id}</div>:<div style={styles.circle2}>{step.id}</div>}
+                                    {/*{step.id<=2?<div style={styles.circle}>{step.id}</div>:<div style={styles.circle2}>{step.id}</div>}*/}
+                                    <div style={styles.circle2}>{step.id}</div>
                                 </div>
                                 <div style={{width:'150px', marginLeft:'0.5rem'}}>
                                     <span style={styles.stepTitle}>{step.title}</span><br/>
