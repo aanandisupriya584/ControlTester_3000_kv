@@ -179,6 +179,37 @@ interface LocalAnswer {
   details: string;
 }
 
+const CREATE_DRAFT_STORAGE_KEY = "trace.riskAssessment.createDraft.v1";
+
+interface CreateAssessmentDraftState {
+  form: { title: string; description: string; selectedAssetIds: string[] };
+  adHocApps: AdHocApplication[];
+}
+
+function readCreateAssessmentDraft(): CreateAssessmentDraftState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const rawDraft = window.localStorage.getItem(CREATE_DRAFT_STORAGE_KEY);
+    if (!rawDraft) return null;
+    const parsed = JSON.parse(rawDraft) as Partial<CreateAssessmentDraftState>;
+    return {
+      form: {
+        title: parsed.form?.title ?? "",
+        description: parsed.form?.description ?? "",
+        selectedAssetIds: Array.isArray(parsed.form?.selectedAssetIds) ? parsed.form.selectedAssetIds : [],
+      },
+      adHocApps: Array.isArray(parsed.adHocApps) ? parsed.adHocApps : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearCreateAssessmentDraft() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
+}
+
 // interface AssessmentTableRow {
 //   id: string;
 //   name: string;
@@ -1252,11 +1283,14 @@ export default function RiskAssessmentPage() {
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
-  const [form, setForm] = useState<{ title: string; description: string; selectedAssetIds: string[] }>({
-    title: "",
-    description: "",
-    selectedAssetIds: [],
-  });
+  const [savedCreateDraft] = useState(() => readCreateAssessmentDraft());
+  const [form, setForm] = useState<{ title: string; description: string; selectedAssetIds: string[] }>(
+    savedCreateDraft?.form ?? {
+      title: "",
+      description: "",
+      selectedAssetIds: [],
+    },
+  );
   const sampleData: Assessment[] = [
     {
       id: '1',
@@ -1296,7 +1330,7 @@ export default function RiskAssessmentPage() {
     },
   ];
   const [riskHeatMapBoolean, setRiskHeatMapBoolean] = useState(false);
-  const [adHocApps, setAdHocApps] = useState<AdHocApplication[]>([]);
+  const [adHocApps, setAdHocApps] = useState<AdHocApplication[]>(savedCreateDraft?.adHocApps ?? []);
   const [showAdHocForm, setShowAdHocForm] = useState(false);
   const [adHocDraft, setAdHocDraft] = useState<AdHocApplication>({
     name: "",
@@ -1313,6 +1347,25 @@ export default function RiskAssessmentPage() {
   const [submittingQa, setSubmittingQa] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasCreateDraft =
+      form.title.trim() ||
+      form.description.trim() ||
+      form.selectedAssetIds.length > 0 ||
+      adHocApps.length > 0;
+
+    if (!hasCreateDraft) {
+      clearCreateAssessmentDraft();
+      return;
+    }
+
+    window.localStorage.setItem(
+      CREATE_DRAFT_STORAGE_KEY,
+      JSON.stringify({ form, adHocApps }),
+    );
+  }, [adHocApps, form]);
 
   useEffect(() => {
     if (!selectedAssessment) {
@@ -1598,6 +1651,7 @@ export default function RiskAssessmentPage() {
   }, [wizardStep, selectedAssessment?.id, showCreate]);
 
   function resetCreateState() {
+    clearCreateAssessmentDraft();
     setForm({ title: "", description: "", selectedAssetIds: [] });
     setAdHocApps([]);
     setAdHocDraft({
@@ -1630,6 +1684,23 @@ export default function RiskAssessmentPage() {
   function answeredCount(assetId: string) {
     const assetAnswers = answers[assetId] ?? {};
     return Object.values(assetAnswers).flatMap((sectionAnswer) => Object.values(sectionAnswer)).length;
+  }
+
+  function currentAssetResponses() {
+    if (!currentAssetId) return [];
+    return sections.flatMap((section) =>
+      section.questions.flatMap((question) => {
+        const local = answers[currentAssetId]?.[section.id]?.[question.id];
+        if (!local?.answer) return [];
+        return [{
+          asset_id: currentAssetId,
+          section_id: section.id,
+          question_id: question.id,
+          answer: local.answer,
+          details: local.details ?? "",
+        }];
+      }),
+    );
   }
 
   async function handleCreate() {
@@ -1693,18 +1764,7 @@ export default function RiskAssessmentPage() {
     setSubmittingQa(true);
 
     try {
-      const responses = sections.flatMap((section) =>
-        section.questions.map((question) => {
-          const local = answers[currentAssetId]?.[section.id]?.[question.id];
-          return {
-            asset_id: currentAssetId,
-            section_id: section.id,
-            question_id: question.id,
-            answer: local!.answer,
-            details: local?.details ?? "",
-          };
-        }),
-      );
+      const responses = currentAssetResponses();
 
       await submitResponseBatch(selectedAssessment.id, responses);
 
@@ -1719,6 +1779,32 @@ export default function RiskAssessmentPage() {
       }
     } catch {
       toast({ title: "Failed to save responses", variant: "destructive" });
+    } finally {
+      setSubmittingQa(false);
+    }
+  }
+
+  async function handleSaveQuestionnaireDraft() {
+    if (!selectedAssessment || !currentAssetId) return;
+    const responses = currentAssetResponses();
+    if (responses.length === 0) {
+      toast({
+        title: "Nothing to save yet",
+        description: "Answer at least one question before saving this assessment as a draft.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingQa(true);
+    try {
+      await submitResponseBatch(selectedAssessment.id, responses, { saveAsDraft: true });
+      toast({
+        title: "Draft saved",
+        description: "Your questionnaire progress has been saved. You can complete it later.",
+      });
+    } catch {
+      toast({ title: "Failed to save draft", variant: "destructive" });
     } finally {
       setSubmittingQa(false);
     }
@@ -1766,10 +1852,10 @@ export default function RiskAssessmentPage() {
   }
 
   function closeCreate() {
-    // Return to the Risk Assessment landing workspace when the popup closes.
+    // Return to the Risk Assessment landing workspace without discarding the in-progress create draft.
     setLocation("/risk-assessment");
     setShowCreate(false);
-    resetCreateState();
+    setShowAdHocForm(false);
   }
 
   function backToLanding() {
@@ -2125,13 +2211,6 @@ export default function RiskAssessmentPage() {
                   <button className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#4C596B] bg-[#465162] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#526073] sm:w-auto" onClick={closeCreate}>
                     Cancel
                   </button>
-                  <button
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#66758A] bg-transparent px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-white/10 sm:w-auto"
-                      onClick={() => toast({ title: "Draft retained", description: "Your entries are still available in this create form." })}
-                  >
-                    <Save className="h-4 w-4" />
-                    Save Draft
-                  </button>
                   <button className={PRIMARY_BUTTON} onClick={() => void handleCreate()}>
                     <Play className="h-4 w-4" />
                     Create Assessment
@@ -2353,7 +2432,7 @@ export default function RiskAssessmentPage() {
                 secondaryButtonClassName={SECONDARY_BUTTON}
                 onExpandedSectionChange={setExpandedSection}
                 onAnswer={setAnswer}
-                onSaveProgress={() => toast({ title: "Progress retained in this assessment" })}
+                onSaveProgress={() => void handleSaveQuestionnaireDraft()}
                 onContinue={() => void handleSubmitQa()}
               />
             ) : null}

@@ -43,6 +43,38 @@ def test_create_assessment_201():
     assert r.json()["title"] == "Test"
 
 
+def test_respond_batch_can_save_partial_questionnaire_as_draft():
+    with patch("api.routers.risk_assessment.get_store") as gs:
+        from api.routers.risk_assessment import RiskAssessment
+
+        ra = RiskAssessment(
+            id="ra1", title="Test", description="desc",
+            status="draft", asset_ids=["a1"],
+            responses=[], risks=[], applied_controls=[],
+            suggested_controls=[], report_markdown=None,
+            created_at="2026-01-01", updated_at="2026-01-01",
+        )
+        gs.return_value.get.return_value = ra
+        gs.return_value.add_responses_batch.return_value = True
+
+        r = client.post("/risk-assessment/ra1/respond-batch", json={
+            "save_as_draft": True,
+            "responses": [
+                {
+                    "asset_id": "a1",
+                    "section_id": "access_control",
+                    "question_id": "ac_1",
+                    "answer": "yes",
+                    "details": "",
+                },
+            ],
+        })
+
+    assert r.status_code == 200
+    gs.return_value.add_responses_batch.assert_called_once()
+    assert gs.return_value.add_responses_batch.call_args.kwargs["status"] == "draft"
+
+
 def test_submit_response_with_section_id():
     with patch("api.routers.risk_assessment.get_store") as gs:
         from api.routers.risk_assessment import RiskAssessment

@@ -40,7 +40,11 @@ export default function AssessmentSummaryForm({
           <div className="flex flex-wrap gap-2">
             {assessment.asset_ids.length > 0 ? (
               assessment.asset_ids.map((assetId) => (
-                <Badge key={assetId} variant="outline" className="rounded-full px-3 py-1.5 text-[12px]">
+                <Badge
+                  key={assetId}
+                  variant="outline"
+                  className="risk-summary-scope-badge rounded-full border-[#AFC1F8] bg-[#EAF2FF] px-3 py-1.5 text-[12px] font-bold text-[#0C233C]"
+                >
                   {assetName(assetId)}
                 </Badge>
               ))

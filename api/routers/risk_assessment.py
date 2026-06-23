@@ -90,6 +90,7 @@ class ControlApplication(BaseModel):
 
 class ResponseBatch(BaseModel):
     responses: list[ResponseSubmit]
+    save_as_draft: bool = False
 
 
 class RiskAssessment(BaseModel):
@@ -211,7 +212,7 @@ class MongoRiskAssessmentStore:
         )
         return result.modified_count == 1
 
-    def add_responses_batch(self, ra_id: str, asset_id: str, new_responses: list[dict]) -> bool:
+    def add_responses_batch(self, ra_id: str, asset_id: str, new_responses: list[dict], status: str = "in_progress") -> bool:
         ra = self.get(ra_id)
         if not ra:
             return False
@@ -219,7 +220,7 @@ class MongoRiskAssessmentStore:
         all_responses = existing_other + new_responses
         result = self._col.update_one(
             {"_id": ra_id},
-            {"$set": {"responses": all_responses, "status": "in_progress",
+            {"$set": {"responses": all_responses, "status": status,
                       "updated_at": datetime.utcnow().isoformat()}},
         )
         return result.modified_count == 1
@@ -829,7 +830,8 @@ def submit_response_batch(ra_id: str, body: ResponseBatch):
         }
         for r in body.responses
     ]
-    get_store().add_responses_batch(ra_id, asset_id, new_responses)
+    status = "draft" if body.save_as_draft else "in_progress"
+    get_store().add_responses_batch(ra_id, asset_id, new_responses, status=status)
     updated = get_store().get(ra_id)
     return updated
 

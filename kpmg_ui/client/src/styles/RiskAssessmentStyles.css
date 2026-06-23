@@ -161,7 +161,7 @@
         }
 
         .risk-assessment-setup-glass [class*="CommandDeckMetric"],
-        .risk-assessment-setup-glass .rounded-\\[18px\\] {
+        .risk-assessment-setup-glass .rounded-\[18px\] {
           background: #F8FAFD;
           border-color: #D6E0EF;
         }
@@ -206,10 +206,10 @@
 
         .risk-ad-hoc-glass-panel header p,
         .risk-scope-glass-panel header p,
-        .risk-ad-hoc-glass-panel .text-\\[13px\\],
-        .risk-scope-glass-panel .text-\\[13px\\],
-        .risk-ad-hoc-glass-panel .text-\\[12px\\],
-        .risk-scope-glass-panel .text-\\[12px\\] {
+        .risk-ad-hoc-glass-panel .text-\[13px\],
+        .risk-scope-glass-panel .text-\[13px\],
+        .risk-ad-hoc-glass-panel .text-\[12px\],
+        .risk-scope-glass-panel .text-\[12px\] {
           color: rgba(226, 240, 255, 0.74);
         }
 
@@ -244,7 +244,7 @@
           color: #FFFFFF;
         }
 
-        .risk-scope-glass-panel .bg-\\[\\#FBFCFE\\] {
+        .risk-scope-glass-panel .bg-\[\#FBFCFE\] {
           border-color: rgba(0, 184, 245, 0.20);
           background: rgba(255, 255, 255, 0.08);
           color: rgba(226, 240, 255, 0.78);
@@ -295,40 +295,44 @@
 
         .risk-summary-scope-glass-panel header p,
         .risk-summary-readiness-glass-panel header p,
-        .risk-summary-scope-glass-panel .text-\\[13px\\],
-        .risk-summary-readiness-glass-panel .text-\\[13px\\],
-        .risk-summary-readiness-glass-panel .text-\\[11px\\],
-        .risk-summary-scope-glass-panel .text-\\[12px\\] {
+        .risk-summary-scope-glass-panel .text-\[13px\],
+        .risk-summary-readiness-glass-panel .text-\[13px\],
+        .risk-summary-readiness-glass-panel .text-\[11px\],
+        .risk-summary-scope-glass-panel .text-\[12px\] {
           color: rgba(226, 240, 255, 0.76);
         }
 
-        .risk-summary-scope-glass-panel .rounded-full {
-          border-color: rgba(0, 184, 245, 0.32);
-          background: rgba(255, 255, 255, 0.10);
-          color: #EAF7FF;
-          box-shadow: 0 0 18px rgba(0, 184, 245, 0.12);
+        .risk-summary-scope-glass-panel .risk-summary-scope-badge {
+          border-color: rgba(30, 73, 226, 0.28);
+          background: #FFFFFF;
+          color: #000000 !important;
+          box-shadow: 0 10px 24px -18px rgba(12, 35, 60, 0.38);
+        }
+
+        .risk-summary-scope-glass-panel .risk-summary-scope-badge * {
+          color: #000000 !important;
         }
 
         .risk-summary-scope-glass-panel .border-t {
           border-color: rgba(0, 184, 245, 0.20);
         }
 
-        .risk-summary-scope-glass-panel .bg-\\[\\#FBFCFE\\] {
+        .risk-summary-scope-glass-panel .bg-\[\#FBFCFE\] {
           border-color: rgba(0, 184, 245, 0.22);
           background: rgba(255, 255, 255, 0.08);
         }
 
-        .risk-summary-readiness-glass-panel .bg-\\[\\#F7F9FC\\] {
+        .risk-summary-readiness-glass-panel .bg-\[\#F7F9FC\] {
           border: 1px solid rgba(0, 184, 245, 0.20);
           background: rgba(255, 255, 255, 0.08);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
-        .risk-summary-readiness-glass-panel .text-\\[28px\\] {
+        .risk-summary-readiness-glass-panel .text-\[28px\] {
           color: #FFFFFF;
         }
 
-        .risk-summary-readiness-glass-panel .border-\\[\\#F6D3A0\\] {
+        .risk-summary-readiness-glass-panel .border-\[\#F6D3A0\] {
           border-color: rgba(234, 170, 0, 0.34);
           background: rgba(234, 170, 0, 0.12);
           color: rgba(255, 242, 198, 0.92);
@@ -439,9 +443,9 @@
 
         .risk-identify-glass-panel h2,
         .risk-identify-glass-panel h3,
-        .risk-identify-glass-panel .text-\\[24px\\],
-        .risk-identify-glass-panel .text-\\[13px\\],
-        .risk-identify-glass-panel .text-\\[15px\\] {
+        .risk-identify-glass-panel .text-\[24px\],
+        .risk-identify-glass-panel .text-\[13px\],
+        .risk-identify-glass-panel .text-\[15px\] {
           color: #FFFFFF;
         }
 
@@ -450,27 +454,27 @@
           color: rgba(226, 240, 255, 0.76);
         }
 
-        .risk-identify-glass-panel .bg-\\[\\#F3F0FF\\] {
+        .risk-identify-glass-panel .bg-\[\#F3F0FF\] {
           background: rgba(255, 255, 255, 0.10);
           color: #ACEAFF;
           box-shadow: 0 0 24px rgba(0, 184, 245, 0.18);
         }
 
-        .risk-identify-glass-panel .bg-\\[\\#DCE3EE\\] {
+        .risk-identify-glass-panel .bg-\[\#DCE3EE\] {
           background: rgba(255, 255, 255, 0.14);
         }
 
-        .risk-identify-run-panel .bg-\\[\\#F7F9FC\\] {
+        .risk-identify-run-panel .bg-\[\#F7F9FC\] {
           border: 1px solid rgba(216, 224, 237, 0.88);
           background: rgba(255, 255, 255, 0.94);
           box-shadow: 0 14px 28px -24px rgba(12, 35, 60, 0.28);
         }
 
-        .risk-identify-run-panel .text-\\[\\#0C233C\\] {
+        .risk-identify-run-panel .text-\[\#0C233C\] {
           color: #0C233C;
         }
 
-        .risk-identified-glass-list > .rounded-\\[22px\\],
+        .risk-identified-glass-list > .rounded-\[22px\],
         .risk-identified-glass-list > div {
           border-color: rgba(216, 224, 237, 0.88);
           background: rgba(255, 255, 255, 0.96);
@@ -515,7 +519,7 @@
           -webkit-backdrop-filter: blur(12px);
         }
 
-        .risk-controls-risk-panel .bg-\\[\\#FBFCFE\\] {
+        .risk-controls-risk-panel .bg-\[\#FBFCFE\] {
           background: rgba(247, 249, 252, 0.92);
         }
 
@@ -627,4 +631,5 @@
         @keyframes riskCreateNodePulse {
           0%, 100% { opacity: 0.24; transform: scale(0.86); }
           50% { opacity: 0.86; transform: scale(1.18); }
-        }
+        }
+

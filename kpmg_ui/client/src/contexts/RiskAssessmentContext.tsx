@@ -149,7 +149,8 @@ interface Ctx {
   ) => Promise<void>;
   submitResponseBatch: (
     raId: string,
-    responses: Array<{ asset_id: string; section_id: string; question_id: string; answer: AnswerType; details: string }>
+    responses: Array<{ asset_id: string; section_id: string; question_id: string; answer: AnswerType; details: string }>,
+    options?: { saveAsDraft?: boolean },
   ) => Promise<void>;
   analyzeAssessment: (raId: string) => Promise<void>;
   addHumanRisk: (raId: string, risk: Omit<Risk, "id" | "inherent_risk_score" | "inherent_risk_band" | "residual_risk_score" | "residual_risk_band" | "source" | "status">) => Promise<void>;
@@ -246,12 +247,13 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
 
   const submitResponseBatch = useCallback(async (
     raId: string,
-    responses: Array<{ asset_id: string; section_id: string; question_id: string; answer: AnswerType; details: string }>
+    responses: Array<{ asset_id: string; section_id: string; question_id: string; answer: AnswerType; details: string }>,
+    options?: { saveAsDraft?: boolean },
   ): Promise<void> => {
     const r = await fetch(`/api/risk-assessment/${raId}/respond-batch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ responses }),
+      body: JSON.stringify({ responses, save_as_draft: options?.saveAsDraft ?? false }),
     });
     if (!r.ok) throw new Error("Failed to submit responses");
     const ra: RiskAssessment = await r.json();

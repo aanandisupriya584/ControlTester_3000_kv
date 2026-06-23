@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-06-23 Update - Risk Assessment Questionnaire Draft Save
+
+- Fixed the Risk Assessment questionnaire Save Progress action so partially answered questionnaires are persisted immediately instead of only showing a local toast.
+- Added a `save_as_draft` option to the `/risk-assessment/{ra_id}/respond-batch` API so Save Progress keeps the assessment status as `draft`, while Continue still submits completed questionnaire responses as `in_progress`.
+- Added focused backend coverage for draft batch saves and kept the existing Continue behavior intact.
+- Verification: `cd kpmg_ui && npm run check` passed. Host Python was unavailable and the FastAPI container does not include pytest, so backend pytest could not be executed in this environment.
+
+---
+
 ## 2026-05-13 Update - Control Testing V2 Foundation
 
 - Scope: implemented CT V2 Plan 1 foundation for the new `/ct` FastAPI surface while preserving the existing legacy Control Testing UI and `/audit/*` paths.
