@@ -94,6 +94,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return () => window.removeEventListener(NAV_HIDDEN_KEY, handler);
   }, []);
 
+  useEffect(() => {
+    if (!user?.email) return;
+    fetch(`/api/settings/nav-visibility?email=${encodeURIComponent(user.email)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const pages: string[] = data.hidden_pages ?? [];
+        localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(pages));
+        setHiddenPages(pages);
+        window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
+      })
+      .catch(() => {});
+  }, [user?.email]);
+
   const visibleTabs = HIDEABLE_TABS.filter((tab) => !hiddenPages.includes(tab.path));
   const allTabs = [...visibleTabs, ...COMING_SOON_TABS, SETTINGS_TAB];
 
