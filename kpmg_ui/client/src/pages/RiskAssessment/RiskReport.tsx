@@ -444,7 +444,7 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                             </tbody>
                         </table>
                     </div>
-                    <div className={'grid grid-cols-2 mt-2 gap-10'}>
+                    <div className={'grid grid-cols-2 mt-2 gap-5'}>
                         <div className={'w-full'}>
                             <RiskHeatMap data={heatmapData}  />
                         </div>

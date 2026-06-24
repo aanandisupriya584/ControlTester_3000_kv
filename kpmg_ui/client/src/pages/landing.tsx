@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import logo from "@/assets/kpmg (1).png";
+import KpmgImg from "@/assets/Picture1.png";
 
 type FeatureCategory =
   | "Oversight and Libraries"
@@ -274,9 +275,9 @@ export default function LandingPage() {
       <div className="landing-nav sticky top-0 z-50 w-full">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-8 py-4 lg:px-14">
           <div className="flex items-center gap-3">
-            <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
+            <span className="text-[18px] font-bold tracking-tight text-white"><img src={KpmgImg} width={"75px"}/></span>
             <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
-            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
+            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
             <span className="hidden sm:flex items-center gap-1.5 ml-1 text-white/40 text-[13px]">
               <span>/</span>
               <span className="text-white/60">Agentic Controls Platform</span>

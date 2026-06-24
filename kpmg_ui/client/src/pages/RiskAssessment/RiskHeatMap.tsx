@@ -265,7 +265,7 @@ const RiskHeatMap: React.FC<RiskHeatmapProps> = ({
             </div>
 
             {/* Footer link - back to Risk Distribution */}
-            {setRiskHeatMap! && <div className="w-[150px]" onClick={() => setRiskHeatMap(true)}>
+            {setRiskHeatMap! && <div className="w-[200px]" onClick={() => setRiskHeatMap(true)}>
                 <a
                     href="#"
                     className="text-indigo-600 hover:text-indigo-800 hover:underline text-xs sm:text-sm font-medium"
