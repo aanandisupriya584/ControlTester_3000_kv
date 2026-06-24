@@ -17,6 +17,8 @@ _DOCUMENT_UPLIFT_MAX_MAX_LLM_CALLS = 200
 PROVIDER_REGISTRY: dict[str, dict] = {
     "gemini": {
         "key_env": "GOOGLE_API_KEY",
+        # Bug fix: accept env files that name the Gemini key directly.
+        "key_env_aliases": ["GEMINI_API_KEY"],
         "model_env": "GOOGLE_LLM_MODEL",
         "default_model": "gemini-3-flash-preview",
         "models": ["gemini-3-flash-preview"],

@@ -226,8 +226,9 @@ const AGENTIC_COMMAND_NODES = [
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
+  /* Bug fix: keep landing directory tiles visible on first load. */
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(FEATURE_SECTIONS.map((s) => [s.id, true]))
+    Object.fromEntries(FEATURE_SECTIONS.map((s) => [s.id, false]))
   );
 
   const toggleSection = (id: string) =>
@@ -249,7 +250,8 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="landing-shell flex min-h-screen flex-col" style={{ fontFamily: "Arial, sans-serif" }}>
+    /* Bug fix: landing is outside AppLayout, so it must own scrolling while body overflow is locked. */
+    <div className="landing-shell flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden" style={{ fontFamily: "Arial, sans-serif" }}>
       <div className="landing-nav sticky top-0 z-50 w-full">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-8 py-4 lg:px-14">
           <div className="flex items-center gap-3">
@@ -284,14 +286,15 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <header className="landing-hero agentic-landing-hero relative overflow-hidden">
-        <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-10 px-8 pb-18 pt-10 lg:grid-cols-[minmax(0,1.6fr)_380px] lg:px-14 lg:pb-20">
+      {/* Bug fix: keep the previous hero as the upper first section and place the current module directory below it. */}
+      <header className="landing-hero agentic-landing-hero relative shrink-0 overflow-hidden">
+        <div className="relative z-10 mx-auto grid w-full max-w-[1400px] content-center gap-8 px-8 py-8 lg:min-h-[calc(100vh-72px)] lg:grid-cols-[minmax(0,1.6fr)_380px] lg:px-14 lg:py-10">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-3 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#00B8F5] animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ACEAFF]">Landing point to the agentic solutions</span>
             </div>
-            <div className="agentic-command-stage relative min-h-[390px] overflow-visible px-3 py-5 sm:min-h-[430px] sm:px-6">
+            <div className="agentic-command-stage relative min-h-[340px] overflow-visible px-3 py-5 sm:min-h-[390px] sm:px-6">
               <div className="relative z-10 mx-auto flex max-w-[720px] flex-col items-center text-center">
                 <h1 className="agentic-command-title text-[48px] font-black leading-[0.95] text-white sm:text-[62px] lg:text-[70px]">
                   <span>Automate.</span>
@@ -346,8 +349,19 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-8 py-10 lg:px-14 lg:py-12">
+      {/* Bug fix: expose the current landing modules as a second scrollable section instead of hiding them under the hero. */}
+      <main id="landing-modules" className="shrink-0 px-8 pb-10 pt-7 lg:px-14 lg:pb-12 lg:pt-8">
         <div className="mx-auto max-w-[1400px] space-y-8">
+          <section className="landing-directory-intro">
+            <div>
+              <p className="kpmg-section-label">TRACE modules</p>
+              <h2 className="mt-2 text-[24px] font-bold leading-tight text-[#0C233C]">Current workspace directory</h2>
+            </div>
+            <p className="max-w-[640px] text-[13.5px] leading-6 text-[#5A6478]">
+              Select a module below to continue into oversight, assessment, reporting, and operations workflows.
+            </p>
+          </section>
+
           {groupedSections.map((section) => {
             const isCollapsed = !!collapsedSections[section.id];
             return (

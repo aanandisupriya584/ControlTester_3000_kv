@@ -30,7 +30,7 @@ interface QuestionnaireFormProps {
   primaryButtonClassName: string;
   secondaryButtonClassName: string;
   onExpandedSectionChange: (sectionId: string | null) => void;
-  onAnswer: (assetId: string, sectionId: string, questionId: string, answer: AnswerType) => void;
+  onAnswer: (assetId: string, sectionId: string, questionId: string, answer: AnswerType, details?: string) => void;
   onSaveProgress: () => void;
   onContinue: () => void;
 }
@@ -98,6 +98,7 @@ export default function QuestionnaireForm({
   onContinue,
 }: QuestionnaireFormProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, AnswerType>>({});
+  const [openNaDetails, setOpenNaDetails] = useState<Record<string, boolean>>({});
   const allQuestionsAnswered = currentTotalQuestions > 0 && currentAnsweredCount >= currentTotalQuestions;
 
   useEffect(() => {
@@ -111,11 +112,31 @@ export default function QuestionnaireForm({
   }, [answers, currentAssetId]);
 
   function selectAnswer(sectionId: string, questionId: string, answer: AnswerType) {
+    const key = `${sectionId}:${questionId}`;
+    const existingDetails = answers[currentAssetId]?.[sectionId]?.[questionId]?.details ?? "";
     setSelectedAnswers((previous) => ({
       ...previous,
-      [`${sectionId}:${questionId}`]: answer,
+      [key]: answer,
     }));
-    onAnswer(currentAssetId, sectionId, questionId, answer);
+    /* Bug fix: clicking NA opens only that question's description box. */
+    setOpenNaDetails((previous) => ({
+      ...previous,
+      [key]: answer === "na",
+    }));
+    onAnswer(currentAssetId, sectionId, questionId, answer, answer === "na" ? existingDetails : "");
+  }
+
+  function updateNaDetails(sectionId: string, questionId: string, details: string) {
+    const key = `${sectionId}:${questionId}`;
+    setSelectedAnswers((previous) => ({
+      ...previous,
+      [key]: "na",
+    }));
+    setOpenNaDetails((previous) => ({
+      ...previous,
+      [key]: true,
+    }));
+    onAnswer(currentAssetId, sectionId, questionId, "na", details);
   }
 
   return (
@@ -175,7 +196,9 @@ export default function QuestionnaireForm({
                       <div className="space-y-5">
                         {section.questions.map((question, questionIndex) => {
                           const local = answers[currentAssetId]?.[section.id]?.[question.id];
-                          const selectedAnswer = selectedAnswers[`${section.id}:${question.id}`] ?? local?.answer;
+                          const questionKey = `${section.id}:${question.id}`;
+                          const selectedAnswer = selectedAnswers[questionKey] ?? local?.answer;
+                          const showNaDetails = openNaDetails[questionKey] || selectedAnswer === "na";
                           return (
                             <div key={question.id} className="border-t border-[#EFF2F7] pt-4 first:border-t-0 first:pt-0">
                               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
@@ -223,6 +246,20 @@ export default function QuestionnaireForm({
                                   ))}
                                 </div>
                               </div>
+                              {/* Bug fix: show the free-text rationale field when NA is selected. */}
+                              {showNaDetails ? (
+                                <div className="mt-3 lg:ml-10">
+                                  <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#5A6478]">
+                                    NA rationale
+                                  </label>
+                                  <textarea
+                                    value={local?.details ?? ""}
+                                    onChange={(event) => updateNaDetails(section.id, question.id, event.target.value)}
+                                    className="mt-1 min-h-20 w-full resize-y rounded-[8px] border border-[#D6E0EF] bg-white px-3 py-2 text-[12px] leading-5 text-[#0C233C] outline-none focus:border-[#1E49E2] focus:ring-2 focus:ring-[#1E49E2]/15"
+                                    placeholder="Add why this question is not applicable for the selected asset."
+                                  />
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })}

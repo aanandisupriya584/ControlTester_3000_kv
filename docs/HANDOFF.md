@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-06-24 Update - Apex Bug Fix Pass
+
+- Stashed the pre-fix working tree as `stash@{0}: pre-apex-bug-fixes-backup` before starting page-by-page edits.
+- Fixed landing page directory tiles so module sections are expanded by default.
+- Updated Settings/API key handling so Gemini key status is selected by default and `GEMINI_API_KEY` is accepted as a Gemini env alias alongside `GOOGLE_API_KEY`.
+- Made Risk Assessment suggested-control application idempotent in both UI and API, preventing repeated refresh/click actions from applying the same risk/control pair multiple times.
+- Added the questionnaire NA rationale field so selecting `NA` opens a description box only for that specific question and stores it in that answer's details.
+- Fixed Control Testing shell scrolling and queued evidence-file layout so files remain visible above action buttons.
+- Fixed SOP Uplift shell scrolling, upload toolbar responsiveness, duplicate extraction loading indicator, and crowded document dialog close action.
+- Verification: `node client/src/pages/landing.layout.test.ts` passed; `node client/src/control-testing.scroll-shell.test.ts` passed; `cd kpmg_ui && npm run check` passed. Backend pytest could not run because neither `python` nor `py` is available in this shell.
+
+---
+
 ## 2026-06-23 Update - Risk Assessment Questionnaire Draft Save
 
 - Fixed the Risk Assessment questionnaire Save Progress action so partially answered questionnaires are persisted immediately instead of only showing a local toast.
@@ -2268,3 +2281,13 @@ Verification:
 - Guarded questionnaire Continue until every question for the current application is answered and show a "Please answer all questions" popup when blocked.
 - Removed the previous fallback that silently converted unanswered questions to NA.
 - Restored visible per-suggestion Apply buttons using self-contained styling and added a Load Control Suggestions action for empty risk-control lists.
+
+## 2026-06-24 - Landing Page Scroll Layout
+
+- Kept the existing agentic hero/summary as the first upper landing section.
+- Added a clearly separated current module directory section below the hero so it remains visible while scrolling.
+- Preserved the landing page's own scroll container because the global shell locks body/root overflow.
+
+Verification:
+- `node client/src/pages/landing.layout.test.ts`
+- `npm run check`

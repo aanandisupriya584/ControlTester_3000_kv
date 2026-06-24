@@ -198,8 +198,19 @@ class MongoRiskAssessmentStore:
         return result.modified_count == 1
 
     def add_control(self, ra_id: str, control: dict) -> bool:
+        # Bug fix: make control application idempotent for each risk/control pair.
         result = self._col.update_one(
-            {"_id": ra_id},
+            {
+                "_id": ra_id,
+                "applied_controls": {
+                    "$not": {
+                        "$elemMatch": {
+                            "risk_id": control.get("risk_id"),
+                            "control_id": control.get("control_id"),
+                        }
+                    }
+                },
+            },
             {"$push": {"applied_controls": control},
              "$set": {"status": "controls_applied", "updated_at": datetime.utcnow().isoformat()}},
         )
@@ -875,6 +886,10 @@ def apply_control(ra_id: str, body: ControlApplication):
     ra = get_store().get(ra_id)
     if not ra:
         raise HTTPException(404, "Assessment not found")
+    # Bug fix: return the existing applied control instead of creating duplicates.
+    for existing in ra.applied_controls:
+        if existing.get("risk_id") == body.risk_id and existing.get("control_id") == body.control_id:
+            return {"ok": True, "control": existing, "duplicate": True}
     control = {
         "id": str(uuid.uuid4()),
         "risk_id": body.risk_id,
@@ -884,8 +899,14 @@ def apply_control(ra_id: str, body: ControlApplication):
         "effectiveness_score": 0.0,
         "applied_at": datetime.utcnow().isoformat(),
     }
-    get_store().add_control(ra_id, control)
-    return {"ok": True, "control": control}
+    inserted = get_store().add_control(ra_id, control)
+    if not inserted:
+        refreshed = get_store().get(ra_id)
+        if refreshed:
+            for existing in refreshed.applied_controls:
+                if existing.get("risk_id") == body.risk_id and existing.get("control_id") == body.control_id:
+                    return {"ok": True, "control": existing, "duplicate": True}
+    return {"ok": True, "control": control, "duplicate": False}
 
 
 @router.get("/{ra_id}/residual")

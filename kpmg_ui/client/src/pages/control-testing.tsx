@@ -323,14 +323,15 @@ export default function ControlTestingPage() {
   const showGenerateAction = canGenerateWorkpaper(readyToGenerate, evidenceSummary);
 
   return (
-    // <div className="h-full min-h-0 overflow-hidden flex flex-col">
-      <div className={`relative h-full overflow-auto bg-[#F0F2F7]`}>
+    <div className="h-full min-h-0 overflow-hidden flex flex-col">
+      {/* Bug fix: bound page scrolling so Control Testing content does not slide under the footer. */}
+      <div className="relative flex min-h-0 flex-1 flex-col bg-[#F0F2F7]">
       <HeroSubSection
         title="Control Testing"
         subtitle="Upload a test script, validate evidence against required controls, and generate an audit workpaper"
         icon={Shield}
       />
-      <TracePageBody width="narrow" contentClassName="space-y-6">
+      <TracePageBody width="narrow" contentClassName="space-y-6 pb-8">
           <HowItWorks
             steps={[
               { number: 1, title: "Upload Test Script", desc: "Upload the control test script (CSV / XLSX) defining the controls in scope and the evidence required for each test step.", color: "#7213EA" },
@@ -658,16 +659,17 @@ export default function ControlTestingPage() {
                   {evidenceFiles.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Files queued for submission ({evidenceFiles.length})</p>
-                      <div className="space-y-2 max-h-48 overflow-auto">
+                      {/* Bug fix: keep newly added files readable and clear of the action buttons. */}
+                      <div className="max-h-56 space-y-2 overflow-auto pr-2">
                         {evidenceFiles.map((file, index) => (
                           <div
                             key={`${file.name}-${index}`}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                            className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 text-[#0C233C] shadow-sm ring-1 ring-[#E2E6EF]"
                             data-testid={`evidence-file-${index}`}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
                               <FileText className="h-4 w-4 text-primary" />
-                              <span className="text-sm truncate max-w-xs">{file.name}</span>
+                              <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
                               <Badge variant="secondary" className="text-xs">
                                 {(file.size / 1024).toFixed(1)} KB
                               </Badge>
@@ -686,7 +688,7 @@ export default function ControlTestingPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-3 border-t border-[#E2E6EF] pt-4">
                     <Button
                       onClick={handleUploadEvidence}
                       disabled={evidenceFiles.length === 0 || isProcessing}
@@ -842,6 +844,7 @@ export default function ControlTestingPage() {
             </>
           )}
       </TracePageBody>
+    </div>
     </div>
   );
 }

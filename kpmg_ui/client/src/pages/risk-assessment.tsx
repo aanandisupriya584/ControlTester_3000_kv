@@ -1665,7 +1665,7 @@ export default function RiskAssessmentPage() {
     setShowAdHocForm(false);
   }
 
-  function setAnswer(assetId: string, sectionId: string, questionId: string, answer: AnswerType) {
+  function setAnswer(assetId: string, sectionId: string, questionId: string, answer: AnswerType, details = "") {
     setAnswers((prev) => ({
       ...prev,
       [assetId]: {
@@ -1674,7 +1674,8 @@ export default function RiskAssessmentPage() {
           ...(prev[assetId]?.[sectionId] ?? {}),
           [questionId]: {
             answer,
-            details: prev[assetId]?.[sectionId]?.[questionId]?.details ?? "",
+            /* Bug fix: keep NA rationale scoped to the one question where NA was selected. */
+            details,
           },
         },
       },

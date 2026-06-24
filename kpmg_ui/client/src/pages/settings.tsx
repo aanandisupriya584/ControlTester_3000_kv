@@ -494,6 +494,15 @@ export default function SettingsPage() {
     }
   }, [llmStatus]);
 
+  /* Bug fix: default API key management to Gemini when key status loads. */
+  useEffect(() => {
+    if (!keyStatus || selectedKeyProvider) return;
+    const providersWithKeys = Object.entries(keyStatus)
+      .filter(([, info]) => info.required)
+      .map(([provider]) => provider);
+    setSelectedKeyProvider(providersWithKeys.includes("gemini") ? "gemini" : providersWithKeys[0] ?? "");
+  }, [keyStatus, selectedKeyProvider]);
+
   useEffect(() => {
     if (documentUpliftConfig) {
       setDocumentUpliftMaxCalls(String(documentUpliftConfig.max_llm_calls_per_pipeline));

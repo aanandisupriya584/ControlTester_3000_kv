@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { TracePanel } from "@/components/TraceAnalysisPrimitives";
 import type { AppliedControl, Risk, SuggestedControl } from "@/contexts/RiskAssessmentContext";
@@ -62,10 +62,12 @@ function AppliedControlChip({ label }: { label: string }) {
 function SuggestedControlRow({
   suggestion,
   alreadyApplied,
+  isApplying,
   onApply,
 }: {
   suggestion: SuggestedControl;
   alreadyApplied: boolean;
+  isApplying: boolean;
   onApply: () => Promise<void>;
 }) {
   return (
@@ -87,9 +89,10 @@ function SuggestedControlRow({
           <button
             type="button"
             className="risk-control-apply-glass-button inline-flex min-h-10 flex-shrink-0 items-center justify-center rounded-[8px] border border-[#1E49E2] bg-[#1E49E2] px-4 py-2 text-[12px] font-bold text-white transition-colors hover:border-[#00338D] hover:bg-[#00338D]"
+            disabled={isApplying}
             onClick={() => void onApply()}
           >
-            Apply
+            {isApplying ? "Applying..." : "Apply"}
           </button>
         )}
       </div>
@@ -107,6 +110,24 @@ export default function ApplyControlToRiskPage({
   onCalculateResidual,
   onApplySuggestion,
 }: ApplyControlToRiskPageProps) {
+  /* Bug fix: prevent repeated rapid clicks from applying the same control more than once. */
+  const [applyingControls, setApplyingControls] = useState<Set<string>>(() => new Set());
+
+  async function applyOnce(riskId: string, suggestion: SuggestedControl) {
+    const key = `${riskId}:${suggestion.control_id}`;
+    if (applyingControls.has(key)) return;
+    setApplyingControls((current) => new Set(current).add(key));
+    try {
+      await onApplySuggestion(riskId, suggestion);
+    } finally {
+      setApplyingControls((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+
   return (
     <SectionShell
       action={
@@ -156,14 +177,18 @@ export default function ApplyControlToRiskPage({
 
                 <div className="space-y-3">
                   {suggestions.length > 0 ? (
-                    suggestions.map((suggestion) => (
-                      <SuggestedControlRow
-                        key={`${risk.id}-${suggestion.control_id}`}
-                        suggestion={suggestion}
-                        alreadyApplied={applied.some((control) => control.control_id === suggestion.control_id)}
-                        onApply={() => onApplySuggestion(risk.id, suggestion)}
-                      />
-                    ))
+                    suggestions.map((suggestion) => {
+                      const applyKey = `${risk.id}:${suggestion.control_id}`;
+                      return (
+                        <SuggestedControlRow
+                          key={`${risk.id}-${suggestion.control_id}`}
+                          suggestion={suggestion}
+                          alreadyApplied={applied.some((control) => control.control_id === suggestion.control_id)}
+                          isApplying={applyingControls.has(applyKey)}
+                          onApply={() => applyOnce(risk.id, suggestion)}
+                        />
+                      );
+                    })
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-4 py-5 text-[13px] text-[#7388A8]">
                       <span>No control suggestions are loaded for this risk yet.</span>
