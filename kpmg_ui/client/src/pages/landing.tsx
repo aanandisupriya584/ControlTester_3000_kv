@@ -374,7 +374,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-[1400px] space-y-8">
           <section className="landing-directory-intro">
             <div>
-              <p className="kpmg-section-label">TRACE modules</p>
+              <p className="kpmg-section-label">APEX modules</p>
               <h2 className="mt-2 text-[24px] font-bold leading-tight text-[#0C233C]">Current workspace directory</h2>
             </div>
             <p className="max-w-[640px] text-[13.5px] leading-6 text-[#5A6478]">
