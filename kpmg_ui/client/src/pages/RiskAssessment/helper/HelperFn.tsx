@@ -230,6 +230,63 @@ export const mapAssessmentsToTableData = (
  * and produce data for the RiskDistribution component.
  * Colours are now handled inside the component itself.
  */
+// export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
+//     // 1. Count risks per inherent_risk_band
+//     const bandCounts: Record<string, number> = {};
+//     let totalRisks = 0;
+//
+//     assessments.forEach((assessment) => {
+//         const risks = assessment?.risks || [];
+//         risks.forEach((risk: any) => {
+//             const band = risk.inherent_risk_band || 'Unknown';
+//             bandCounts[band] = (bandCounts[band] || 0) + 1;
+//             totalRisks++;
+//         });
+//     });
+//
+//     // 2. Mapping from band to the label that should appear in the UI.
+//     //    The labels must match the keys used in RISK_COLORS inside RiskDistribution.
+//     //    Currently supported: "Low", "Medium", "High", "Very High".
+//     const bandToLabel: Record<string, string> = {
+//         High: 'High',
+//         Medium: 'Medium',
+//         Low: 'Low',
+//         'Very High': 'Very High',
+//         Critical: 'Very High',
+//         // You can add more bands here if needed, e.g.:
+//         // 'Very Low': 'Low',  // map to an existing label
+//     };
+//
+//     // 3. Build risk items in the order: High → Medium → Low → Very High
+//     const order = [ 'Very High','High', 'Medium', 'Low'];
+//     const riskItems: RiskItem[] = [];
+//
+//     order.forEach((band) => {
+//         const count = bandCounts[band] || 0;
+//         const percentage = totalRisks > 0 ? Math.round((count / totalRisks) * 100) : 0;
+//         const label = bandToLabel[band];
+//
+//         // Only include if we have a label mapping (otherwise skip or handle separately)
+//         if (label) {
+//             riskItems.push({
+//                 label,
+//                 count,
+//                 percentage,
+//             });
+//         }
+//     });
+//
+//     // Optional: handle any remaining bands that are not in the order
+//     // (e.g., "Unknown" or "Very Low") – you could add them with a fallback label.
+//     // For example, you might want to include them as "Other" or map to an existing one.
+//     // Here we skip them, but you can adjust based on your requirements.
+//
+//     return {
+//         totalAssessments: assessments.length,
+//         riskItems,
+//     };
+// }
+
 export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
     // 1. Count risks per inherent_risk_band
     const bandCounts: Record<string, number> = {};
@@ -244,49 +301,42 @@ export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
         });
     });
 
-    // 2. Mapping from band to the label that should appear in the UI.
-    //    The labels must match the keys used in RISK_COLORS inside RiskDistribution.
-    //    Currently supported: "Low", "Medium", "High", "Very High".
+    // 2. Mapping from raw band to the label shown in UI
     const bandToLabel: Record<string, string> = {
-        High: 'High',
-        Medium: 'Medium',
-        Low: 'Low',
+        'High': 'High',
+        'Medium': 'Medium',
+        'Low': 'Low',
         'Very High': 'Very High',
-        Critical: 'Very High',
-        // You can add more bands here if needed, e.g.:
-        // 'Very Low': 'Low',  // map to an existing label
+        'Critical': 'Very High',   // map Critical to Very High
+        // Add more if needed
     };
 
-    // 3. Build risk items in the order: High → Medium → Low → Very High
-    const order = [ 'Very High','High', 'Medium', 'Low'];
+    // 3. Aggregate counts by label
+    const labelCounts: Record<string, number> = {};
+    for (const [band, count] of Object.entries(bandCounts)) {
+        const label = bandToLabel[band] || band; // fallback to original if not mapped
+        labelCounts[label] = (labelCounts[label] || 0) + count;
+    }
+
+    // 4. Build result in the desired order
+    const order = ['Very High', 'High', 'Medium', 'Low'];
     const riskItems: RiskItem[] = [];
 
-    order.forEach((band) => {
-        const count = bandCounts[band] || 0;
+    order.forEach((label) => {
+        const count = labelCounts[label] || 0;
         const percentage = totalRisks > 0 ? Math.round((count / totalRisks) * 100) : 0;
-        const label = bandToLabel[band];
-
-        // Only include if we have a label mapping (otherwise skip or handle separately)
-        if (label) {
-            riskItems.push({
-                label,
-                count,
-                percentage,
-            });
-        }
+        riskItems.push({
+            label,
+            count,
+            percentage,
+        });
     });
-
-    // Optional: handle any remaining bands that are not in the order
-    // (e.g., "Unknown" or "Very Low") – you could add them with a fallback label.
-    // For example, you might want to include them as "Other" or map to an existing one.
-    // Here we skip them, but you can adjust based on your requirements.
 
     return {
         totalAssessments: assessments.length,
         riskItems,
     };
 }
-
 
 // HeatMap
 
