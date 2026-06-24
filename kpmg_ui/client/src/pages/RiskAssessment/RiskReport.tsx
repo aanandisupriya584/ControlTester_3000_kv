@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
-import { FileText, ShieldAlert, Layers } from "lucide-react";
+import { FileText, ShieldAlert, Layers, ChevronLeft, ChevronRight } from "lucide-react";
 import {
     processRiskDistribution,
     processRiskHeatmapData,
     processRiskReportData
 } from "@/pages/RiskAssessment/helper/HelperFn.tsx";
-import {useRiskAssessment} from "@/contexts/RiskAssessmentContext.tsx";
-import {PdfCodeHelper} from "@/pages/RiskAssessment/PdfCodeHelper.tsx";
+import { useRiskAssessment } from "@/contexts/RiskAssessmentContext.tsx";
+import { PdfCodeHelper } from "@/pages/RiskAssessment/PdfCodeHelper.tsx";
 import RiskHeatMap from "@/pages/RiskAssessment/RiskHeatMap.tsx";
 import RiskDistribution from "@/pages/RiskAssessment/RiskDistribution.tsx";
 
@@ -31,41 +31,41 @@ export interface RiskReportProps {
         text: string;
         href: string;
     };
-    draftsCount?: number;
-    highRisksCount?: number;
-    totalAssessmentsCount?: number;
-    heatmapData?: any; // Define a proper type based on your heatmap data structure
-    totalAssessments?:any;
-    riskItems?:any;
+    heatmapData?: any;
+    totalAssessments?: any;
+    riskItems?: any;
 }
 
-// ===== SummaryCards Component =====
+// ===== SummaryCards Component (updated) =====
 interface SummaryCardsProps {
-    drafts: number;
-    highRisks: number;
-    totalAssessments: number;
+    totalRisks: number;
+    mediumRisks: number;
+    highRisks: number;      // count of "High" + "Very High"
+    criticalRisks: number;  // count of "Very High"
 }
 
 const SummaryCards: React.FC<SummaryCardsProps> = ({
-                                                       drafts,
+                                                       totalRisks,
+                                                       mediumRisks,
                                                        highRisks,
-                                                       totalAssessments,
+                                                       criticalRisks,
                                                    }) => {
     const cards = [
         {
             label: "Total Risks",
-            value: totalAssessments,//totalAssessments,
-            detail: "Includes active & draft assessments",
-            badge: `${totalAssessments} total`,
+            value: totalRisks,
+            detail: "All identified risks",
+            badge: `All risks identified across all assessments`,
             badgeClassName: "bg-[#E6DCF2] text-[#7213EA]",
             icon: Layers,
             iconColor: "text-[#7213EA]",
             iconBg: "#E6DCF2",
-        }, {
-            label: "Drafts",
-            value: drafts,
-            detail: "Waiting to begin questionnaire capture",
-            badge: `${drafts} needs your attention`,
+        },
+        {
+            label: "Medium Risks",
+            value: mediumRisks,
+            detail: "Risks with medium severity",
+            badge: `Risks with moderate severity`,
             badgeClassName: "bg-[#FAF2DE] text-[#F5AD0A]",
             icon: FileText,
             iconColor: "text-[#5F5C61]",
@@ -74,14 +74,13 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
         {
             label: "High Risks",
             value: highRisks,
-            detail: "Across all fetched assessments",
-            badge: `${highRisks} Critical`,
+            detail: "High or Very High severity",
+            badge: `${criticalRisks} Critical`,
             badgeClassName: "bg-[#F7E4E5] text-[#E63946]",
             icon: ShieldAlert,
             iconColor: "text-[#E63946]",
             iconBg: "#F7E4E5",
         },
-
     ];
 
     return (
@@ -126,7 +125,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
     );
 };
 
-// ===== Complete Dummy Data (restored) =====
+// ===== Dummy Data =====
 const dummyRisks: Risk[] = [
     {
         id: 1,
@@ -198,31 +197,40 @@ const dummyRisks: Risk[] = [
 
 // ===== RiskReport Component =====
 const RiskReportPage: React.FC<RiskReportProps> = ({
-                                                   risks = dummyRisks,
-                                                   title = "Risk Report",
-                                                   backLink = { text: "← Back", href: "/risk-assessment" },
-                                                   draftsCount = 0,
-                                                   highRisksCount = 0,
-                                                   totalAssessmentsCount = 0,
+                                                       risks = dummyRisks,
+                                                       title = "Risk Report",
+                                                       backLink = { text: "← Back", href: "/risk-assessment" },
                                                        heatmapData,
                                                        totalAssessments,
                                                        riskItems,
-                                               }) => {
-    const [sortField, setSortField] = useState<keyof Risk>("riskClass");
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+                                                   }) => {
+    // ---- Compute summary stats from risks ----
+    const totalRisks = risks.length;
+    const mediumRisks = risks.filter(r => r.riskClass === "Medium").length;
+    const highRisks = risks.filter(r => r.riskClass === "High" || r.riskClass === "Very High").length;
+    const criticalRisks = risks.filter(r => r.riskClass === "Very High").length;
 
-    // Summary stats (for status breakdown)
-    const total = risks.length;
-    const byClass = risks.reduce<Record<string, number>>((acc, r) => {
-        acc[r.riskClass] = (acc[r.riskClass] || 0) + 1;
-        return acc;
-    }, {});
+    // ---- Sorting & Pagination State ----
+    const [sortField, setSortField] = useState<keyof Risk>("riskClass");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc"); // Very High first
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    // Severity order for riskClass (higher index = higher severity)
+    const severityRank: Record<string, number> = {
+        "Very High": 4,
+        "High": 3,
+        "Medium": 2,
+        "Low": 1,
+    };
+
+    // ---- Status breakdown (for display) ----
     const byStatus = risks.reduce<Record<string, number>>((acc, r) => {
         acc[r.status] = (acc[r.status] || 0) + 1;
         return acc;
     }, {});
 
-    // Sorting
+    // ---- Sorting Logic ----
     const handleSort = (field: keyof Risk) => {
         if (sortField === field) {
             setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -230,11 +238,19 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
             setSortField(field);
             setSortDirection("asc");
         }
+        setCurrentPage(1);
     };
 
     const sortedRisks = [...risks].sort((a, b) => {
         let aVal = a[sortField] ?? "";
         let bVal = b[sortField] ?? "";
+
+        if (sortField === "riskClass") {
+            const aRank = severityRank[aVal as string] || 0;
+            const bRank = severityRank[bVal as string] || 0;
+            return sortDirection === "desc" ? bRank - aRank : aRank - bRank;
+        }
+
         if (typeof aVal === "string" && typeof bVal === "string") {
             return sortDirection === "asc"
                 ? aVal.localeCompare(bVal)
@@ -242,16 +258,25 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
         }
         return 0;
     });
-    const handleDownloadPDF = () => {
-        PdfCodeHelper(
-            risks,                 // your risk array
-            risks.length,          // total risks (or use totalAssessmentsCount if you want)
-            draftsCount,
-            highRisksCount,
-            title
-        );
+
+    // ---- Pagination ----
+    const totalPages = Math.ceil(sortedRisks.length / pageSize);
+    const paginatedRisks = sortedRisks.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+    }
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
     };
-    // Export functions
+
+    // ---- Export Functions ----
     const exportCSV = () => {
         const headers = [
             "ID",
@@ -295,17 +320,26 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
         URL.revokeObjectURL(url);
     };
 
-    const printReport = () => {
-        window.print();
+    const handleDownloadPDF = () => {
+        PdfCodeHelper(
+            risks,
+            risks.length,
+            0, // draftsCount no longer used
+            highRisks,
+            title
+        );
     };
 
-    // Colour mapping for risk class badges
+    // ---- Colour mapping for risk badges ----
     const classColors: Record<string, string> = {
         Low: "bg-green-100 text-green-800",
         Medium: "bg-yellow-100 text-yellow-800",
         High: "bg-orange-100 text-orange-800",
         "Very High": "bg-red-100 text-red-800",
     };
+
+    const startIndex = (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, sortedRisks.length);
 
     return (
         <div className="relative h-full overflow-auto bg-[#F0F2F7]">
@@ -327,27 +361,30 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                         </div>
                     </div>
 
-                    {/* ===== REPLACED SUMMARY CARDS ===== */}
+                    {/* Summary Cards */}
                     <SummaryCards
-                        drafts={draftsCount}
-                        highRisks={highRisksCount}
-                        totalAssessments={totalAssessmentsCount}
+                        totalRisks={totalRisks}
+                        mediumRisks={mediumRisks}
+                        highRisks={highRisks}
+                        criticalRisks={criticalRisks}
                     />
 
-                    {/* Status breakdown (optional) */}
+                    {/* Status breakdown */}
                     <div className="flex flex-wrap gap-2 mb-4">
                         <span className="text-sm font-medium text-gray-700">Status:</span>
                         {Object.entries(byStatus).map(([status, count]) => (
                             <span key={status} className="text-sm text-gray-600">
-                {status} ({count})
-              </span>
+                                {status} ({count})
+                            </span>
                         ))}
                     </div>
 
-                    {/* Toolbar with export buttons */}
+                    {/* Toolbar */}
                     <div className="flex flex-wrap gap-3 mb-4 justify-between items-center">
                         <div className="text-sm text-gray-500">
-                            {risks.length} risks displayed
+                            {sortedRisks.length > 0
+                                ? `Showing ${startIndex}–${endIndex} of ${sortedRisks.length} risks`
+                                : "No risks to display"}
                         </div>
                         <div className="flex gap-2">
                             <button
@@ -356,13 +393,12 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                             >
                                 ⬇ Export CSV
                             </button>
-                            {/*<button*/}
-                            {/*    // onClick={handleDownloadPDF}*/}
-                            {/*    onClick={printReport}*/}
-                            {/*    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"*/}
-                            {/*>*/}
-                            {/*    🖨 Print / PDF*/}
-                            {/*</button>*/}
+                            <button
+                                onClick={handleDownloadPDF}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                            >
+                                🖨 Download PDF
+                            </button>
                         </div>
                     </div>
 
@@ -397,17 +433,9 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                             </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                            {sortedRisks.map((risk) => (
+                            {paginatedRisks.map((risk) => (
                                 <tr key={risk.id} className="hover:bg-gray-50 transition">
                                     <td className="px-4 py-3 text-sm text-gray-500">{risk.id}</td>
-                                    {/*<td className="px-4 py-3 text-sm font-medium text-gray-900">*/}
-                                    {/*    {risk.name}*/}
-                                    {/*    {risk.description && (*/}
-                                    {/*        <div className="text-xs text-gray-400 truncate max-w-xs">*/}
-                                    {/*            {risk.description}*/}
-                                    {/*        </div>*/}
-                                    {/*    )}*/}
-                                    {/*</td>*/}
                                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                                         {risk.name}
                                         {risk.description && (
@@ -418,14 +446,14 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{risk.likelihood}</td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{risk.impact}</td>
-                                    <td className="px-4 py-3 text-sm">
-                      <span
-                          className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
-                              classColors[risk.riskClass] || "bg-gray-100 text-gray-800"
-                          }`}
-                      >
-                        {risk.riskClass}
-                      </span>
+                                    <td className="px-4 py-3 text-sm w-[8rem]">
+                                        <span
+                                            className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                                                classColors[risk.riskClass] || "bg-gray-100 text-gray-800"
+                                            }`}
+                                        >
+                                            {risk.riskClass}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{risk.status}</td>
                                     <td className="px-4 py-3 text-sm text-gray-500">
@@ -434,7 +462,7 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                                     <td className="px-4 py-3 text-sm text-gray-700">{risk.owner || "—"}</td>
                                 </tr>
                             ))}
-                            {risks.length === 0 && (
+                            {paginatedRisks.length === 0 && (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                                         No risks to display.
@@ -444,19 +472,61 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-2">
+                            <div className="text-sm text-gray-600">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    aria-label="Previous page"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => handlePageChange(page)}
+                                        className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                            page === currentPage
+                                                ? "bg-[#7213EA] text-white"
+                                                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    aria-label="Next page"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Charts */}
                     <div className={'grid grid-cols-2 mt-2 gap-5'}>
                         <div className={'w-full'}>
-                            <RiskHeatMap data={heatmapData}  />
+                            <RiskHeatMap data={heatmapData} />
                         </div>
                         <div className={'w-full'}>
                             <RiskDistribution
                                 riskItems={riskItems}
                                 totalAssessments={totalAssessments}
-                                />
+                            />
                         </div>
                     </div>
 
-                    {/* Footer note */}
+                    {/* Footer */}
                     <div className="mt-4 text-xs text-gray-400 text-center">
                         Report generated on {new Date().toLocaleString()}
                     </div>
@@ -466,24 +536,21 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
     );
 };
 
-const RiskReport:any=()=>{
-    const {
-        assessments,
-    } = useRiskAssessment();
+// ===== Wrapper that consumes context =====
+const RiskReport: React.FC = () => {
+    const { assessments } = useRiskAssessment();
     const { totalAssessments, riskItems } = processRiskDistribution(assessments);
     const heatmapData = processRiskHeatmapData(assessments);
-    const { risks, draftsCount, highRisksCount, totalAssessmentsCount } =
-        processRiskReportData(assessments);
+    const { risks } = processRiskReportData(assessments); // we only need risks now
 
-    return  <RiskReportPage
-        risks={risks}
-        draftsCount={draftsCount}
-        highRisksCount={highRisksCount}
-        totalAssessmentsCount={totalAssessmentsCount}
-        heatmapData={heatmapData}
-        totalAssessments={totalAssessments}
-        riskItems={riskItems}
-        // title, backLink optional
-    />
-}
+    return (
+        <RiskReportPage
+            risks={risks}
+            heatmapData={heatmapData}
+            totalAssessments={totalAssessments}
+            riskItems={riskItems}
+        />
+    );
+};
+
 export default RiskReport;

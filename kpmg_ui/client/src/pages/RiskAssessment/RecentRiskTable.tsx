@@ -16,12 +16,10 @@ export interface Assessment {
 interface AssessmentsCardProps {
     assessments: Assessment[];
     title: string;
-    // Optional callbacks for actions
     onEdit?: (id: string) => void;
     onView?: (id: string) => void;
     onDelete?: (id: string) => void;
 }
-
 
 // ------------------------------
 // 2. Badge style helpers
@@ -49,20 +47,15 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                                              onDelete,
                                                              title
                                                          }) => {
-    // Filter tab state
     const [filter, setFilter] = useState<'All' | 'Active' | 'Drafts' | 'Completed'>('All');
-    // Search state
     const [searchTerm, setSearchTerm] = useState('');
-    // Advanced filter dropdown
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [selectedStatuses, setSelectedStatuses] = useState<Set<Assessment['status']>>(new Set());
     const [selectedRiskScores, setSelectedRiskScores] = useState<Set<Assessment['riskScore']>>(new Set());
 
-    // Action dropdown state (which row is open)
     const [openActionId, setOpenActionId] = useState<string | null>(null);
     const actionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // Close action dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (openActionId && actionRefs.current[openActionId]) {
@@ -76,13 +69,12 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openActionId]);
 
-    // Compute counts for filter tabs
     const total = assessments.length;
     const activeCount = assessments.filter(a => a.status === 'In Progress' || a.status === 'Review').length;
     const draftsCount = assessments.filter(a => a.status === 'Draft').length;
     const completedCount = assessments.filter(a => a.status === 'Completed').length;
 
-    // Filter logic: tab + search + advanced filters
+    // Filter logic: tab + search (across ALL columns) + advanced filters
     const filteredData = useMemo(() => {
         return assessments.filter(item => {
             // 1. Tab filter
@@ -90,12 +82,17 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
             if (filter === 'Drafts' && item.status !== 'Draft') return false;
             if (filter === 'Completed' && item.status !== 'Completed') return false;
 
-            // 2. Search filter
+            // 2. Search filter (now checks ALL columns)
             if (searchTerm.trim() !== '') {
                 const term = searchTerm.toLowerCase().trim();
-                if (!item.name.toLowerCase().includes(term) && !item.application.toLowerCase().includes(term)) {
-                    return false;
-                }
+                const match =
+                    item.name.toLowerCase().includes(term) ||
+                    item.application.toLowerCase().includes(term) ||
+                    item.status.toLowerCase().includes(term) ||
+                    item.riskScore.toLowerCase().includes(term) ||
+                    item.lastUpdated.toLowerCase().includes(term) ||
+                    item.owner.toLowerCase().includes(term);
+                if (!match) return false;
             }
 
             // 3. Advanced filters (status & risk)
@@ -106,7 +103,6 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
         });
     }, [assessments, filter, searchTerm, selectedStatuses, selectedRiskScores]);
 
-    // Toggle helper for advanced filters
     const toggleStatus = (status: Assessment['status']) => {
         const newSet = new Set(selectedStatuses);
         if (newSet.has(status)) newSet.delete(status);
@@ -121,21 +117,13 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
         setSelectedRiskScores(newSet);
     };
 
-    // Action handlers
     const handleAction = (action: string, id: string) => {
         setOpenActionId(null);
         switch (action) {
-            case 'edit':
-                onEdit?.(id);
-                break;
-            case 'view':
-                onView?.(id);
-                break;
-            case 'delete':
-                onDelete?.(id);
-                break;
-            default:
-                break;
+            case 'edit': onEdit?.(id); break;
+            case 'view': onView?.(id); break;
+            case 'delete': onDelete?.(id); break;
+            default: break;
         }
     };
 
@@ -149,26 +137,25 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
         `
             }}
         >
-            {/* Inner white card with slight transparency */}
             <div className="overflow-visible rounded-xl bg-white/90 backdrop-blur-sm">
 
-                {/* -------- Header with Title + Search + Filter Button -------- */}
+                {/* -------- Header -------- */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 gap-3">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{title?title:"Recent Assessments"}</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{title ? title : "Recent Assessments"}</h2>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         {/* Search bar with icon */}
                         <div className="relative flex-1 sm:flex-initial sm:w-64">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
                             <input
                                 type="text"
                                 placeholder="Search assessments..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                                className="w-full pl-9 pr-3 py-2 text-sm text-[#0C233C] border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
                             />
                             {searchTerm && (
                                 <button
@@ -182,7 +169,7 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                             )}
                         </div>
 
-                        {/* Filter button with dropdown */}
+                        {/* Filter button */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
@@ -298,19 +285,18 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                     <td className="px-4 sm:px-6 py-3 font-medium text-gray-900">{item.name}</td>
                                     <td className="px-4 sm:px-6 py-3">{item.application}</td>
                                     <td className="px-4 sm:px-6 py-3">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[item.status]}`}>
-                        {item.status}
-                      </span>
+                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[item.status]}`}>
+                                            {item.status}
+                                        </span>
                                     </td>
                                     <td className="px-4 sm:px-6 py-3">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${riskStyles[item.riskScore]}`}>
-                        {item.riskScore}
-                      </span>
+                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${riskStyles[item.riskScore]}`}>
+                                            {item.riskScore}
+                                        </span>
                                     </td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.lastUpdated}</td>
                                     <td className="px-4 sm:px-6 py-3 hidden md:table-cell">{item.owner}</td>
                                     <td className="relative px-4 py-3 text-right sm:px-6">
-                                        {/* Action button */}
                                         <button
                                             onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}
                                             className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-full p-1"
@@ -321,7 +307,6 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                                             </svg>
                                         </button>
 
-                                        {/* Action dropdown */}
                                         {openActionId === item.id && (
                                             <div
                                                 ref={(el) => (actionRefs.current[item.id] = el)}
@@ -355,8 +340,8 @@ const RecentRiskTable: React.FC<AssessmentsCardProps> = ({
                     </table>
                 </div>
 
-                {/* -------- Footer link -------- */}
-                {title?"":<div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50/40">
+                {/* -------- Footer -------- */}
+                {title ? "" : <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50/40">
                     <a href="/all-assessments" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
                         View all assessments →
                     </a>

@@ -516,11 +516,11 @@ export function processRiskReportData(assessments: any[]): RiskReportData {
 
     // Band to riskClass (ensure it's one of the allowed values)
     const bandToRiskClass: Record<string, Risk['riskClass']> = {
+        "Critical": "Very High",
         "Very High": "Very High",
         "High": "High",
         "Medium": "Medium",
         "Low": "Low",
-        // if you have "Very Low", treat as "Low"
         "Very Low": "Low",
     };
 
@@ -739,13 +739,26 @@ export function processRiskStats(assessments: any[]) {
 
     assessments.forEach((assessment) => {
         const risks = assessment?.risks || [];
+        let weightedScore = 0;
         totalRisks += risks.length;
         risks.forEach((risk: any) => {
             const band = risk.inherent_risk_band || "Low";
-            if (band === "High" || band === "Very High") highCriticalRisks++;
+            if (band === "High" || band === "Very High" || band === "Critical") highCriticalRisks++;
             const score = risk.inherent_risk_score ?? bandToScore(band);
+            // const score = (risk.inherent_likelihood ?? 1) * (risk.inherent_impact ?? 1);
             sumRiskScores += score;
         });
+        // let weightedScore = 0;
+        //
+        // risks.forEach((risk: any) => {
+        //     const band = risk.inherent_risk_band || "Low";
+        //
+        //     weightedScore += bandToScore(band);
+        // });
+        // const avgScore =
+        //     totalRisks > 0
+        //         ? weightedScore / totalRisks
+        //         : 0;
     });
 
     const avgScore = totalRisks > 0 ? sumRiskScores / totalRisks : 0;
@@ -801,11 +814,12 @@ export function processRiskStats(assessments: any[]) {
 
 function bandToScore(band: string): number {
     const map: Record<string, number> = {
-        "Very Low": 1,
+
         Low: 2,
         Medium: 3,
         High: 4,
         "Very High": 5,
+        Critical: 5,
     };
     return map[band] || 2;
 }

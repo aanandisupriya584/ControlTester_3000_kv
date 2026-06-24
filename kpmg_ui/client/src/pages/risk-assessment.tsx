@@ -2337,6 +2337,7 @@ export default function RiskAssessmentPage() {
 
 
 
+
             {/*<div className="flex flex-wrap gap-2">*/}
               {/* Left column */}
               {/*<div className="flex-1 min-w-[300px]">*/}
