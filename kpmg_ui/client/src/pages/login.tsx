@@ -214,7 +214,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-3">
           <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
           <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
-          <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
+          <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
           <span className="hidden sm:flex items-center gap-1.5 ml-1 text-white/40 text-[13px]">
             <span>/</span>
             <span className="text-white/60">Agentic Controls Platform</span>

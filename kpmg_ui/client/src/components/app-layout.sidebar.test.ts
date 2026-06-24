@@ -63,8 +63,8 @@ assert.match(
 
 assert.match(
   traceNavSource,
-  /Back to TRACE landing/,
-  "Feature page breadcrumb ribbon should expose explicit back navigation to the TRACE landing page",
+  /Back to APEX landing/,
+  "Feature page breadcrumb ribbon should expose explicit back navigation to the APEX landing page",
 );
 
 assert.match(
