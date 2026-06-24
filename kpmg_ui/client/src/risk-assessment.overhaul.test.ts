@@ -12,6 +12,7 @@ const contextSource = read("client/src/contexts/RiskAssessmentContext.tsx");
 const ciaWidgetSource = read("client/src/components/CiaRatingWidget.tsx");
 const questionnaireSource = read("client/src/pages/RiskAssessment/components/workflow/QuestionnaireForm.tsx");
 const applyControlsSource = read("client/src/pages/RiskAssessment/components/workflow/ApplyControlToRiskPage.tsx");
+const reportSource = read("client/src/pages/RiskAssessment/components/workflow/RiskAssessmentReport.tsx");
 
 assert.doesNotMatch(
   source,
@@ -91,6 +92,30 @@ assert.match(
   source,
   /title: "Please answer all questions"/,
   "Incomplete questionnaire submission should show the requested popup message",
+);
+
+assert.match(
+  source,
+  /pr-16/,
+  "Report preview header should leave room for the dialog close control",
+);
+
+assert.match(
+  source,
+  /sm:mr-10/,
+  "Print PDF action should be spaced away from the dialog close control",
+);
+
+assert.match(
+  reportSource,
+  /View Report/,
+  "Final report page primary action should be labelled View Report",
+);
+
+assert.doesNotMatch(
+  reportSource,
+  /Generate Report/,
+  "Final report page should not show a separate Generate Report button",
 );
 
 assert.match(

@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import TraceNavBar from "@/components/TraceNavBar";
 import {
   Dialog,
   DialogContent,
@@ -1020,6 +1019,7 @@ function DocumentsTab({
           </div>
         ) : null}
 
+        {/* Bug fix: keep the document table header visible while long uploaded-file lists scroll. */}
         <div className="overflow-hidden rounded-2xl border border-[#E2E6EF]">
           <div className="grid grid-cols-[minmax(0,1fr)_160px_160px_90px] bg-[#F8FAFD] px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-[#5A6478]">
             <div>Document</div>
@@ -1027,6 +1027,7 @@ function DocumentsTab({
             <div>Status</div>
             <div className="text-center">Preview</div>
           </div>
+          <div className="max-h-[116px] overflow-y-auto overflow-x-hidden">
           {documents.map((file) => {
             const tag = TAG_OPTIONS.find((option) => option.value === file.tag);
             return (
@@ -1072,6 +1073,7 @@ function DocumentsTab({
             );
           })}
           {!documents.length ? <div className="border-t border-[#E2E6EF] p-8 text-center text-sm text-[#5A6478]">No documents uploaded yet.</div> : null}
+          </div>
         </div>
       </section>
     </div>
@@ -1497,10 +1499,16 @@ export default function DocumentUpliftCasePage() {
 
   const suggestionsQuery = useQuery<{ suggestions: Suggestion[] }>({
     queryKey: [`/api/document-uplift/cases/${caseId}/suggestions`],
-    enabled: !!caseId,
+    enabled: !!caseId && !caseQuery.isError,
+  });
+
+  const casesQuery = useQuery<{ cases: DocumentUpliftCase[] }>({
+    queryKey: ["/api/document-uplift/cases"],
+    enabled: caseQuery.isError,
   });
 
   const caseItem = caseQuery.data ?? null;
+  const currentCaseId = casesQuery.data?.cases?.[0]?.case_id;
   const suggestions = suggestionsQuery.data?.suggestions ?? caseItem?.suggestions ?? [];
   const sortedSuggestions = useMemo(() => sortSuggestions(suggestions), [suggestions]);
   const stage = caseStage(caseItem);
@@ -1525,7 +1533,7 @@ export default function DocumentUpliftCasePage() {
   }, [activeSuggestionId, sortedSuggestions]);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!caseId || caseQuery.isError) return;
     const eventSource = new EventSource(`/api/document-uplift/cases/${caseId}/pipeline/stream`);
 
     const updateFromEvent = (event: MessageEvent) => {
@@ -1571,7 +1579,7 @@ export default function DocumentUpliftCasePage() {
     return () => {
       eventSource.close();
     };
-  }, [caseId, caseItem?.status?.stage]);
+  }, [caseId, caseItem?.status?.stage, caseQuery.isError]);
 
   const runPipeline = useMutation({
     mutationFn: async () => {
@@ -1614,8 +1622,7 @@ export default function DocumentUpliftCasePage() {
   return (
     <div className="h-full min-h-0 overflow-hidden bg-[#F0F2F7] text-[#0C233C]" data-testid="document-uplift-case-page">
       <div className="flex h-full min-h-0 flex-col">
-        <TraceNavBar breadcrumb={caseItem?.title || "Document Uplift"} />
-
+        {/* Bug fix: this route is already inside AppLayout, so avoid rendering a second global search/sign-out header. */}
         <section className="shrink-0 border-b border-[#D8E0ED] bg-[#0C233C] px-5 py-4 text-white lg:px-8" data-testid="document-uplift-compact-header">
           <div className="flex w-full flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
@@ -1670,9 +1677,28 @@ export default function DocumentUpliftCasePage() {
         <main className="min-h-0 flex-1 overflow-hidden p-4">
           <div className="h-full w-full max-w-none">
             {caseQuery.isError ? (
-              <div className="rounded-2xl border border-[#F7E7A8] bg-[#FFFBEB] p-5 text-[#7A5400]">Unable to load this case.</div>
-            ) : null}
-            {activeTab === "documents" ? (
+              /* Bug fix: make missing/deleted Document Uplift cases recoverable instead of leaving a blank workspace. */
+              <div className="grid h-full place-items-center rounded-2xl border border-[#F7E7A8] bg-[#FFFBEB] p-6 text-[#7A5400]">
+                <div className="max-w-[520px] text-center">
+                  <AlertTriangle className="mx-auto h-10 w-10 text-[#EAAA00]" />
+                  <h2 className="mt-3 text-[20px] font-bold text-[#0C233C]">Document Uplift case not found</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#7A5400]">
+                    This case may have been deleted, or the link is pointing to an older local case ID.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-3">
+                    <ActionButton label="Back To Cases" tone="secondary" onClick={() => setLocation("/document-uplift")} />
+                    <ActionButton
+                      label="Open Current Case"
+                      tone="primary"
+                      disabled={!currentCaseId}
+                      onClick={() => {
+                        if (currentCaseId) setLocation(`/document-uplift/${currentCaseId}`);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === "documents" ? (
               <DocumentsTab
                 caseItem={caseItem}
                 caseId={caseId}

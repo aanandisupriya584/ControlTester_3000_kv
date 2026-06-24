@@ -5,7 +5,6 @@ interface RiskAssessmentReportProps {
   report: string | null;
   isGeneratingReport: boolean;
   primaryButtonClassName: string;
-  secondaryButtonClassName: string;
   onGenerateReport: () => void;
   onViewReport: () => void;
 }
@@ -30,7 +29,6 @@ export default function RiskAssessmentReport({
   report,
   isGeneratingReport,
   primaryButtonClassName,
-  secondaryButtonClassName,
   onGenerateReport,
   onViewReport,
 }: RiskAssessmentReportProps) {
@@ -38,19 +36,15 @@ export default function RiskAssessmentReport({
     <SectionShell
       action={
         <div className="flex flex-col gap-3 sm:flex-row">
-          {report ? (
-            <button className={secondaryButtonClassName} onClick={onViewReport}>
-              View Report
-            </button>
-          ) : null}
+          {/* Bug fix: keep only one report action and label it View Report on the final report page. */}
           <button
             className={primaryButtonClassName}
-            onClick={onGenerateReport}
+            onClick={report ? onViewReport : onGenerateReport}
             disabled={isGeneratingReport}
             data-risk-assessment-report="true"
           >
             {isGeneratingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileBarChart className="h-4 w-4" />}
-            Generate Report
+            View Report
           </button>
         </div>
       }
