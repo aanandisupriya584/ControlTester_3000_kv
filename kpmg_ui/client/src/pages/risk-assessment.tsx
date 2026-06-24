@@ -1199,7 +1199,7 @@ function ReportPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-[1040px] overflow-hidden rounded-[24px] border border-[#DCE3EE] bg-white p-0 shadow-[0_30px_80px_-44px_rgba(12,35,60,0.58)]">
-        <DialogHeader className="bg-[linear-gradient(135deg,#0C233C_0%,#163B67_58%,#1E49E2_100%)] px-6 py-6 text-left text-white">
+        <DialogHeader className="bg-[linear-gradient(135deg,#0C233C_0%,#163B67_58%,#1E49E2_100%)] px-6 py-6 pr-16 text-left text-white">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/46">Generated Output</p>
@@ -1210,9 +1210,9 @@ function ReportPreviewDialog({
                 Review the generated report in a focused preview without replacing the main assessment workflow.
               </DialogDescription>
             </div>
-            {/* Keep the PDF action visible at the top of the report popup instead of hiding it below long report content. */}
+            {/* Bug fix: leave clear space between Print PDF and the dialog close X control. */}
             <button
-              className="inline-flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-[14px] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1E49E2] shadow-sm transition-colors hover:bg-[#EEF2FF] disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-[#7E91AE] sm:w-auto"
+              className="inline-flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-[14px] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1E49E2] shadow-sm transition-colors hover:bg-[#EEF2FF] disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-[#7E91AE] sm:mr-10 sm:w-auto"
               onClick={handleDownloadPdf}
               disabled={!report}
               data-risk-assessment-report-download="true"
@@ -2513,7 +2513,6 @@ export default function RiskAssessmentPage() {
                 report={currentReport}
                 isGeneratingReport={isGeneratingReport}
                 primaryButtonClassName={PRIMARY_BUTTON}
-                secondaryButtonClassName={SECONDARY_BUTTON}
                 onGenerateReport={() => void handleGenerateReport()}
                 onViewReport={() => setShowReportDialog(true)}
               />

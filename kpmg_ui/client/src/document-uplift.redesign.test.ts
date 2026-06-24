@@ -25,13 +25,31 @@ assert.match(landingSource, /Your Cases/, "Landing page must include the case li
 assert.match(landingSource, /apex_uplift_hiw_open/, "How It Works collapsed state must persist");
 
 assert.match(caseSource, /import \{ renderAsync \} from "docx-preview"/, "Case page must use docx-preview locally");
-assert.match(caseSource, /import TraceNavBar from "@\/components\/TraceNavBar"/, "Case page must use the compact TRACE shell nav");
+assert.doesNotMatch(caseSource, /TraceNavBar/, "Case page must not render a second global search/sign-out header inside AppLayout");
 assert.doesNotMatch(caseSource, /import HeroSection from "@\/components\/HeroSection"/, "Case detail page must not spend vertical space on the full hero");
 assert.doesNotMatch(caseSource, /<TraceNavBar[\s\S]*actions=\{/, "Case shell nav must not duplicate workflow actions already available in the workspace");
 assert.match(
   caseSource,
   /\/api\/document-uplift\/cases\/\$\{caseId\}\/files\/\$\{file\.file_id\}\/content/,
   "Case page must fetch uploaded bytes from the Document Uplift preview endpoint",
+);
+
+assert.match(
+  caseSource,
+  /max-h-\[116px\] overflow-y-auto/,
+  "Document Uplift document table rows must show two rows and scroll when the upload list is long",
+);
+
+assert.match(
+  caseSource,
+  /Document Uplift case not found/,
+  "Missing Document Uplift cases should render a clear recovery state",
+);
+
+assert.match(
+  caseSource,
+  /Open Current Case/,
+  "Missing Document Uplift cases should offer a current-case recovery action",
 );
 assert.doesNotMatch(caseSource, /from "\.\/sop-uplift|from "\.\.\/sop-uplift|pages\/sop-uplift/, "Case page must not depend on SOP Uplift modules");
 assert.match(caseSource, /trace-docx-preview/, "Case page must render DOCX into the TRACE preview container");

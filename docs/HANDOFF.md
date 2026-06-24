@@ -2291,3 +2291,24 @@ Verification:
 Verification:
 - `node client/src/pages/landing.layout.test.ts`
 - `npm run check`
+
+## 2026-06-24 - Document Uplift Table Scrollbar
+
+- Added a dedicated vertical scrollbar to the Document Uplift document table row area, capped to two visible rows.
+- Kept the document table header fixed above the scrolling uploaded-file list.
+- Added a recoverable missing-case state with Back To Cases and Open Current Case actions when an old/deleted Document Uplift case URL is opened.
+- Removed the duplicate Document Uplift case-page global header so search/sign-out only render once from AppLayout.
+
+Verification:
+- `node client/src/document-uplift.redesign.test.ts`
+- `npm run check`
+
+## 2026-06-24 - Risk Assessment Report Button
+
+- Changed the Risk Assessment final report page to show one primary `View Report` action.
+- Removed the separate `View Report` button and replaced the old `Generate Report` label on the report page.
+- Increased spacing between the report preview `Print PDF` action and the dialog close control.
+
+Verification:
+- `npm run check`
+- `node client/src/risk-assessment.overhaul.test.ts` currently stops on an unrelated existing `/risk-assessment/new` route assertion before this report check.
