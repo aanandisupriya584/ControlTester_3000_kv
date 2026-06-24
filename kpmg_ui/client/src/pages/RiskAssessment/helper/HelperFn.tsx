@@ -252,6 +252,7 @@ export function processRiskDistribution(assessments: any[]): ProcessedRiskData {
         Medium: 'Medium',
         Low: 'Low',
         'Very High': 'Very High',
+        Critical: 'Very High',
         // You can add more bands here if needed, e.g.:
         // 'Very Low': 'Low',  // map to an existing label
     };
