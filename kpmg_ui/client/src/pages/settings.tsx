@@ -269,12 +269,19 @@ export default function SettingsPage() {
   // Navigation visibility
   const [hiddenPages, setHiddenPages] = useState<string[]>(readHiddenPages);
   const togglePageVisibility = (path: string) => {
-    setHiddenPages((prev) => {
-      const next = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
-      localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(next));
-      window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
-      return next;
-    });
+    const next = hiddenPages.includes(path)
+      ? hiddenPages.filter((p) => p !== path)
+      : [...hiddenPages, path];
+    setHiddenPages(next);
+    localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
+    if (user?.email) {
+      fetch("/api/settings/nav-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, hidden_pages: next }),
+      }).catch(() => {});
+    }
   };
 
   // LLM model selector

@@ -86,6 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!result.ok) return { ok: false, error: result.error };
     const u = result.data as User;
     setUser(u);
+    try {
+      const res = await fetch(`/api/settings/nav-visibility?email=${encodeURIComponent(u.email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const pages: string[] = data.hidden_pages ?? [];
+        localStorage.setItem("nav_hidden_pages", JSON.stringify(pages));
+        window.dispatchEvent(new Event("nav_hidden_pages"));
+      }
+    } catch {
+      // non-fatal — AppLayout will retry on mount
+    }
     return { ok: true };
   }
 

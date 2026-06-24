@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -197,10 +197,10 @@ const FEATURE_SECTIONS: FeatureSection[] = [
   },
 ];
 
-const HERO_SUMMARY = [
+const HERO_SUMMARY_STATIC = [
   {
     label: "Solution Modules",
-    value: String(FEATURE_CARDS.length),
+    value: "",
     description: "Centralized access to retained modules across oversight, assessment, and reporting.",
   },
   {
@@ -223,6 +223,12 @@ const AGENTIC_COMMAND_NODES = [
   { label: "Act", icon: Zap, className: "left-1/2 bottom-[-18%] -translate-x-1/2" },
 ];
 
+const NAV_HIDDEN_KEY = "nav_hidden_pages";
+
+function readHiddenPages(): string[] {
+  try { return JSON.parse(localStorage.getItem(NAV_HIDDEN_KEY) || "[]"); } catch { return []; }
+}
+
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
@@ -230,13 +236,26 @@ export default function LandingPage() {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(FEATURE_SECTIONS.map((s) => [s.id, false]))
   );
+  const [hiddenPages, setHiddenPages] = useState<string[]>(readHiddenPages);
+
+  useEffect(() => {
+    const handler = () => setHiddenPages(readHiddenPages());
+    window.addEventListener(NAV_HIDDEN_KEY, handler);
+    return () => window.removeEventListener(NAV_HIDDEN_KEY, handler);
+  }, []);
+
+  const visibleCards = FEATURE_CARDS.filter((card) => !hiddenPages.includes(card.path));
+  const heroSummary = [
+    { ...HERO_SUMMARY_STATIC[0], value: String(visibleCards.length) },
+    ...HERO_SUMMARY_STATIC.slice(1),
+  ];
 
   const toggleSection = (id: string) =>
     setCollapsedSections((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const groupedSections = FEATURE_SECTIONS.map((section) => ({
     ...section,
-    items: FEATURE_CARDS.filter((card) => card.category === section.id),
+    items: visibleCards.filter((card) => card.category === section.id),
   }));
 
   const handleSignOut = () => {
@@ -245,7 +264,7 @@ export default function LandingPage() {
   };
 
   const getSequence = (path: string) => {
-    const index = FEATURE_CARDS.findIndex((card) => card.path === path);
+    const index = visibleCards.findIndex((card) => card.path === path);
     return String(index + 1).padStart(2, "0");
   };
 
@@ -337,7 +356,7 @@ export default function LandingPage() {
             <p className="text-[9.5px] font-bold uppercase tracking-[0.34em] text-[#ACEAFF]">Operating summary</p>
             <h2 className="mt-2.5 text-[22px] font-bold leading-tight text-white">Solutions Overview</h2>
             <div className="mt-5 space-y-0">
-              {HERO_SUMMARY.map((item, index) => (
+              {heroSummary.map((item, index) => (
                 <div key={item.label} className={`py-4 ${index > 0 ? "kpmg-summary-stat" : ""}`}>
                   <p className="text-[9.5px] font-bold uppercase tracking-[0.24em] text-[#BFD2EE]">{item.label}</p>
                   <p className="mt-1.5 text-[32px] font-bold leading-none text-white">{item.value}</p>
@@ -432,7 +451,7 @@ export default function LandingPage() {
               KPMG TRACE - Agentic Controls Platform
             </p>
             <p className="text-[11px] text-slate-400">
-              {FEATURE_CARDS.length} modules - centralized operating environment
+              {visibleCards.length} modules - centralized operating environment
             </p>
           </div>
         </div>
