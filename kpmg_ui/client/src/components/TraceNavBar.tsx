@@ -28,8 +28,8 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
         <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={() => setLocation("/landing")}
-            aria-label="Back to TRACE landing"
-            title="Back to TRACE landing"
+            aria-label="Back to APEX landing"
+            title="Back to APEX landing"
             className="trace-top-ribbon__brand flex min-w-0 items-center gap-3 transition-opacity hover:opacity-90"
           >
             <span className="text-[18px] font-bold tracking-tight text-white"><img src={KpmgImg} width={"75px"}/></span>
@@ -49,7 +49,7 @@ export default function TraceNavBar({ breadcrumb, actions, collapsed }: TraceNav
             <Search className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white/55 transition-all duration-200 group-hover:left-3 group-hover:translate-x-0 group-focus-within:left-3 group-focus-within:translate-x-0" />
             <input
               type="search"
-              aria-label="Search TRACE"
+              aria-label="Search APEX"
               placeholder="Search"
               className="h-9 w-full rounded-full border border-[#2B5CAB] bg-[#102F57] pl-8 pr-3 text-xs font-medium text-white outline-none placeholder:text-transparent focus:border-[#00B8F5]/75 focus:bg-[#123A6C] group-hover:placeholder:text-[#9DB6D5] group-focus-within:placeholder:text-[#9DB6D5]"
             />

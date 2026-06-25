@@ -276,7 +276,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
             <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
-            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">TRACE</span>
+            <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
             <span className="hidden sm:flex items-center gap-1.5 ml-1 text-white/40 text-[13px]">
               <span>/</span>
               <span className="text-white/60">Agentic Controls Platform</span>
@@ -287,7 +287,7 @@ export default function LandingPage() {
               <Search className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white/55 transition-all duration-200 group-hover:left-3 group-hover:translate-x-0 group-focus-within:left-3 group-focus-within:translate-x-0" />
               <input
                 type="search"
-                aria-label="Search TRACE"
+                aria-label="Search APEX"
                 placeholder="Search"
                 className="h-9 w-full rounded-full border border-[#2B5CAB] bg-[#102F57] pl-8 pr-3 text-xs font-medium text-white outline-none placeholder:text-transparent focus:border-[#00B8F5]/75 focus:bg-[#123A6C] group-hover:placeholder:text-[#9DB6D5] group-focus-within:placeholder:text-[#9DB6D5]"
               />
@@ -373,7 +373,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-[1400px] space-y-8">
           <section className="landing-directory-intro">
             <div>
-              <p className="kpmg-section-label">TRACE modules</p>
+              <p className="kpmg-section-label">APEX modules</p>
               <h2 className="mt-2 text-[24px] font-bold leading-tight text-[#0C233C]">Current workspace directory</h2>
             </div>
             <p className="max-w-[640px] text-[13.5px] leading-6 text-[#5A6478]">
@@ -448,7 +448,7 @@ export default function LandingPage() {
 
           <div className="flex items-center justify-between border-t border-[#00338D]/8 pt-6 pb-2">
             <p className="text-[11px] text-slate-400 uppercase tracking-[0.22em] font-semibold">
-              KPMG TRACE - Agentic Controls Platform
+              KPMG APEX - Agentic Controls Platform
             </p>
             <p className="text-[11px] text-slate-400">
               {visibleCards.length} modules - centralized operating environment
