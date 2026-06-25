@@ -165,6 +165,10 @@ function formatDomainName(value: string) {
   return value ? value.replace(/_/g, " ") : "Unclassified";
 }
 
+function searchable(value: unknown) {
+  return String(value ?? "").toLowerCase();
+}
+
 function formatDomainTitle(value: string) {
   return formatDomainName(value)
     .split(" ")
@@ -805,10 +809,10 @@ export default function ControlsLibraryPage() {
     (domainFilter === "all" || c.domain === domainFilter) &&
     (typeFilter === "all" || c.control_type === typeFilter) &&
     (search === "" ||
-      c.control_id.toLowerCase().includes(search.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.description.toLowerCase().includes(search.toLowerCase()) ||
-      c.document_reference.toLowerCase().includes(search.toLowerCase()))
+      searchable(c.control_id).includes(searchable(search)) ||
+      searchable(c.control_name).includes(searchable(search)) ||
+      searchable(c.description).includes(searchable(search)) ||
+      searchable(c.document_reference).includes(searchable(search)))
   );
 
   const scopedQualityResults = isSelectedScope
@@ -864,17 +868,17 @@ export default function ControlsLibraryPage() {
     (domainFilter === "all" || c.domain === domainFilter) &&
     (typeFilter === "all" || c.control_type === typeFilter) &&
     (qualitySearch === "" ||
-      c.control_id.toLowerCase().includes(qualitySearch.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(qualitySearch.toLowerCase()) ||
-      c.domain.toLowerCase().includes(qualitySearch.toLowerCase()))
+      searchable(c.control_id).includes(searchable(qualitySearch)) ||
+      searchable(c.control_name).includes(searchable(qualitySearch)) ||
+      searchable(c.domain).includes(searchable(qualitySearch)))
   );
 
   const dashboardControlsFiltered = scopedControls.filter(c =>
     (dashboardDomainFilter === "all" || c.domain === dashboardDomainFilter) &&
     (dashboardSearch === "" ||
-      c.control_id.toLowerCase().includes(dashboardSearch.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(dashboardSearch.toLowerCase()) ||
-      c.description.toLowerCase().includes(dashboardSearch.toLowerCase()))
+      searchable(c.control_id).includes(searchable(dashboardSearch)) ||
+      searchable(c.control_name).includes(searchable(dashboardSearch)) ||
+      searchable(c.description).includes(searchable(dashboardSearch)))
   );
 
   const selectedScopeLabel = isSelectedScope ? selectedDoc?.source_filename ?? "Selected Document" : "All Uploaded Database";
