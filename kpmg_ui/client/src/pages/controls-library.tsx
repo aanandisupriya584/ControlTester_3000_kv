@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useCrossNav } from "@/contexts/CrossNavContext";
@@ -51,6 +51,14 @@ interface MappedObligation {
   framework_name: string;
   enforcement_level: string;
   match_score: number;
+}
+
+interface CanonicalObligation {
+  obligation_id: string;
+  obligation_text?: string;
+  framework_name?: string;
+  enforcement_level?: string;
+  section_reference?: string;
 }
 
 interface ExtractedControl {
@@ -368,6 +376,7 @@ export default function ControlsLibraryPage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [ingesting, setIngesting] = useState(false);
   const [ingestResults, setIngestResults] = useState<any[]>([]);
+  const [canonicalObligations, setCanonicalObligations] = useState<CanonicalObligation[]>([]);
 
   const [controlsDocs, setControlsDocs] = useState<ControlsDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -403,7 +412,10 @@ export default function ControlsLibraryPage() {
   const [mergedCtrlStats, setMergedCtrlStats] = useState<{ total_raw: number; total_merged: number } | null>(null);
   const [mergedStatsLoading, setMergedStatsLoading] = useState(false);
 
-  useEffect(() => { fetchDocs(); }, []);
+  useEffect(() => {
+    fetchDocs();
+    fetchCanonicalObligations();
+  }, []);
 
   useEffect(() => {
     if (!pendingControlId) return;
@@ -434,6 +446,34 @@ export default function ControlsLibraryPage() {
   const handleObligationClick = (obligationId: string) => {
     setPendingObligationId(obligationId);
     setLocation("/regulatory-library");
+  };
+
+  const canonicalObligationById = useMemo(() => {
+    return new Map(canonicalObligations.filter(o => o.obligation_id).map(o => [o.obligation_id, o]));
+  }, [canonicalObligations]);
+
+  const resolveMappedObligation = (obligation: MappedObligation) => {
+    const canonical = canonicalObligationById.get(obligation.obligation_id);
+    return {
+      ...obligation,
+      obligation_text: canonical?.obligation_text || obligation.obligation_text,
+      framework_name: canonical?.framework_name || obligation.framework_name,
+      enforcement_level: canonical?.enforcement_level || obligation.enforcement_level,
+      section_reference: canonical?.section_reference || obligation.section_reference,
+    };
+  };
+
+  const fetchCanonicalObligations = async () => {
+    try {
+      const res = await fetch("/api/regulatory-library/all-obligations");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.obligations)) {
+        setCanonicalObligations(data.obligations);
+      }
+    } catch (err) {
+      console.warn("fetchCanonicalObligations failed:", err);
+    }
   };
 
   const fetchDocs = async () => {
@@ -1693,24 +1733,27 @@ export default function ControlsLibraryPage() {
                 </p>
                 {selectedQualityControl.mapped_obligations?.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {selectedQualityControl.mapped_obligations.map((obligation, index) => (
-                      <div key={index} className="rounded-xl border border-[#E2E6EF] bg-white p-3 text-[12px]">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="font-mono text-[11px] font-bold text-[#00338D] hover:underline"
-                            onClick={() => handleObligationClick(obligation.obligation_id)}
-                          >
-                            {obligation.obligation_id}
-                          </button>
-                          <span className="rounded-full border border-[#E2E6EF] bg-[#F0F2F7] px-2 py-0.5 text-[10px] font-bold text-[#5A6478]">
-                            {obligation.enforcement_level}
-                          </span>
-                          <span className="ml-auto text-[10px] font-bold text-[#8492A6]">{obligation.framework_name}</span>
+                    {selectedQualityControl.mapped_obligations.map((obligation, index) => {
+                      const resolvedObligation = resolveMappedObligation(obligation);
+                      return (
+                        <div key={index} className="rounded-xl border border-[#E2E6EF] bg-white p-3 text-[12px]">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="font-mono text-[11px] font-bold text-[#00338D] hover:underline"
+                              onClick={() => handleObligationClick(resolvedObligation.obligation_id)}
+                            >
+                              {resolvedObligation.obligation_id}
+                            </button>
+                            <span className="rounded-full border border-[#E2E6EF] bg-[#F0F2F7] px-2 py-0.5 text-[10px] font-bold text-[#5A6478]">
+                              {resolvedObligation.enforcement_level}
+                            </span>
+                            <span className="ml-auto text-[10px] font-bold text-[#8492A6]">{resolvedObligation.framework_name}</span>
+                          </div>
+                          <p className="mt-2 line-clamp-2 leading-relaxed text-[#5A6478]">{resolvedObligation.obligation_text}</p>
                         </div>
-                        <p className="mt-2 line-clamp-2 leading-relaxed text-[#5A6478]">{obligation.obligation_text}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-[#E2E6EF] bg-[#F0F2F7] px-4 py-5 text-center text-[13px] font-bold text-[#8492A6]">
