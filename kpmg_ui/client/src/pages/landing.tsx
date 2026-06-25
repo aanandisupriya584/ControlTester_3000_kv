@@ -10,6 +10,7 @@ import {
   Cog,
   Database,
   Eye,
+  EyeOff,
   FileBarChart,
   FilePenLine,
   FileSearch,
@@ -381,7 +382,27 @@ export default function LandingPage() {
             </p>
           </section>
 
-          {groupedSections.map((section) => {
+          {visibleCards.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F0F4FA]">
+                <EyeOff className="h-7 w-7 text-[#8492A6]" />
+              </div>
+              <h3 className="text-[18px] font-bold text-[#0C233C]">All modules are hidden</h3>
+              <p className="mt-2 max-w-[360px] text-[13.5px] leading-6 text-[#5A6478]">
+                You have hidden all navigation modules. Go to Settings to restore visibility.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLocation("/settings")}
+                className="mt-6 flex items-center gap-2 rounded-full border border-[#1E49E2]/30 bg-white px-5 py-2.5 text-sm font-semibold text-[#1E49E2] shadow-sm hover:bg-[#F0F4FA] transition-colors"
+              >
+                Go to Settings
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {visibleCards.length > 0 && groupedSections.map((section) => {
             const isCollapsed = !!collapsedSections[section.id];
             return (
             <section key={section.id} className="landing-directory-panel rounded-[18px] overflow-hidden">

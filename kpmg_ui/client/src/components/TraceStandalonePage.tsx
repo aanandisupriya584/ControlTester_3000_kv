@@ -20,8 +20,8 @@ export default function TraceStandalonePage({
 }: TraceStandalonePageProps) {
   return (
     <div className="min-h-screen bg-[#F3F6FA] text-[#0C233C]">
-      <TraceNavBar breadcrumb={breadcrumb} />
-      <main className={cn("px-5 py-6 sm:px-6 lg:px-10 lg:py-8", mainClassName)}>
+      <TraceNavBar breadcrumb={breadcrumb} collapsed={true} />
+      <main className={cn("px-5 pb-6 pt-[80px] sm:px-6 lg:px-10 lg:pb-8 lg:pt-[80px]", mainClassName)}>
         <div
           className={cn("mx-auto w-full space-y-6 lg:space-y-8", contentClassName)}
           style={{ maxWidth }}

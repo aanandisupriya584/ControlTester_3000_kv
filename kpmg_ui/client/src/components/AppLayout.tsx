@@ -50,6 +50,7 @@ export const HIDEABLE_TABS: TraceTab[] = [
   { title: "Final Report", fullTitle: "Final Report", path: "/evidence-assessment", icon: FileSearch },
   { title: "Control Testing", fullTitle: "Control Testing", path: "/control-testing", icon: TestTube },
   { title: "Controls Assurance", fullTitle: "Controls Assurance", path: "/controls-assurance", icon: ShieldCheck, badge: "NEW" },
+  { title: "Controls Diagnostics", fullTitle: "Controls Diagnostics", path: "/controls-diagnostics", icon: ShieldCheck },
   {
     title: "SOP Uplift",
     fullTitle: "SOP Uplift",

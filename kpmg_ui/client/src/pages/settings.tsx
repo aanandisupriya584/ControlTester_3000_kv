@@ -284,6 +284,33 @@ export default function SettingsPage() {
     }
   };
 
+  const restoreAllPages = () => {
+    setHiddenPages([]);
+    localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify([]));
+    window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
+    if (user?.email) {
+      fetch("/api/settings/nav-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, hidden_pages: [] }),
+      }).catch(() => {});
+    }
+  };
+
+  const hideAllPages = () => {
+    const all = HIDEABLE_TABS.map((t) => t.path);
+    setHiddenPages(all);
+    localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(all));
+    window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
+    if (user?.email) {
+      fetch("/api/settings/nav-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, hidden_pages: all }),
+      }).catch(() => {});
+    }
+  };
+
   // LLM model selector
   const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem("selectedModel") || "");
 
@@ -1155,10 +1182,30 @@ export default function SettingsPage() {
               {activeSection === "nav-visibility" && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Navigation Visibility
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        Navigation Visibility
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        {hiddenPages.length < HIDEABLE_TABS.length && (
+                          <button
+                            onClick={hideAllPages}
+                            className="text-xs px-3 py-1.5 rounded-full border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            Hide All
+                          </button>
+                        )}
+                        {hiddenPages.length > 0 && (
+                          <button
+                            onClick={restoreAllPages}
+                            className="text-xs px-3 py-1.5 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            Restore All
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <CardDescription>
                       Choose which pages appear in the left panel. Settings is always visible.
                     </CardDescription>
