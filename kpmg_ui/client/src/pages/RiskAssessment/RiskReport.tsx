@@ -389,16 +389,11 @@ const RiskReportPage: React.FC<RiskReportProps> = ({
                         <div className="flex gap-2">
                             <button
                                 onClick={exportCSV}
-                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                             >
                                 ⬇ Export CSV
                             </button>
-                            <button
-                                onClick={handleDownloadPDF}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                            >
-                                🖨 Download PDF
-                            </button>
+
                         </div>
                     </div>
 
