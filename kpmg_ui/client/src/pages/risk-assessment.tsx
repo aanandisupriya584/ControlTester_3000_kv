@@ -2275,7 +2275,15 @@ export default function RiskAssessmentPage() {
                 // For the badge, you can use addedThisWeek
                 // and avgRiskLabel for the Avg Risk Score card
             />
-            <AssessmentProcess />
+            {/*<AssessmentProcess />*/}
+            <HowItWorks
+                steps={[
+                  { number: 1, title: "Create Assessment", desc: "Define scope and assets", color: "#7213EA" },
+                  { number: 2, title: "Answer Questionnaire", desc: "Capture risk responses", color: "#1E49E2" },
+                  { number: 3, title: "Review Output", desc: "Validate findings & score", color: "#098E7E" },
+                  // { number: 4, title: "Generate Reportt", desc: "Download and share report", color: "#098E7E" },
+                ]}
+            />
             {/*<div className={""}>*/}
             {/*  <RecentActivity />*/}
             {/*</div>*/}
@@ -2320,6 +2328,7 @@ export default function RiskAssessmentPage() {
                 }}
               />
             </div>
+
 
 
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timezone
 from typing import Any
 
+import pymongo
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -43,6 +45,24 @@ class DocumentUpliftConfigRequest(BaseModel):
 class LLMKeyRequest(BaseModel):
     provider: str
     api_key: str
+
+
+class NavVisibilityRequest(BaseModel):
+    email: str
+    hidden_pages: list[str]
+
+
+_MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017")
+_DB_NAME = "trace_db"
+_USER_PREFS_COL = "user_preferences"
+_mongo_client: pymongo.MongoClient | None = None
+
+
+def _get_user_prefs_col():
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = pymongo.MongoClient(_MONGO_URI, serverSelectionTimeoutMS=2000)
+    return _mongo_client[_DB_NAME][_USER_PREFS_COL]
 
 
 def _library_status(store_factory: type) -> dict[str, Any]:
@@ -236,3 +256,31 @@ def clear_llm_key(provider: str):
         raise HTTPException(status_code=422, detail=f"Unknown provider: {provider}")
     delete_provider_api_key(provider)
     return {"provider": provider, "cleared": True}
+
+
+@router.get("/nav-visibility")
+def get_nav_visibility(email: str):
+    if not email or not email.strip():
+        raise HTTPException(status_code=422, detail="email is required")
+    try:
+        col = _get_user_prefs_col()
+        doc = col.find_one({"_id": f"nav_prefs_{email.lower().strip()}"})
+        return {"hidden_pages": doc.get("hidden_pages", []) if doc else []}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/nav-visibility")
+def save_nav_visibility(body: NavVisibilityRequest):
+    if not body.email or not body.email.strip():
+        raise HTTPException(status_code=422, detail="email is required")
+    try:
+        col = _get_user_prefs_col()
+        col.update_one(
+            {"_id": f"nav_prefs_{body.email.lower().strip()}"},
+            {"$set": {"hidden_pages": body.hidden_pages}},
+            upsert=True,
+        )
+        return {"saved": True, "hidden_pages": body.hidden_pages}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

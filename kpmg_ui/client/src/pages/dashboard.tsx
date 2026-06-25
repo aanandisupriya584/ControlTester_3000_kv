@@ -656,7 +656,7 @@ export default function DashboardPage() {
 
   return (
       <div className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
-      <HeroSubSection title={"Dashboard"} subtitle="Monitor TRACE libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
+      <HeroSubSection title={"Dashboard"} subtitle="Monitor APEX libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
       {/*<HeroSection*/}
       {/*  title="Dashboard"*/}
       {/*  subtitle="Monitor TRACE libraries, workflows, issues, and generated outputs."*/}
