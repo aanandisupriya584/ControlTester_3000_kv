@@ -998,20 +998,36 @@ export default function ControlsLibraryPage() {
                   </div>
                 )}
 
-                {ingestResults.length > 0 && (
-                  <div className="mt-4 border-t border-[#E2E6EF] pt-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[2px] text-[#009A44]">Recently Added</p>
-                    <div className="mt-2 space-y-2">
-                      {ingestResults.map((result, index) => (
-                        <div key={index} className="rounded-xl border border-[#009A44]/40 bg-[#EDFBF5] px-3 py-2">
-                          <p className="truncate text-[12px] font-bold text-[#0C233C]">{result.filename}</p>
-                          <StatusPill color="#009A44">{result.total_controls} controls</StatusPill>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+
+              {ingestResults.length > 0 && (
+                <div className="rounded-2xl border border-[#009A44]/30 bg-[#F4FCF8] p-4 shadow-sm lg:col-span-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[2px] text-[#009A44]">Recently Added</p>
+                      <p className="mt-1 text-[12px] text-[#5A6478]">Newly extracted documents are ready for review in the library dashboard.</p>
+                    </div>
+                    <StatusPill color="#009A44">
+                      {ingestResults.length} document{ingestResults.length !== 1 ? "s" : ""}
+                    </StatusPill>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {ingestResults.map((result, index) => (
+                      <div key={index} className="min-w-0 rounded-xl border border-[#C8EBDD] bg-white px-4 py-3 shadow-sm">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDFBF5] text-[#009A44]">
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-bold text-[#0C233C]" title={result.filename}>{result.filename}</p>
+                            <p className="mt-1 text-[11px] font-semibold text-[#5A6478]">{result.total_controls} controls extracted</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
