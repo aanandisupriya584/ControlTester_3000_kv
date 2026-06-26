@@ -7,6 +7,30 @@ export type StatusType = "draft" | "in_progress" | "risks_identified" | "control
 export type RiskBand = "Low" | "Medium" | "High" | "Critical";
 export type QuestionType = "Exposure" | "Control" | "Context";
 
+export interface ContextProfile {
+  project_context: string;
+  business_impact: string;
+  overall_project_summary: string;
+  regulatory_context: string;
+  security_requirements: string;
+  jira_context: string;
+  free_text_context: string;
+}
+
+export interface SuggestedQuestion {
+  question_id: string;
+  section_id: string;
+  section_title: string;
+  text: string;
+  question_type: QuestionType;
+  priority: "low" | "medium" | "high";
+  source: string;
+  rationale: string;
+  status: "suggested" | "answered";
+  answer: AnswerType | null;
+  details: string;
+}
+
 export interface Question {
   id: string;
   text: string;
@@ -111,6 +135,10 @@ export interface RiskAssessment {
   applied_controls: AppliedControl[];
   suggested_controls: SuggestedControl[];
   report_markdown: string | null;
+  suggested_questions: SuggestedQuestion[];
+  context_profile: ContextProfile;
+  context_sources: Record<string, unknown>[];
+  historical_matches: Record<string, unknown>[];
   created_at: string;
   updated_at: string;
 }
@@ -158,6 +186,11 @@ interface Ctx {
   fetchResidual: (raId: string) => Promise<void>;
   suggestControls: (raId: string) => Promise<void>;
   generateReport: (raId: string) => Promise<void>;
+  isSuggestingQuestions: boolean;
+  updateContextProfile: (raId: string, profile: ContextProfile) => Promise<void>;
+  uploadContextFile: (raId: string, file: File, sourceType?: string) => Promise<RiskAssessment | null>;
+  suggestContextQuestions: (raId: string) => Promise<void>;
+  answerContextQuestion: (raId: string, questionId: string, answer: AnswerType, details: string) => Promise<void>;
 }
 
 const RiskAssessmentContext = createContext<Ctx | null>(null);
@@ -170,6 +203,7 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isSuggestingQuestions, setIsSuggestingQuestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
 
@@ -342,14 +376,73 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateContextProfile = useCallback(async (raId: string, profile: ContextProfile): Promise<void> => {
+    const r = await fetch(`/api/risk-assessment/${raId}/context`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context_profile: profile }),
+    });
+    if (!r.ok) throw new Error("Failed to update context profile");
+    const ra: RiskAssessment = await r.json();
+    setSelectedAssessment(ra);
+    setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+  }, []);
+
+  const uploadContextFile = useCallback(async (raId: string, file: File, sourceType = "document"): Promise<RiskAssessment | null> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("source_type", sourceType);
+    const r = await fetch(`/api/risk-assessment/${raId}/context-files`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!r.ok) throw new Error("Failed to upload context file");
+    const body = await r.json();
+    const ra: RiskAssessment | null = body.assessment ?? null;
+    if (ra) {
+      setSelectedAssessment(ra);
+      setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+    }
+    return ra;
+  }, []);
+
+  const suggestContextQuestions = useCallback(async (raId: string): Promise<void> => {
+    setIsSuggestingQuestions(true);
+    try {
+      const r = await fetch(`/api/risk-assessment/${raId}/suggest-questions`, { method: "POST" });
+      if (!r.ok) throw new Error("Failed to suggest questions");
+      const updated = await fetch(`/api/risk-assessment/${raId}`);
+      if (updated.ok) {
+        const ra: RiskAssessment = await updated.json();
+        setSelectedAssessment(ra);
+        setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+      }
+    } finally {
+      setIsSuggestingQuestions(false);
+    }
+  }, []);
+
+  const answerContextQuestion = useCallback(async (raId: string, questionId: string, answer: AnswerType, details: string): Promise<void> => {
+    const r = await fetch(`/api/risk-assessment/${raId}/suggest-questions/${questionId}/respond`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer, details }),
+    });
+    if (!r.ok) throw new Error("Failed to answer question");
+    const data = await r.json();
+    setSelectedAssessment(prev => prev?.id === raId ? { ...prev, suggested_questions: data.suggested_questions } : prev);
+    setAssessments(prev => prev.map(a => a.id === raId ? { ...a, suggested_questions: data.suggested_questions } : a));
+  }, []);
+
   return (
     <RiskAssessmentContext.Provider value={{
       assessments, selectedAssessment, sections, residualResults,
-      isLoading, isAnalyzing, isGeneratingReport, error, report,
+      isLoading, isAnalyzing, isGeneratingReport, isSuggestingQuestions, error, report,
       fetchAssessments, selectAssessment, createAssessment, deleteAssessment,
       fetchSections, submitResponse, submitResponseBatch, analyzeAssessment,
       addHumanRisk, applyControl, fetchResidual,
       suggestControls, generateReport,
+      updateContextProfile, uploadContextFile, suggestContextQuestions, answerContextQuestion,
     }}>
       {children}
     </RiskAssessmentContext.Provider>

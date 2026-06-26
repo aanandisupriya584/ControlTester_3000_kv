@@ -15,6 +15,7 @@ import {
   Database,
   Download,
   FileBarChart,
+  FileUp,
   HelpCircle,
   Lightbulb,
   Loader2,
@@ -61,11 +62,13 @@ import { useAssetRegistry } from "@/contexts/AssetRegistryContext";
 import {
   type AdHocApplication,
   type AnswerType,
+  type ContextProfile,
   type ResidualResult,
   type Risk,
   type RiskAssessment,
   type Section,
   type SuggestedControl,
+  type SuggestedQuestion,
   useRiskAssessment,
 } from "@/contexts/RiskAssessmentContext";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
@@ -173,6 +176,25 @@ const SECONDARY_BUTTON =
   "inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#DCE3EE] bg-white px-5 py-3 text-[14px] font-bold text-[#0C233C] transition-colors hover:bg-[#F7F9FC] disabled:cursor-not-allowed disabled:text-[#9AA8BC] sm:w-auto";
 const SOFT_BUTTON =
   "inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#EEF2FF] px-4 py-2.5 text-[13px] font-bold text-[#1E49E2] transition-colors hover:bg-[#E3EBFF] disabled:cursor-not-allowed disabled:text-[#93A6D8] sm:w-auto";
+
+const EMPTY_CONTEXT_PROFILE: ContextProfile = {
+  project_context: "", business_impact: "", overall_project_summary: "",
+  regulatory_context: "", security_requirements: "", jira_context: "", free_text_context: "",
+};
+
+const PRIORITY_CLASS: Record<string, string> = {
+  high: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
+  medium: "border-[#F6D3A0] bg-[#FFF4E8] text-[#AB5C00]",
+  low: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
+};
+
+const CONTEXT_Q_ACTIVE: Record<string, string> = {
+  yes: "border-[#009A44] bg-[#009A44] text-white shadow-sm",
+  no: "border-[#E5001B] bg-[#E5001B] text-white shadow-sm",
+  na: "border-[#1E49E2] bg-[#1E49E2] text-white shadow-sm",
+};
+
+const CONTEXT_Q_IDLE = "border-[#D6E0EF] bg-white text-[#33415C] hover:border-[#1E49E2] hover:bg-[#F8FBFF]";
 
 interface LocalAnswer {
   answer: AnswerType;
@@ -1261,6 +1283,7 @@ export default function RiskAssessmentPage() {
     isLoading,
     isAnalyzing,
     isGeneratingReport,
+    isSuggestingQuestions,
     error,
     report,
     fetchAssessments,
@@ -1274,6 +1297,10 @@ export default function RiskAssessmentPage() {
     suggestControls,
     generateReport,
     deleteAssessment,
+    updateContextProfile,
+    uploadContextFile,
+    suggestContextQuestions,
+    answerContextQuestion,
   } = useRiskAssessment();
   const { assets, fetchAssets } = useAssetRegistry();
   const { toast } = useToast();
@@ -1346,7 +1373,13 @@ export default function RiskAssessmentPage() {
   const [answers, setAnswers] = useState<Record<string, Record<string, Record<string, LocalAnswer>>>>({});
   const [submittingQa, setSubmittingQa] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showContextStep, setShowContextStep] = useState(false);
+  const [contextProfile, setContextProfile] = useState<ContextProfile>(EMPTY_CONTEXT_PROFILE);
+  const [savingContext, setSavingContext] = useState(false);
+  const [contextFileUploading, setContextFileUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
+  const justCreatedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1386,6 +1419,21 @@ export default function RiskAssessmentPage() {
       return acc;
     }, {});
     setAnswers(savedAnswers);
+  }, [selectedAssessment?.id]);
+
+  useEffect(() => {
+    if (!selectedAssessment) return;
+    const cp = selectedAssessment.context_profile;
+    if (!cp) return;
+    setContextProfile({
+      project_context: cp.project_context || "",
+      business_impact: cp.business_impact || "",
+      overall_project_summary: cp.overall_project_summary || "",
+      regulatory_context: cp.regulatory_context || "",
+      security_requirements: cp.security_requirements || "",
+      jira_context: cp.jira_context || "",
+      free_text_context: cp.free_text_context || "",
+    });
   }, [selectedAssessment?.id]);
 
 
@@ -1431,17 +1479,28 @@ export default function RiskAssessmentPage() {
     if (selectedAssessment?.id === routeAssessmentId) return;
 
     const assessment = assessments.find((item) => item.id === routeAssessmentId);
-    if (!assessment) {
-      toast({ title: "Assessment not found", variant: "destructive" });
-      setLocation("/risk-assessment");
+    if (assessment) {
+      setShowCreate(false);
+      selectAssessment(assessment);
+      setWizardStep(statusToStep(assessment.status));
+      setQaAssetIdx(0);
+      setExpandedSection(sections[0]?.id ?? null);
       return;
     }
 
-    setShowCreate(false);
-    selectAssessment(assessment);
-    setWizardStep(statusToStep(assessment.status));
-    setQaAssetIdx(0);
-    setExpandedSection(sections[0]?.id ?? null);
+    // Assessment not in local list yet. Two guards before showing the error toast:
+    // 1. justCreated ref — set synchronously in handleCreate before any state flush.
+    // 2. Delay + cleanup — deps changing within 800 ms (optimistic update, fetchAssessments
+    //    settling, selectedAssessment syncing) cancels the timer so no toast fires during
+    //    transient races.
+    if (justCreatedIdRef.current === routeAssessmentId) return;
+
+    const timer = setTimeout(() => {
+      toast({ title: "Assessment not found", variant: "destructive" });
+      setLocation("/risk-assessment");
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [assessments, routeAssessmentId, sections, selectedAssessment?.id, selectAssessment, setLocation, toast]);
 
   useEffect(() => {
@@ -1496,6 +1555,9 @@ export default function RiskAssessmentPage() {
     assets.find((asset) => asset.id === id)?.name ??
     selectedAssessment?.ad_hoc_applications?.find((app) => app.id === id)?.name ??
     id;
+
+  const suggestedQuestions: SuggestedQuestion[] = (selectedAssessment?.suggested_questions ?? []) as SuggestedQuestion[];
+  const answeredContextQuestions = suggestedQuestions.filter((q) => q.status === "answered").length;
 
   const hasAssetsInScope = Boolean(selectedAssessment && selectedAssessment.asset_ids.length > 0);
   const hasRisksIdentified = Boolean(
@@ -1717,6 +1779,7 @@ export default function RiskAssessmentPage() {
         asset_ids: form.selectedAssetIds,
         ad_hoc_applications: adHocApps,
       });
+      justCreatedIdRef.current = assessment.id;
       selectAssessment(assessment);
       setShowCreate(false);
       setLocation(`/risk-assessment/${encodeURIComponent(assessment.id)}?step=assets`);
@@ -1811,6 +1874,49 @@ export default function RiskAssessmentPage() {
     }
   }
 
+  async function handleSaveContextAndSuggest() {
+    if (!selectedAssessment) return;
+    setSavingContext(true);
+    try {
+      await updateContextProfile(selectedAssessment.id, contextProfile);
+      await suggestContextQuestions(selectedAssessment.id);
+      setShowContextStep(false);
+      setWizardStep(1);
+      setExpandedSection(sections[0]?.id ?? null);
+      toast({ title: "Context saved. AI questions generated and added to questionnaire." });
+    } catch {
+      toast({ title: "Failed to save context or generate questions", variant: "destructive" });
+    } finally {
+      setSavingContext(false);
+    }
+  }
+
+  async function handleContextFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!selectedAssessment || !event.target.files?.[0]) return;
+    setContextFileUploading(true);
+    try {
+      const updated = await uploadContextFile(selectedAssessment.id, event.target.files[0]);
+      if (updated?.context_profile) {
+        const cp = updated.context_profile;
+        setContextProfile((prev) => ({
+          project_context: cp.project_context || prev.project_context,
+          business_impact: cp.business_impact || prev.business_impact,
+          overall_project_summary: cp.overall_project_summary || prev.overall_project_summary,
+          regulatory_context: cp.regulatory_context || prev.regulatory_context,
+          security_requirements: cp.security_requirements || prev.security_requirements,
+          jira_context: cp.jira_context || prev.jira_context,
+          free_text_context: cp.free_text_context || prev.free_text_context,
+        }));
+      }
+      toast({ title: "Document uploaded — context fields auto-filled from document" });
+    } catch {
+      toast({ title: "File upload failed", variant: "destructive" });
+    } finally {
+      setContextFileUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   async function refreshAssessment(assessmentId: string) {
     try {
       const response = await fetch(`/api/risk-assessment/${assessmentId}`);
@@ -1846,6 +1952,7 @@ export default function RiskAssessmentPage() {
 
   function openCreate() {
     // Route the create icon to the dedicated create URL while showing the existing setup dialog.
+    justCreatedIdRef.current = null;
     setLocation("/risk-assessment/new");
     setShowCreate(true);
     selectAssessment(null);
@@ -2316,7 +2423,19 @@ export default function RiskAssessmentPage() {
                 title={""}
                 onView={(id) => {
                   const assessment = assessments.find((item) => item.id === id);
-                  if (assessment) selectExistingAssessment(assessment);
+                  if (!assessment) return;
+                  selectExistingAssessment(assessment);
+                }}
+                onEdit={(id) => {
+                  const assessment = assessments.find((item) => item.id === id);
+                  if (!assessment) return;
+                  selectExistingAssessment(assessment);
+                }}
+                onDelete={(id) => {
+                  if (!window.confirm("Delete this assessment? This cannot be undone.")) return;
+                  deleteAssessment(id).catch(() =>
+                    toast({ title: "Failed to delete assessment", variant: "destructive" })
+                  );
                 }}
               />
             </div>
@@ -2410,13 +2529,207 @@ export default function RiskAssessmentPage() {
               />
             </RiskAssessmentWorkspace>
 
-            {wizardStep === 0 ? (
+
+            {wizardStep === 0 && !showContextStep ? (
               <AssessmentSummaryForm
                 assessment={selectedAssessment}
                 primaryButtonClassName={PRIMARY_BUTTON}
                 assetName={assetName}
-                onStartQuestionnaire={() => navigateWorkflowStep("Questionnaire")}
+                onStartQuestionnaire={() => setShowContextStep(true)}
               />
+            ) : null}
+
+            {wizardStep === 0 && showContextStep ? (
+              <SurfaceSection
+                eyebrow="Step 1 of 2"
+                title="Assessment Context"
+                action={
+                  <div className="flex flex-wrap gap-2">
+                    <button className={SECONDARY_BUTTON} onClick={() => setShowContextStep(false)}>
+                      Back
+                    </button>
+                    <button
+                      className={PRIMARY_BUTTON}
+                      onClick={() => void handleSaveContextAndSuggest()}
+                      disabled={savingContext || isSuggestingQuestions}
+                    >
+                      {savingContext || isSuggestingQuestions ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      {savingContext || isSuggestingQuestions ? "Generating questions…" : "Save & Generate AI Questions"}
+                    </button>
+                  </div>
+                }
+              >
+                <p className="mb-6 text-[13px] leading-6 text-[#5A6478]">
+                  Upload supporting documents and fill in context fields. The AI will generate targeted questions from the content you provide.
+                </p>
+
+                {/* Document Upload */}
+                <div className="mb-6">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">Upload Documents</p>
+                  <div className="rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] p-5">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EEF2FF]">
+                        <FileUp className="h-5 w-5 text-[#1E49E2]" />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-bold text-[#0C233C]">Upload architecture docs, SOPs, or audit evidence</p>
+                        <p className="mt-1 text-[11px] text-[#7388A8]">PDF, DOCX, TXT, MD — context fields auto-filled by AI</p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.docx,.doc,.xlsx,.xls,.txt,.md,.json,.log"
+                        className="hidden"
+                        onChange={(e) => void handleContextFileUpload(e)}
+                      />
+                      <button
+                        className={SOFT_BUTTON}
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={contextFileUploading}
+                      >
+                        {contextFileUploading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileUp className="h-4 w-4" />
+                        )}
+                        {contextFileUploading ? "Uploading…" : "Choose File"}
+                      </button>
+                    </div>
+                    {/* Uploaded files */}
+                    {(selectedAssessment.context_sources ?? []).length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {(selectedAssessment.context_sources ?? []).map((src: any, idx: number) => (
+                          <span
+                            key={src.id ?? idx}
+                            className="inline-flex items-center gap-2 rounded-full border border-[#BFE7D1] bg-white px-3 py-1.5 text-[11px] font-bold text-[#009A44]"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {src.filename ?? "document"}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Context Fields */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    { key: "project_context" as const, label: "Project Context", placeholder: "Describe the system architecture, tech stack, and deployment environment…" },
+                    { key: "business_impact" as const, label: "Business Impact", placeholder: "Describe business criticality, data sensitivity, and users affected…" },
+                    { key: "overall_project_summary" as const, label: "Project Summary", placeholder: "2–3 sentence executive summary for this risk assessment…" },
+                    { key: "regulatory_context" as const, label: "Regulatory Context", placeholder: "GDPR, PCI-DSS, ISO 27001, HIPAA, RBI PA Guidelines…" },
+                    { key: "security_requirements" as const, label: "Security Requirements", placeholder: "Key security controls, constraints, or requirements…" },
+                    { key: "jira_context" as const, label: "Jira / Delivery Context", placeholder: "Open tickets, defects, incidents, or delivery risks relevant to this assessment…" },
+                    { key: "free_text_context" as const, label: "Additional Context", placeholder: "Any other information that should inform the risk questions…" },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key} className={key === "free_text_context" ? "sm:col-span-2" : ""}>
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
+                        {label}
+                      </label>
+                      <Textarea
+                        value={contextProfile[key]}
+                        onChange={(e) => setContextProfile((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        rows={3}
+                        className="rounded-[14px] border-[#DCE3EE] bg-white text-[#0C233C] placeholder:text-[#A4B4C8] focus-visible:ring-[#00B8F5]"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex items-start gap-2.5 rounded-[14px] border border-[#C9D7FF] bg-[#EEF2FF] px-4 py-3">
+                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1E49E2]" />
+                  <p className="text-[12px] leading-6 text-[#1E49E2]">
+                    Click "Save &amp; Generate AI Questions" to create targeted questions from your documents and context. You can also skip this step and go straight to the questionnaire.
+                  </p>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    className={SECONDARY_BUTTON}
+                    onClick={() => { setShowContextStep(false); setWizardStep(1); setExpandedSection(sections[0]?.id ?? null); }}
+                  >
+                    Skip — Go to Questionnaire
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </SurfaceSection>
+            ) : null}
+
+            {wizardStep === 1 && !showContextStep && suggestedQuestions.length > 0 ? (
+              <SurfaceSection
+                eyebrow="AI Context"
+                title="Context-Driven Questions"
+                action={
+                  <span className="inline-flex items-center rounded-full border border-[#C9D7FF] bg-[#EEF2FF] px-3 py-1 text-[11px] font-bold text-[#1E49E2]">
+                    {answeredContextQuestions}/{suggestedQuestions.length} answered
+                  </span>
+                }
+              >
+                <p className="mb-5 text-[13px] leading-6 text-[#5A6478]">
+                  These questions were generated from your uploaded context documents. Answer them to improve risk scoring accuracy.
+                </p>
+                <div className="space-y-4">
+                  {suggestedQuestions.map((q) => (
+                    <div
+                      key={q.question_id}
+                      className="rounded-[18px] border border-[#DCE3EE] bg-[#FBFCFE] p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${PRIORITY_CLASS[q.priority] ?? PRIORITY_CLASS.medium}`}>
+                              {q.priority}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#7388A8]">
+                              {q.section_title}
+                            </span>
+                          </div>
+                          <p className="text-[14px] font-semibold leading-6 text-[#0C233C]">{q.text}</p>
+                          {q.rationale ? (
+                            <p className="mt-1.5 text-[12px] leading-5 text-[#7388A8]">{q.rationale}</p>
+                          ) : null}
+                        </div>
+                        {q.status === "answered" ? (
+                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold ${ANSWER_CLASS[q.answer ?? "na"]}`}>
+                            {(q.answer ?? "na").toUpperCase()}
+                          </span>
+                        ) : null}
+                      </div>
+                      {q.status !== "answered" ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(["yes", "no", "na"] as const).map((opt) => (
+                            <button
+                              key={opt}
+                              className={`inline-flex items-center justify-center rounded-[12px] border px-4 py-2 text-[12px] font-bold transition-all duration-150 active:translate-y-px ${CONTEXT_Q_IDLE}`}
+                              onClick={() => void answerContextQuestion(selectedAssessment.id, q.question_id, opt, "")}
+                            >
+                              {opt.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(["yes", "no", "na"] as const).map((opt) => (
+                            <button
+                              key={opt}
+                              className={`inline-flex items-center justify-center rounded-[12px] border px-4 py-2 text-[12px] font-bold transition-all duration-150 active:translate-y-px ${q.answer === opt ? CONTEXT_Q_ACTIVE[opt] : CONTEXT_Q_IDLE}`}
+                              onClick={() => void answerContextQuestion(selectedAssessment.id, q.question_id, opt, "")}
+                            >
+                              {opt.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SurfaceSection>
             ) : null}
 
             {wizardStep === 1 ? (

@@ -215,7 +215,7 @@ export default function QuestionnaireForm({
                                     <button
                                       type="button"
                                       key={answer}
-                                      className={`risk-question-answer-button h-11 cursor-pointer rounded-[8px] border text-[12px] font-bold transition-all duration-150 active:translate-y-px ${
+                                      className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold transition-all duration-150 cursor-pointer active:translate-y-px ${
                                         selectedAnswer === answer
                                           ? answer === "yes"
                                             ? "risk-question-answer-button--yes-selected border-[#009A44] bg-[#009A44] text-white shadow-sm"
