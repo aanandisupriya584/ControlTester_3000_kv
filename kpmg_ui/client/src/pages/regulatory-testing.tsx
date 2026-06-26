@@ -1412,7 +1412,7 @@ export default function RegulatoryTestingPage() {
           <HowItWorks
             steps={[
               { number: 1, title: "Select Sources", desc: "Choose Regulation vs Regulation or RCM vs Regulation and select uploaded or library-backed source documents.", color: "#7213EA" },
-              { number: 2, title: "Run Analysis", desc: "TRACE extracts obligations, aligns domains, and identifies differences using the existing comparison services.", color: "#1E49E2" },
+              { number: 2, title: "Run Analysis", desc: "APEX extracts obligations, aligns domains, and identifies differences using the existing comparison services.", color: "#1E49E2" },
               { number: 3, title: "Review Output", desc: "Scan the comparison overview, drill into domain gaps, and export the evidence-backed report.", color: "#098E7E" },
             ]}
           />

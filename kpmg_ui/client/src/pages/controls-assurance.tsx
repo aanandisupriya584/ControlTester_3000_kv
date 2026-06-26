@@ -9,7 +9,6 @@ import {
   Plus, ShieldCheck,
 } from "lucide-react";
 
-import Footer from "@/components/Footer";
 import { STAGE_LABEL, useCtSessions, type CtSessionSummary, type CtStage } from "@/hooks/useControlTesting";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
 
@@ -185,7 +184,6 @@ export default function ControlsAssurancePage() {
             </div>
           </section>
         </main>
-        <Footer />
       </div>
     </div>
   );

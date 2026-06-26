@@ -323,9 +323,13 @@ export default function ControlTestingPage() {
   const showGenerateAction = canGenerateWorkpaper(readyToGenerate, evidenceSummary);
 
   return (
-    <div className="h-full min-h-0 overflow-hidden flex flex-col">
-      {/* Bug fix: bound page scrolling so Control Testing content does not slide under the footer. */}
-      <div className="relative flex min-h-0 flex-1 flex-col bg-[#F0F2F7]">
+    // <div className="h-full min-h-0 overflow-hidden flex flex-col">
+    //   {/* Bug fix: bound page scrolling so Control Testing content does not slide under the footer. */}
+    //   <div className="relative flex min-h-0 flex-1 flex-col bg-[#F0F2F7]">
+    //     <div className="h-full min-h-0 flex flex-col">
+    //       <div className="relative flex min-h-0 flex-1 flex-col bg-[#F0F2F7] overflow-y-auto">
+      <div className={`relative h-full overflow-y-auto overscroll-contain bg-[#F0F2F7]`} >
+        <div className="relative flex min-h-0 flex-1 flex-col bg-[#F0F2F7] overflow-y-auto">
       <HeroSubSection
         title="Control Testing"
         subtitle="Upload a test script, validate evidence against required controls, and generate an audit workpaper"

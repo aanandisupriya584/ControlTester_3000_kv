@@ -13,7 +13,6 @@ import {
   Upload,
 } from "lucide-react";
 
-import Footer from "@/components/Footer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -872,7 +871,6 @@ export default function ControlsAssuranceDetailPage() {
           </>
         )}
       </main>
-      <Footer />
     </div>
   );
 }
