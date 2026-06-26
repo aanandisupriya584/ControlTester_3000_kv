@@ -37,6 +37,8 @@ import {
   GRID_STYLE,
 } from "@/lib/chartTheme";
 import HeroSubSection from "@/components/HeroSubSection.tsx";
+import DashboardOverview from "@/pages/Dashboard/Component/Overview/DashboardOverview";
+import type { OverviewKpiItem, OverviewPanelLabels } from "@/pages/Dashboard/Component/Overview/overview.types";
 
 type DashboardTab = "overview" | "libraries" | "workflows" | "exceptions";
 
@@ -132,6 +134,16 @@ const TESTING_STATUSES = ["draft", "in_progress", "complete"] as const;
 const TEST_RESULTS = ["pass", "partial", "fail", "not_tested"] as const;
 const ISSUE_STATUSES = ["Open", "In Remediation", "Pending Review", "Returned", "Closed"] as const;
 const QUEUE_STATUSES = ["Pending", "Accepted", "Dismissed"] as const;
+
+const OVERVIEW_PANEL_LABELS: OverviewPanelLabels = {
+  assetsByCriticality: "Assets By Criticality",
+  assessmentsByStatus: "Assessments By Status",
+  issuesBySeverity: "Issues By Severity",
+  reportsByType: "Reports By Type",
+  domainCoverage: "Domain Coverage",
+};
+
+const OVERVIEW_KPI_GRID_CLASS = "grid gap-5 sm:grid-cols-2 xl:grid-cols-4";
 
 function formatNumber(value: number) {
   return value.toLocaleString();
@@ -384,32 +396,6 @@ function DonutChartPanel({ data }: { data: ChartDatum[] }) {
   );
 }
 
-function HorizontalPercentPanel({ data }: { data: ChartDatum[] }) {
-  if (!hasChartData(data)) return <EmptyChart />;
-  return (
-    <div className="space-y-4">
-      {data.map((item, index) => {
-        const width = clampPercent(item.value);
-        const animationStyle: CSSProperties = {
-          width: `${width}%`,
-          background: item.fill,
-          transformOrigin: "left",
-          animation: `dashboardScaleX 900ms cubic-bezier(0.2, 1, 0.3, 1) ${index * 90}ms both`,
-        };
-        return (
-        <div key={item.name} className="grid grid-cols-[110px_1fr_44px] items-center gap-3 text-[12px]">
-          <span className="truncate font-semibold text-[#0C233C]">{item.name}</span>
-          <div className="h-8 overflow-hidden rounded-md bg-[#EEF2FF]">
-            <div className="h-full rounded-md" style={animationStyle} />
-          </div>
-          <span className="text-right font-bold text-[#0C233C]">{formatPercent(item.value)}</span>
-        </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function SegmentedStatusPanel({ data }: { data: ChartDatum[] }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   if (total <= 0) return <EmptyChart />;
@@ -647,7 +633,7 @@ export default function DashboardPage() {
       ? "border-[#1E49E2] text-[#1E49E2]"
       : "border-transparent text-[#0C233C]/80 hover:border-[#AEC5F7] hover:text-[#1E49E2]";
 
-  const overviewKpis = [
+  const overviewKpis: OverviewKpiItem[] = [
     { label: "Library Documents", value: formatNumber(regDocs.length + ctrlDocs.length + frameworkDocs.length), subLabel: "regulatory, controls, and frameworks", badge: `${formatNumber(regulatoryCount + controlsCount)} source docs`, tone: "blue" as const, onClick: () => setLocation("/regulatory-library") },
     { label: "Controls", value: formatNumber(totalControls), subLabel: "controls extracted from library files", badge: `${formatNumber(orphanedCtrlCount)} unmapped`, tone: "blue" as const, onClick: () => setLocation("/controls-library") },
     { label: "Risk Assessments", value: formatNumber(assessments.length), subLabel: "assessment sessions in scope", badge: `${formatNumber(riskCount)} risks recorded`, tone: "purple" as const, onClick: () => setLocation("/risk-assessment") },
@@ -655,7 +641,7 @@ export default function DashboardPage() {
   ];
 
   return (
-      <div className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
+      <div data-dashboard-page="DASHBOARD" className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
       <HeroSubSection title={"Dashboard"} subtitle="Monitor APEX libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
       {/*<HeroSection*/}
       {/*  title="Dashboard"*/}
@@ -732,32 +718,21 @@ export default function DashboardPage() {
         </section>
 
         {activeTab === "overview" ? (
-          <div className="animate-[fadeUp_0.35s_ease_both] space-y-5">
-            <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-              {overviewKpis.map(item => <KpiMetricCard key={item.label} {...item} />)}
-            </section>
-
-            <section className="grid gap-5 xl:grid-cols-3">
-              <ChartCard title="Assets By Criticality" footerLabel="Total Assets" footerValue={formatNumber(assets.length)}>
-                <BarChartPanel data={assetsByCriticality} />
-              </ChartCard>
-              <ChartCard title="Assessments By Status" footerLabel="Total Assessments" footerValue={formatNumber(assessments.length)}>
-                <BarChartPanel data={assessmentsByStatus} labelMode="rotate" height={226} />
-              </ChartCard>
-              <ChartCard title="Issues By Severity" footerLabel="Total Issues" footerValue={formatNumber(issues.length)}>
-                <BarChartPanel data={issuesBySeverity} />
-              </ChartCard>
-            </section>
-
-            <section className="grid gap-5 xl:grid-cols-[0.92fr_1.32fr]">
-              <ChartCard title="Reports By Type" footerLabel="Total Reports" footerValue={formatNumber(reports.length)}>
-                <DonutChartPanel data={reportsByType} />
-              </ChartCard>
-              <ChartCard title="Domain Coverage" footerLabel="Gap Obligations" footerValue={formatNumber(gapObligations)}>
-                <HorizontalPercentPanel data={domainCoverageData} />
-              </ChartCard>
-            </section>
-          </div>
+          <DashboardOverview
+            kpis={overviewKpis}
+            labels={OVERVIEW_PANEL_LABELS}
+            kpiGridClassName={OVERVIEW_KPI_GRID_CLASS}
+            assetsByCriticality={assetsByCriticality}
+            assessmentsByStatus={assessmentsByStatus}
+            issuesBySeverity={issuesBySeverity}
+            reportsByType={reportsByType}
+            domainCoverageData={domainCoverageData}
+            totalAssets={formatNumber(assets.length)}
+            totalAssessments={formatNumber(assessments.length)}
+            totalIssues={formatNumber(issues.length)}
+            totalReports={formatNumber(reports.length)}
+            gapObligations={formatNumber(gapObligations)}
+          />
         ) : null}
 
         {activeTab === "libraries" ? (
