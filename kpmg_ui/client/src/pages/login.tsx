@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowRight, ShieldCheck, Scale, AlertTriangle, Cpu, Lock, Activity } from "lucide-react";
 import Footer from "@/components/Footer";
+import KpmgImg from "@/assets/Picture1.png";
 
 // ── Network nodes — all constrained to left half of the viewport (x < 50) ──
 const NODES = [
@@ -212,7 +213,7 @@ export default function LoginPage() {
         style={{ background: "rgba(6,14,26,0.96)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-[18px] font-bold tracking-tight text-white">KPMG</span>
+          <span className="text-[18px] font-bold tracking-tight text-white"><img src={KpmgImg} width={"75px"}/></span>
           <span className="text-[#1E49E2] text-[20px] font-light select-none">|</span>
           <span className="text-[18px] font-bold tracking-tight text-[#00B8F5]">APEX</span>
           <span className="hidden sm:flex items-center gap-1.5 ml-1 text-white/40 text-[13px]">

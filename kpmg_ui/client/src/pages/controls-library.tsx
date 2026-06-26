@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useCrossNav } from "@/contexts/CrossNavContext";
@@ -51,6 +51,14 @@ interface MappedObligation {
   framework_name: string;
   enforcement_level: string;
   match_score: number;
+}
+
+interface CanonicalObligation {
+  obligation_id: string;
+  obligation_text?: string;
+  framework_name?: string;
+  enforcement_level?: string;
+  section_reference?: string;
 }
 
 interface ExtractedControl {
@@ -163,6 +171,10 @@ function exportQualityCSV(controls: CtrlW1H[]) {
 
 function formatDomainName(value: string) {
   return value ? value.replace(/_/g, " ") : "Unclassified";
+}
+
+function searchable(value: unknown) {
+  return String(value ?? "").toLowerCase();
 }
 
 function formatDomainTitle(value: string) {
@@ -364,6 +376,7 @@ export default function ControlsLibraryPage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [ingesting, setIngesting] = useState(false);
   const [ingestResults, setIngestResults] = useState<any[]>([]);
+  const [canonicalObligations, setCanonicalObligations] = useState<CanonicalObligation[]>([]);
 
   const [controlsDocs, setControlsDocs] = useState<ControlsDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -399,7 +412,10 @@ export default function ControlsLibraryPage() {
   const [mergedCtrlStats, setMergedCtrlStats] = useState<{ total_raw: number; total_merged: number } | null>(null);
   const [mergedStatsLoading, setMergedStatsLoading] = useState(false);
 
-  useEffect(() => { fetchDocs(); }, []);
+  useEffect(() => {
+    fetchDocs();
+    fetchCanonicalObligations();
+  }, []);
 
   useEffect(() => {
     if (!pendingControlId) return;
@@ -430,6 +446,34 @@ export default function ControlsLibraryPage() {
   const handleObligationClick = (obligationId: string) => {
     setPendingObligationId(obligationId);
     setLocation("/regulatory-library");
+  };
+
+  const canonicalObligationById = useMemo(() => {
+    return new Map(canonicalObligations.filter(o => o.obligation_id).map(o => [o.obligation_id, o]));
+  }, [canonicalObligations]);
+
+  const resolveMappedObligation = (obligation: MappedObligation) => {
+    const canonical = canonicalObligationById.get(obligation.obligation_id);
+    return {
+      ...obligation,
+      obligation_text: canonical?.obligation_text || obligation.obligation_text,
+      framework_name: canonical?.framework_name || obligation.framework_name,
+      enforcement_level: canonical?.enforcement_level || obligation.enforcement_level,
+      section_reference: canonical?.section_reference || obligation.section_reference,
+    };
+  };
+
+  const fetchCanonicalObligations = async () => {
+    try {
+      const res = await fetch("/api/regulatory-library/all-obligations");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.obligations)) {
+        setCanonicalObligations(data.obligations);
+      }
+    } catch (err) {
+      console.warn("fetchCanonicalObligations failed:", err);
+    }
   };
 
   const fetchDocs = async () => {
@@ -805,10 +849,10 @@ export default function ControlsLibraryPage() {
     (domainFilter === "all" || c.domain === domainFilter) &&
     (typeFilter === "all" || c.control_type === typeFilter) &&
     (search === "" ||
-      c.control_id.toLowerCase().includes(search.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.description.toLowerCase().includes(search.toLowerCase()) ||
-      c.document_reference.toLowerCase().includes(search.toLowerCase()))
+      searchable(c.control_id).includes(searchable(search)) ||
+      searchable(c.control_name).includes(searchable(search)) ||
+      searchable(c.description).includes(searchable(search)) ||
+      searchable(c.document_reference).includes(searchable(search)))
   );
 
   const scopedQualityResults = isSelectedScope
@@ -864,17 +908,17 @@ export default function ControlsLibraryPage() {
     (domainFilter === "all" || c.domain === domainFilter) &&
     (typeFilter === "all" || c.control_type === typeFilter) &&
     (qualitySearch === "" ||
-      c.control_id.toLowerCase().includes(qualitySearch.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(qualitySearch.toLowerCase()) ||
-      c.domain.toLowerCase().includes(qualitySearch.toLowerCase()))
+      searchable(c.control_id).includes(searchable(qualitySearch)) ||
+      searchable(c.control_name).includes(searchable(qualitySearch)) ||
+      searchable(c.domain).includes(searchable(qualitySearch)))
   );
 
   const dashboardControlsFiltered = scopedControls.filter(c =>
     (dashboardDomainFilter === "all" || c.domain === dashboardDomainFilter) &&
     (dashboardSearch === "" ||
-      c.control_id.toLowerCase().includes(dashboardSearch.toLowerCase()) ||
-      c.control_name.toLowerCase().includes(dashboardSearch.toLowerCase()) ||
-      c.description.toLowerCase().includes(dashboardSearch.toLowerCase()))
+      searchable(c.control_id).includes(searchable(dashboardSearch)) ||
+      searchable(c.control_name).includes(searchable(dashboardSearch)) ||
+      searchable(c.description).includes(searchable(dashboardSearch)))
   );
 
   const selectedScopeLabel = isSelectedScope ? selectedDoc?.source_filename ?? "Selected Document" : "All Uploaded Database";
@@ -994,20 +1038,36 @@ export default function ControlsLibraryPage() {
                   </div>
                 )}
 
-                {ingestResults.length > 0 && (
-                  <div className="mt-4 border-t border-[#E2E6EF] pt-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[2px] text-[#009A44]">Recently Added</p>
-                    <div className="mt-2 space-y-2">
-                      {ingestResults.map((result, index) => (
-                        <div key={index} className="rounded-xl border border-[#009A44]/40 bg-[#EDFBF5] px-3 py-2">
-                          <p className="truncate text-[12px] font-bold text-[#0C233C]">{result.filename}</p>
-                          <StatusPill color="#009A44">{result.total_controls} controls</StatusPill>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+
+              {ingestResults.length > 0 && (
+                <div className="rounded-2xl border border-[#009A44]/30 bg-[#F4FCF8] p-4 shadow-sm lg:col-span-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[2px] text-[#009A44]">Recently Added</p>
+                      <p className="mt-1 text-[12px] text-[#5A6478]">Newly extracted documents are ready for review in the library dashboard.</p>
+                    </div>
+                    <StatusPill color="#009A44">
+                      {ingestResults.length} document{ingestResults.length !== 1 ? "s" : ""}
+                    </StatusPill>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {ingestResults.map((result, index) => (
+                      <div key={index} className="min-w-0 rounded-xl border border-[#C8EBDD] bg-white px-4 py-3 shadow-sm">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDFBF5] text-[#009A44]">
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-bold text-[#0C233C]" title={result.filename}>{result.filename}</p>
+                            <p className="mt-1 text-[11px] font-semibold text-[#5A6478]">{result.total_controls} controls extracted</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -1673,24 +1733,27 @@ export default function ControlsLibraryPage() {
                 </p>
                 {selectedQualityControl.mapped_obligations?.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {selectedQualityControl.mapped_obligations.map((obligation, index) => (
-                      <div key={index} className="rounded-xl border border-[#E2E6EF] bg-white p-3 text-[12px]">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="font-mono text-[11px] font-bold text-[#00338D] hover:underline"
-                            onClick={() => handleObligationClick(obligation.obligation_id)}
-                          >
-                            {obligation.obligation_id}
-                          </button>
-                          <span className="rounded-full border border-[#E2E6EF] bg-[#F0F2F7] px-2 py-0.5 text-[10px] font-bold text-[#5A6478]">
-                            {obligation.enforcement_level}
-                          </span>
-                          <span className="ml-auto text-[10px] font-bold text-[#8492A6]">{obligation.framework_name}</span>
+                    {selectedQualityControl.mapped_obligations.map((obligation, index) => {
+                      const resolvedObligation = resolveMappedObligation(obligation);
+                      return (
+                        <div key={index} className="rounded-xl border border-[#E2E6EF] bg-white p-3 text-[12px]">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="font-mono text-[11px] font-bold text-[#00338D] hover:underline"
+                              onClick={() => handleObligationClick(resolvedObligation.obligation_id)}
+                            >
+                              {resolvedObligation.obligation_id}
+                            </button>
+                            <span className="rounded-full border border-[#E2E6EF] bg-[#F0F2F7] px-2 py-0.5 text-[10px] font-bold text-[#5A6478]">
+                              {resolvedObligation.enforcement_level}
+                            </span>
+                            <span className="ml-auto text-[10px] font-bold text-[#8492A6]">{resolvedObligation.framework_name}</span>
+                          </div>
+                          <p className="mt-2 line-clamp-2 leading-relaxed text-[#5A6478]">{resolvedObligation.obligation_text}</p>
                         </div>
-                        <p className="mt-2 line-clamp-2 leading-relaxed text-[#5A6478]">{obligation.obligation_text}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-[#E2E6EF] bg-[#F0F2F7] px-4 py-5 text-center text-[13px] font-bold text-[#8492A6]">

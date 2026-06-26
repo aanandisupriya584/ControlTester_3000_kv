@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Download, FileSpreadsheet, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
 
-import Footer from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -343,7 +342,6 @@ export default function ControlsAssuranceNewPage() {
           </div>
         </main>
       </form>
-      <Footer />
     </div>
   );
 }

@@ -1259,8 +1259,8 @@ function ReviewTab({
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="shrink-0 rounded-2xl border border-[#E2E6EF] bg-white p-3 shadow-sm">
+    <div className="flex h-full min-h-0 flex-col gap-4 ">
+      <div className="shrink-0 rounded-2xl border border-[#E2E6EF] bg-white p-3 shadow-sm"  id="my-div" >
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-[#B8E7D0] bg-[#EDFBF5] px-3 py-1 text-[12px] font-bold text-[#007A3D]">Accepted {suggestions.filter((item) => item.review_status === "accepted").length}</span>
@@ -1278,28 +1278,35 @@ function ReviewTab({
             <option value="all">Category: All</option>
             {categories.map((category) => <option key={category} value={category}>{formatStage(category)}</option>)}
           </select>
+
+          <select className="h-9 rounded-lg border border-[#CAD7E8] bg-white px-2 text-xs text-[#0C233C]" value={selectedFileId} onChange={(event) => setSelectedFileId(event.target.value)}>
+            {documents.map((file) => <option key={file.file_id} value={file.file_id}>{file.filename}</option>)}
+          </select>
           <div className="ml-auto">
             <ActionButton label="Move To Export" tone="primary" disabled={!suggestions.length} icon={<Lock className="h-4 w-4" />} onClick={onMoveToExport} />
           </div>
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid min-h-0 grid-cols-[160px_minmax(0,1fr)] gap-4">
-          <aside className="min-h-0 overflow-auto rounded-2xl border border-[#E2E6EF] bg-white p-3 shadow-sm">
-            <div className="mb-3 text-[13px] font-bold text-[#0C233C]">Sections</div>
-            <select className="mb-3 h-9 w-full rounded-lg border border-[#CAD7E8] bg-white px-2 text-xs text-[#0C233C]" value={selectedFileId} onChange={(event) => setSelectedFileId(event.target.value)}>
-              {documents.map((file) => <option key={file.file_id} value={file.file_id}>{file.filename}</option>)}
-            </select>
-            <div className="space-y-1">
-              {anchors.map((anchor, index) => (
-                <button key={anchor.anchor_id} type="button" className="block w-full rounded-lg px-3 py-2 text-left text-[12px] text-[#00338D] hover:bg-[#EEF2FF]">
-                  {index + 1}. {anchor.heading || anchor.section_path || "Document Section"}
-                </button>
-              ))}
-              {!anchors.length ? <p className="text-[12px] text-[#8492A6]">Anchors appear after the pipeline runs.</p> : null}
-            </div>
-          </aside>
+      {/*<div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">*/}
+      {/*  <div className="grid min-h-0 grid-cols-[160px_minmax(0,1fr)] gap-4">*/}
+      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_560px]">
+        <div className="grid min-h-0 grid-cols-[100%] gap-4">
+
+          {/*<aside className="min-h-0 overflow-auto rounded-2xl border border-[#E2E6EF] bg-white p-3 shadow-sm">*/}
+          {/*  <div className="mb-3 text-[13px] font-bold text-[#0C233C]">Sections</div>*/}
+          {/*  <select className="mb-3 h-9 w-full rounded-lg border border-[#CAD7E8] bg-white px-2 text-xs text-[#0C233C]" value={selectedFileId} onChange={(event) => setSelectedFileId(event.target.value)}>*/}
+          {/*    {documents.map((file) => <option key={file.file_id} value={file.file_id}>{file.filename}</option>)}*/}
+          {/*  </select>*/}
+          {/*  <div className="space-y-1">*/}
+          {/*    {anchors.map((anchor, index) => (*/}
+          {/*      <button key={anchor.anchor_id} type="button" className="block w-full rounded-lg px-3 py-2 text-left text-[12px] text-[#00338D] hover:bg-[#EEF2FF]">*/}
+          {/*        {index + 1}. {anchor.heading || anchor.section_path || "Document Section"}*/}
+          {/*      </button>*/}
+          {/*    ))}*/}
+          {/*    {!anchors.length ? <p className="text-[12px] text-[#8492A6]">Anchors appear after the pipeline runs.</p> : null}*/}
+          {/*  </div>*/}
+          {/*</aside>*/}
           <DocumentNativePreview
             caseId={caseId}
             file={selectedFile}
@@ -1313,7 +1320,7 @@ function ReviewTab({
           />
         </div>
 
-        <aside className="flex min-h-0 flex-col rounded-2xl border border-[#E2E6EF] bg-white shadow-sm">
+        <aside className="flex min-h-0 relative flex-col rounded-2xl border border-[#E2E6EF] bg-white shadow-sm">
           <div className="shrink-0 border-b border-[#E2E6EF] p-3">
             <div className="text-[11px] font-bold uppercase tracking-[2.5px] text-[#00338D]">Suggestions ({filteredSuggestions.length})</div>
             <h3 className="mt-1 text-[18px] font-bold tracking-tight text-[#0C233C]">Decision Queue</h3>
@@ -1351,7 +1358,7 @@ function ReviewTab({
               {!filteredSuggestions.length ? <div className="rounded-xl border border-dashed border-[#CAD7E8] bg-[#F8FAFD] p-8 text-center text-sm text-[#5A6478]">No suggestions match this view.</div> : null}
             </div>
           </div>
-          <div className="shrink-0 border-t border-[#E2E6EF] bg-[#F8FAFD] p-3">
+          <div className="shrink-0 fixed w-[100%] bottom-[3%] border-t border-[#E2E6EF] bg-[#F8FAFD] p-3">
             {activeSuggestion ? (
               <div className="space-y-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1620,10 +1627,10 @@ export default function DocumentUpliftCasePage() {
   ];
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-[#F0F2F7] text-[#0C233C]" data-testid="document-uplift-case-page">
-      <div className="flex h-full min-h-0 flex-col">
+    <div className="h-full min-h-0 overflow-y-auto bg-[#F0F2F7] mt-[70px] text-[#0C233C]" data-testid="document-uplift-case-page">
+      <div className="flex min-h-0 flex-col">
         {/* Bug fix: this route is already inside AppLayout, so avoid rendering a second global search/sign-out header. */}
-        <section className="shrink-0 border-b border-[#D8E0ED] bg-[#0C233C] px-5 py-4 text-white lg:px-8" data-testid="document-uplift-compact-header">
+        <section className="shrink-0 border-b border-[#D8E0ED]  px-5 py-4 text-white lg:px-8" data-testid="document-uplift-compact-header" style={{background:' radial-gradient(ellipse 60% 95% at 6% 115%, #7213EA 0%, transparent 100%), radial-gradient(ellipse 36% 95% at 92% -22%, #0C233C 0%, transparent 1300%)'}}>
           <div className="flex w-full flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
               <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-[#00B8F5] sm:flex">

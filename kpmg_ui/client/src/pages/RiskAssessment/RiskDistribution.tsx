@@ -31,6 +31,7 @@ const RISK_COLORS: Record<string, { bg: string; text: string }> = {
         bg: "bg-red-400",
         text: "text-red-900",
     },
+
 };
 
 // Fallback colours for any unrecognised label
