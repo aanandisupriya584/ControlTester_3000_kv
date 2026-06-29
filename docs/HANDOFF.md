@@ -2312,3 +2312,26 @@ Verification:
 Verification:
 - `npm run check`
 - `node client/src/risk-assessment.overhaul.test.ts` currently stops on an unrelated existing `/risk-assessment/new` route assertion before this report check.
+
+## 2026-06-29 - Dashboard Libraries component restructuring
+
+- Replaced the inline Dashboard Libraries tab markup with a `DashboardLibraries` parent component.
+- Added one reusable `LibraryKpiCard` child for the Regulations, Controls, Frameworks, and Quality Score metrics.
+- Extracted Domain Coverage, Obligations By Domain, Framework Elements By Category, and Assets By Status into individual panel components.
+- Kept data fetching, metric calculation, navigation, and quality-analysis behavior in the dashboard page while moving presentation into the Libraries component directory.
+- Cleaned the dashboard imports and removed the Libraries-only inline chart markup.
+
+Verification:
+- `npm run build`
+- `npm run check` remains blocked by the existing `tsconfig.json` `ignoreDeprecations` value.
+
+## 2026-06-29 - Dashboard workflow box extraction
+
+- Extracted each top-level Workflows module box into its own named child component: Risk Assessment, Control Testing, Regulatory Testing, Final Reporting, and SOP Uplift.
+- Added a presentation-only `WorkflowBoxFrame` shared by the five named children to keep their established visual treatment consistent.
+- Extracted each workflow panel into its own named child component: Assessments By Status, Testing Sessions By Status, Control Test Results, SOP Cases By Status, and Reports By Type.
+- Added shared workflow panel and segmented-status presentation primitives while preserving the established panel appearance.
+- Preserved the existing metrics, navigation destinations, and workflow behavior.
+
+Verification:
+- `npm run build`
