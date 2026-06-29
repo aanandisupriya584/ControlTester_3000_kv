@@ -2335,3 +2335,20 @@ Verification:
 
 Verification:
 - `npm run build`
+
+## 2026-06-29 - Risk Assessment post-create toast fix
+
+- Prevented the route-validation effect from treating a just-created assessment as missing while React is still applying the new assessment-list state.
+- The new assessment now remains selected on its asset-scope page without showing the destructive `Assessment not found` toast or redirecting to the base assessment route.
+- Removed the destructive `Assessment not found` route-validation toast and redirect so transient post-create lookups remain silent.
+
+Verification:
+- `npm run build`
+
+## 2026-06-29 - Regulatory comparison zero-count display
+
+- Fixed comparison KPI cards so valid zero values render as `0` rather than `Data not available`.
+- Applied the correction to domains compared, shared domains, and both source gap counts.
+
+Verification:
+- `npm run build`

@@ -1283,6 +1283,7 @@ export default function RiskAssessmentPage() {
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
+  const newlyCreatedAssessmentIdRef = useRef<string | null>(null);
   const [savedCreateDraft] = useState(() => readCreateAssessmentDraft());
   const [form, setForm] = useState<{ title: string; description: string; selectedAssetIds: string[] }>(
     savedCreateDraft?.form ?? {
@@ -1432,11 +1433,12 @@ export default function RiskAssessmentPage() {
 
     const assessment = assessments.find((item) => item.id === routeAssessmentId);
     if (!assessment) {
-      toast({ title: "Assessment not found", variant: "destructive" });
-      setLocation("/risk-assessment");
       return;
     }
 
+    if (newlyCreatedAssessmentIdRef.current === routeAssessmentId) {
+      newlyCreatedAssessmentIdRef.current = null;
+    }
     setShowCreate(false);
     selectAssessment(assessment);
     setWizardStep(statusToStep(assessment.status));
@@ -1717,6 +1719,7 @@ export default function RiskAssessmentPage() {
         asset_ids: form.selectedAssetIds,
         ad_hoc_applications: adHocApps,
       });
+      newlyCreatedAssessmentIdRef.current = assessment.id;
       selectAssessment(assessment);
       setShowCreate(false);
       setLocation(`/risk-assessment/${encodeURIComponent(assessment.id)}?step=assets`);
