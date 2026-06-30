@@ -2352,3 +2352,12 @@ Verification:
 
 Verification:
 - `npm run build`
+
+## 2026-06-30 - Risk analysis loader and deployment cache
+
+- Removed the redundant horizontal progress bar from the running risk analysis screen, leaving the spinner as the single loading indicator.
+- Added no-cache response headers for production HTML and SPA fallbacks so a VM deployment immediately references the latest Vite asset hashes.
+- Kept fingerprinted Vite assets on long-lived immutable caching.
+
+Verification:
+- `npm run build`
