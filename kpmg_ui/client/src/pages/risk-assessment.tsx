@@ -2617,12 +2617,12 @@ export default function RiskAssessmentPage() {
                       </div>
                       <div>
                         <p className="text-[13px] font-bold text-[#0C233C]">Upload architecture docs, SOPs, or audit evidence</p>
-                        <p className="mt-1 text-[11px] text-[#7388A8]">PDF, DOCX, TXT, MD — context fields auto-filled by AI</p>
+                        <p className="mt-1 text-[11px] text-[#7388A8]">PDF, DOCX, XLSX, PPTX, CSV</p>
                       </div>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".pdf,.docx,.doc,.xlsx,.xls,.txt,.md,.json,.log"
+                        accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odp,.odt,.ods,.txt,.md,.csv,.tsv,.json,.log,.png,.jpg,.jpeg,.webp,.bmp,.tiff,.gif"
                         className="hidden"
                         onChange={(e) => void handleContextFileUpload(e)}
                       />

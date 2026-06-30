@@ -1,11 +1,14 @@
 # api/routers/risk_assessment.py
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import hashlib
+import io
 import json
 import os
 import re as _re
+import subprocess
 import tempfile
 import uuid
 import logging
@@ -628,6 +631,269 @@ def _extract_context_text(filename: str, content: bytes, source_type: str = "doc
         return content.decode("utf-8", errors="ignore"), {"extractor": "utf-8-fallback", "suffix": suffix, "warning": str(exc)}
 
 
+_VISION_IMAGE_SUFFIXES = frozenset({"png", "jpg", "jpeg", "webp", "bmp", "tiff", "gif"})
+_OFFICE_SUFFIXES      = frozenset({"docx", "doc", "pptx", "ppt", "xlsx", "xls", "odp", "odt", "ods"})
+_TEXT_ONLY_SUFFIXES   = frozenset({"txt", "md", "log", "json", "csv", "tsv"})
+_ZIP_MEDIA_PREFIX     = {"docx": "word/media/", "doc": "word/media/",
+                          "pptx": "ppt/media/",  "ppt": "ppt/media/",
+                          "xlsx": "xl/media/",   "xls": "xl/media/"}
+
+
+def _pdf_to_images(pdf_bytes: bytes) -> list[bytes]:
+    """Render every PDF page to a PNG using pdf2image/poppler."""
+    from pdf2image import convert_from_bytes
+    pages = convert_from_bytes(pdf_bytes, dpi=150, fmt="PNG", thread_count=2)
+    result = []
+    for page in pages:
+        buf = io.BytesIO()
+        page.save(buf, format="PNG")
+        result.append(buf.getvalue())
+    return result
+
+
+def _libreoffice_to_pdf(content: bytes, filename: str) -> bytes | None:
+    """Convert any Office document to PDF via LibreOffice headless.
+
+    Returns PDF bytes or None if conversion fails.
+    """
+    suffix = os.path.splitext(filename)[1]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, f"input{suffix}")
+        with open(input_path, "wb") as fh:
+            fh.write(content)
+        env = {**os.environ, "HOME": tmpdir}
+        try:
+            proc = subprocess.run(
+                [
+                    "libreoffice", "--headless", "--norestore",
+                    "--nofirststartwizard", "--convert-to", "pdf",
+                    "--outdir", tmpdir, input_path,
+                ],
+                capture_output=True, timeout=120, env=env,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+            logger.warning(f"LibreOffice unavailable or timed out for {filename}: {exc}")
+            return None
+        if proc.returncode != 0:
+            logger.warning(f"LibreOffice conversion failed for {filename}: {proc.stderr.decode()[:300]}")
+            return None
+        pdf_path = os.path.join(tmpdir, os.path.splitext("input" + suffix)[0] + ".pdf")
+        if not os.path.exists(pdf_path):
+            # LibreOffice may use the original stem
+            candidates = [f for f in os.listdir(tmpdir) if f.endswith(".pdf")]
+            if not candidates:
+                return None
+            pdf_path = os.path.join(tmpdir, candidates[0])
+        with open(pdf_path, "rb") as fh:
+            return fh.read()
+
+
+def _render_document_to_images(filename: str, content: bytes) -> list[bytes]:
+    """Return a list of PNG image bytes covering the full visual content of any document.
+
+    Routing:
+      PDF              → pdf2image renders every page at 150 dpi
+      Office (DOCX etc)→ LibreOffice converts to PDF → pdf2image renders every page
+                         Fallback: extract embedded media images from the ZIP archive
+      Images           → returned as-is (single element list)
+      Text/CSV/JSON    → empty list  (caller uses text-only extraction)
+    """
+    suffix = os.path.splitext(filename.lower())[1].lstrip(".")
+
+    # ── Plain image files ─────────────────────────────────────────────────────
+    if suffix in _VISION_IMAGE_SUFFIXES:
+        return [content]
+
+    # ── Text-only formats: vision adds nothing ────────────────────────────────
+    if suffix in _TEXT_ONLY_SUFFIXES:
+        return []
+
+    # ── PDF: render every page ────────────────────────────────────────────────
+    if suffix == "pdf":
+        try:
+            return _pdf_to_images(content)
+        except Exception as exc:
+            logger.warning(f"pdf2image failed for {filename}: {exc}")
+            return []
+
+    # ── Office formats: LibreOffice → PDF → page images ──────────────────────
+    if suffix in _OFFICE_SUFFIXES:
+        pdf_bytes = _libreoffice_to_pdf(content, filename)
+        if pdf_bytes:
+            try:
+                return _pdf_to_images(pdf_bytes)
+            except Exception as exc:
+                logger.warning(f"pdf2image failed on LibreOffice output for {filename}: {exc}")
+
+        # Fallback: extract embedded media images from the ZIP archive
+        import zipfile
+        media_prefix = _ZIP_MEDIA_PREFIX.get(suffix, "")
+        images: list[bytes] = []
+        try:
+            with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                for name in zf.namelist():
+                    if (media_prefix and name.startswith(media_prefix)) or (not media_prefix):
+                        ext = os.path.splitext(name)[1].lstrip(".").lower()
+                        if ext in _VISION_IMAGE_SUFFIXES:
+                            images.append(zf.read(name))
+        except Exception as exc:
+            logger.warning(f"ZIP media extraction failed for {filename}: {exc}")
+        return images
+
+    # ── Unknown type: try LibreOffice → PDF as a last resort ─────────────────
+    pdf_bytes = _libreoffice_to_pdf(content, filename)
+    if pdf_bytes:
+        try:
+            return _pdf_to_images(pdf_bytes)
+        except Exception:
+            pass
+    return []
+
+
+_VISION_BATCH_SIZE = 10  # pages per LLM call — keeps each call within token limits
+
+_VISION_LIST_FIELDS  = {"technologies", "regulations", "data_types", "third_parties", "risk_flags"}
+_VISION_FIRST_FIELDS = {"document_type"}
+
+_EXTRACTION_SCHEMA = """{
+  "project_context": "Detailed technical description: system/project purpose, full architecture (all components and connections), complete tech stack, deployment environment, all in-scope components. 3-4 sentences minimum.",
+  "business_impact": "Business criticality, all data categories processed/stored/transmitted and their sensitivity, full user and stakeholder range, financial/operational/reputational impact of breach or outage. 3-4 sentences minimum.",
+  "overall_project_summary": "3-5 sentence executive summary for a risk assessment report header: what the system does, who uses it, what data it handles, and why it is being assessed.",
+  "regulatory_context": "All regulations, compliance frameworks, standards, and clauses found or strongly implied (GDPR, PCI-DSS, ISO 27001, SOC 2, HIPAA, RBI PA Guidelines, DPDP Act, NIST CSF, etc.). Explain briefly why each applies.",
+  "security_requirements": "All security requirements, control objectives, encryption standards, access control policies, logging/monitoring mandates, patch management obligations, and security SLAs explicitly mentioned or strongly implied.",
+  "jira_context": "If the document contains Jira tickets, sprints, open defects, incidents, or delivery risks — summarise them. Empty string if none present.",
+  "free_text_context": "Any additional risk-relevant content not captured above: threat actors, past incidents, audit findings, pen-test observations, vulnerabilities, architectural debt, third-party risks, or any other material an assessor should know.",
+  "document_type": "architecture_doc | security_policy | vapt_report | data_flow_diagram | jira_export | compliance_doc | vendor_assessment | threat_model | sow | incident_report | other",
+  "technologies": ["Every specific technology, framework, language, database, cloud service, or platform named"],
+  "regulations": ["Every regulation, standard, directive, or clause named"],
+  "data_types": ["Every data category processed, stored, or transmitted — be specific (e.g. PII, payment card data, health records, credentials, audit logs)"],
+  "third_parties": ["Every external vendor, SaaS provider, cloud provider, payment gateway, or integration partner mentioned"],
+  "risk_flags": ["Every specific risk concern, control gap, vulnerability, open finding, or red flag — be concrete and name the specific issue"]
+}"""
+
+_VISION_INSTRUCTIONS = (
+    "Read and interpret EVERYTHING you can see:\n"
+    "  • All text — paragraphs, headings, labels, captions, footnotes, watermarks\n"
+    "  • Architecture diagrams — name every component, service, and connection you can read\n"
+    "  • Data-flow / network topology diagrams — describe data movement and trust boundaries\n"
+    "  • Tables — extract the key data, column headers, and row values\n"
+    "  • Charts and graphs — describe what metric is shown and the key trend or values\n"
+    "  • Process flows and swimlane diagrams — describe each step and actor\n"
+    "  • SmartArt, callouts, and annotations — include all labelled content\n"
+    "  • Handwritten annotations — transcribe if legible\n\n"
+    "Return ONLY a valid JSON object with ALL of these exact fields. "
+    "Populate each field as richly as possible from everything you can see and read. "
+    "Use \"\" or [] ONLY when the document has absolutely no relevant evidence:\n\n"
+    + _EXTRACTION_SCHEMA
+    + "\n\nCritical rules:\n"
+    "- Be SPECIFIC and DETAILED — longer richer content always preferred over generic one-liners.\n"
+    "- For architecture diagrams: name every box, arrow, protocol, and port label you can read.\n"
+    "- For tables: extract the actual data values, not just 'a table is present'.\n"
+    "- For charts: state the metric name, axis labels, and key data points or trends.\n"
+    "- Preserve exact names, version numbers, IP ranges, clause references, and technical details.\n"
+    "- Do NOT invent items not present or strongly implied in the document."
+)
+
+
+def _merge_vision_results(results: list[dict]) -> dict:
+    """Merge extraction dicts from multiple page-batches into one combined result.
+
+    String fields: concatenate content from different batches (each batch covers
+    different pages so the content is genuinely additive, not redundant).
+    List fields: union of all items, deduplicated, order-preserving.
+    document_type: first non-empty value wins (from the first/cover pages).
+    """
+    merged: dict = {}
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        for key, value in result.items():
+            if key in _VISION_LIST_FIELDS:
+                existing: list = merged.get(key, [])
+                seen = set(existing)
+                for item in (value if isinstance(value, list) else []):
+                    if item and str(item).strip() and str(item).strip() not in seen:
+                        existing.append(str(item).strip())
+                        seen.add(str(item).strip())
+                merged[key] = existing
+            elif key in _VISION_FIRST_FIELDS:
+                if not merged.get(key) and value:
+                    merged[key] = value
+            else:
+                existing_str = merged.get(key, "")
+                new_str = str(value).strip() if isinstance(value, str) else ""
+                if new_str:
+                    merged[key] = (existing_str + "\n\n" + new_str).strip() if existing_str else new_str
+                elif not existing_str:
+                    merged[key] = value
+    return merged
+
+
+def _llm_extract_context_with_vision(text: str, images: list[bytes]) -> dict:
+    """Process ALL pages of a document — no fixed page cap.
+
+    Documents vary in length (2 pages to 50+ pages). Every page is processed by
+    splitting into batches of _VISION_BATCH_SIZE and making one LLM call per batch.
+    Results are merged so content from every section is captured.
+
+    Falls back to text-only extraction if the active LLM does not support vision
+    or if all batch calls fail.
+    """
+    from langchain.schema import HumanMessage
+    from utils.llm_provider import get_llm
+
+    if not images:
+        return _llm_extract_context_from_document(text)
+
+    batches = [images[i:i + _VISION_BATCH_SIZE] for i in range(0, len(images), _VISION_BATCH_SIZE)]
+    total_pages = len(images)
+    logger.info(f"Vision extraction: {total_pages} page(s) split into {len(batches)} batch(es)")
+
+    all_results: list[dict] = []
+    llm = get_llm()
+
+    for batch_idx, batch in enumerate(batches):
+        page_start = batch_idx * _VISION_BATCH_SIZE + 1
+        page_end   = page_start + len(batch) - 1
+        batch_label = f"pages {page_start}–{page_end} of {total_pages}"
+
+        # Include extracted text only in the first batch to provide document-wide context
+        text_section = (f"Extracted text content (full document):\n{text[:5000]}\n\n" if batch_idx == 0 and text.strip() else "")
+
+        prompt = (
+            f"You are a senior technology risk assessor. You are analysing {batch_label} of a document "
+            f"uploaded for a risk assessment. The document has {total_pages} page(s) total; "
+            f"this batch shows {len(batch)} page(s).\n\n"
+            + text_section
+            + _VISION_INSTRUCTIONS
+        )
+
+        content_parts: list[dict] = [{"type": "text", "text": prompt}]
+        for img_bytes in batch:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_bytes).decode()}"},
+            })
+
+        try:
+            response = llm.invoke([HumanMessage(content=content_parts)])
+            raw = response.content.strip()
+            raw = _re.sub(r"^```[a-zA-Z]*\n?", "", raw)
+            raw = _re.sub(r"\n?```$", "", raw).strip()
+            batch_result = json.loads(raw)
+            if isinstance(batch_result, dict):
+                all_results.append(batch_result)
+                logger.info(f"Vision batch {batch_idx + 1}/{len(batches)} succeeded")
+        except Exception as exc:
+            logger.warning(f"Vision batch {batch_idx + 1}/{len(batches)} failed ({exc}); skipping batch")
+
+    if not all_results:
+        logger.warning("All vision batches failed — falling back to text-only extraction")
+        return _llm_extract_context_from_document(text)
+
+    return _merge_vision_results(all_results)
+
+
 def _llm_extract_context_from_document(markdown: str) -> dict:
     from langchain.schema import HumanMessage
     from utils.llm_provider import get_llm
@@ -1163,9 +1429,12 @@ async def upload_assessment_context_file(
         {"id": str(uuid.uuid4()), "chunk_index": i, "text": chunk, "metadata": metadata}
         for i, chunk in enumerate(_chunk_context_text(text))
     ]
+    # Vision extraction: render document pages / images and send to multimodal LLM.
+    # Falls back to text-only automatically if vision is unavailable or fails.
+    page_images = _render_document_to_images(filename, content)
     doc_metadata: dict = {}
-    if text.strip():
-        extracted = _llm_extract_context_from_document(text)
+    if text.strip() or page_images:
+        extracted = _llm_extract_context_with_vision(text, page_images)
         if extracted:
             doc_metadata = {k: extracted[k] for k in _DOC_METADATA_FIELDS if k in extracted}
             existing = ra.context_profile or {}
