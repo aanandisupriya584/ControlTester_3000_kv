@@ -1310,6 +1310,7 @@ export default function RiskAssessmentPage() {
 
   const [wizardStep, setWizardStep] = useState(0);
   const [showCreate, setShowCreate] = useState(isCreatePage);
+  const newlyCreatedAssessmentIdRef = useRef<string | null>(null);
   const [savedCreateDraft] = useState(() => readCreateAssessmentDraft());
   const [form, setForm] = useState<{ title: string; description: string; selectedAssetIds: string[] }>(
     savedCreateDraft?.form ?? {
@@ -1379,7 +1380,6 @@ export default function RiskAssessmentPage() {
   const [contextFileUploading, setContextFileUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
-  const justCreatedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1479,28 +1479,18 @@ export default function RiskAssessmentPage() {
     if (selectedAssessment?.id === routeAssessmentId) return;
 
     const assessment = assessments.find((item) => item.id === routeAssessmentId);
-    if (assessment) {
-      setShowCreate(false);
-      selectAssessment(assessment);
-      setWizardStep(statusToStep(assessment.status));
-      setQaAssetIdx(0);
-      setExpandedSection(sections[0]?.id ?? null);
+    if (!assessment) {
       return;
     }
 
-    // Assessment not in local list yet. Two guards before showing the error toast:
-    // 1. justCreated ref — set synchronously in handleCreate before any state flush.
-    // 2. Delay + cleanup — deps changing within 800 ms (optimistic update, fetchAssessments
-    //    settling, selectedAssessment syncing) cancels the timer so no toast fires during
-    //    transient races.
-    if (justCreatedIdRef.current === routeAssessmentId) return;
-
-    const timer = setTimeout(() => {
-      toast({ title: "Assessment not found", variant: "destructive" });
-      setLocation("/risk-assessment");
-    }, 800);
-
-    return () => clearTimeout(timer);
+    if (newlyCreatedAssessmentIdRef.current === routeAssessmentId) {
+      newlyCreatedAssessmentIdRef.current = null;
+    }
+    setShowCreate(false);
+    selectAssessment(assessment);
+    setWizardStep(statusToStep(assessment.status));
+    setQaAssetIdx(0);
+    setExpandedSection(sections[0]?.id ?? null);
   }, [assessments, routeAssessmentId, sections, selectedAssessment?.id, selectAssessment, setLocation, toast]);
 
   useEffect(() => {
@@ -1779,7 +1769,7 @@ export default function RiskAssessmentPage() {
         asset_ids: form.selectedAssetIds,
         ad_hoc_applications: adHocApps,
       });
-      justCreatedIdRef.current = assessment.id;
+      newlyCreatedAssessmentIdRef.current = assessment.id;
       selectAssessment(assessment);
       setShowCreate(false);
       setLocation(`/risk-assessment/${encodeURIComponent(assessment.id)}?step=assets`);
@@ -1952,7 +1942,6 @@ export default function RiskAssessmentPage() {
 
   function openCreate() {
     // Route the create icon to the dedicated create URL while showing the existing setup dialog.
-    justCreatedIdRef.current = null;
     setLocation("/risk-assessment/new");
     setShowCreate(true);
     selectAssessment(null);

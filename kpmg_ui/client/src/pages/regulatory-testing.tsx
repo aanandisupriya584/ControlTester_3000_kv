@@ -1208,10 +1208,10 @@ export default function RegulatoryTestingPage() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {renderMetricCard("Requirements Analysed", comparedControlCount, "Requirement statements extracted from the selected sources.", "#1E49E2")}
-        {renderMetricCard("Domains Compared", totalDomains || "Data not available", "Total domains identified across both sources.", "#00338D")}
-        {renderMetricCard("Shared Domains", sharedDomainCount || "Data not available", "Domains covered by both selected sources.", "#009A44")}
-        {renderMetricCard(`${sourceALabel} Gaps`, sourceAGapCount || "Data not available", `Domains missing from ${sourceALabel}.`, "#EAAA00")}
-        {renderMetricCard(`${sourceBLabel} Gaps`, sourceBGapCount || "Data not available", `Domains missing from ${sourceBLabel}.`, "#7213EA")}
+        {renderMetricCard("Domains Compared", totalDomains, "Total domains identified across both sources.", "#00338D")}
+        {renderMetricCard("Shared Domains", sharedDomainCount, "Domains covered by both selected sources.", "#009A44")}
+        {renderMetricCard(`${sourceALabel} Gaps`, sourceAGapCount, `Domains missing from ${sourceALabel}.`, "#EAAA00")}
+        {renderMetricCard(`${sourceBLabel} Gaps`, sourceBGapCount, `Domains missing from ${sourceBLabel}.`, "#7213EA")}
       </div>
       {renderCoverageBalance()}
       <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
@@ -1326,7 +1326,7 @@ export default function RegulatoryTestingPage() {
 
   const renderFormattedReport = () => (
     <div data-regulatory-testing-report-preview="true" className="space-y-5">
-      {sectionHeader("Report", "Formatted Report", "Preview the generated markdown report with TRACE report styling.")}
+      {sectionHeader("Report", "Formatted Report")}
       <div className="rounded-2xl border border-[#E2E6EF] bg-white p-8 shadow-sm">
         {reportMarkdown ? (
           <div className="mx-auto max-w-[980px] rounded-xl border border-[#D9E2F2] bg-white p-8 shadow-sm">

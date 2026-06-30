@@ -6,22 +6,14 @@ import { useIssueManagement } from "@/contexts/IssueManagementContext";
 import { useLibraryMetrics } from "@/contexts/LibraryMetricsContext";
 import { useRiskAssessment } from "@/contexts/RiskAssessmentContext";
 import {
-  ClipboardList,
-  FileBarChart,
   Grid2X2,
   RefreshCw,
-  Scale,
-  TestTube,
-  Workflow,
 } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -39,6 +31,18 @@ import {
 import HeroSubSection from "@/components/HeroSubSection.tsx";
 import DashboardOverview from "@/pages/Dashboard/Component/Overview/DashboardOverview";
 import type { OverviewKpiItem, OverviewPanelLabels } from "@/pages/Dashboard/Component/Overview/overview.types";
+import DashboardLibraries from "@/pages/Dashboard/Component/Libraries/DashboardLibraries";
+import type { LibraryKpiItem } from "@/pages/Dashboard/Component/Libraries/libraries.types";
+import ControlTestingBox from "@/pages/Dashboard/Component/Workflow/ControlTestingBox";
+import ControlTestResultsPanel from "@/pages/Dashboard/Component/Workflow/ControlTestResultsPanel";
+import FinalReportingBox from "@/pages/Dashboard/Component/Workflow/FinalReportingBox";
+import RegulatoryTestingBox from "@/pages/Dashboard/Component/Workflow/RegulatoryTestingBox";
+import ReportsByTypePanel from "@/pages/Dashboard/Component/Workflow/ReportsByTypePanel";
+import RiskAssessmentBox from "@/pages/Dashboard/Component/Workflow/RiskAssessmentBox";
+import SopUpliftBox from "@/pages/Dashboard/Component/Workflow/SopUpliftBox";
+import SopCasesByStatusPanel from "@/pages/Dashboard/Component/Workflow/SopCasesByStatusPanel";
+import AssessmentsByStatusPanel from "@/pages/Dashboard/Component/Workflow/AssessmentsByStatusPanel";
+import TestingSessionsByStatusPanel from "@/pages/Dashboard/Component/Workflow/TestingSessionsByStatusPanel";
 
 type DashboardTab = "overview" | "libraries" | "workflows" | "exceptions";
 
@@ -344,58 +348,6 @@ function BarChartPanel({
   );
 }
 
-function DonutChartPanel({ data }: { data: ChartDatum[] }) {
-  if (!hasChartData(data)) return <EmptyChart />;
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  return (
-    <div className="grid gap-5 xl:grid-cols-[170px_minmax(0,1fr)] xl:items-center">
-      <div className="rounded-[18px] border border-[#EEF2F7] bg-[#FBFCFE] p-3">
-        <div className="relative mx-auto aspect-square w-full max-w-[158px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius="58%"
-                outerRadius="92%"
-                paddingAngle={2}
-                dataKey="value"
-                stroke="none"
-                isAnimationActive
-                animationDuration={1050}
-                animationEasing="ease-out"
-              >
-                {data.map((entry, index) => (
-                  <Cell key={index} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} itemStyle={CHART_TOOLTIP_ITEM_STYLE} labelStyle={CHART_TOOLTIP_LABEL_STYLE} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-[28px] font-bold leading-none tracking-tight text-[#0C233C]">{formatNumber(total)}</div>
-              <div className="mt-2 text-[10px] font-bold uppercase tracking-[2px] text-[#8492A6]">Total</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="max-h-[212px] space-y-2.5 overflow-auto pr-1">
-        {data.filter(item => item.value > 0).map(item => (
-          <div key={item.name} className="grid grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2 text-[12px]">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.fill }} />
-            <span className="truncate text-[#0C233C]">{item.name}</span>
-            <span className="font-bold text-[#0C233C]">
-              {formatNumber(item.value)} ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function SegmentedStatusPanel({ data }: { data: ChartDatum[] }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   if (total <= 0) return <EmptyChart />;
@@ -431,47 +383,6 @@ function SegmentedStatusPanel({ data }: { data: ChartDatum[] }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function ModuleMetricCard({
-  title,
-  metrics,
-  tone,
-  icon,
-  onClick,
-}: {
-  title: string;
-  metrics: Array<{ label: string; value: string }>;
-  tone: Tone;
-  icon: ReactNode;
-  onClick: () => void;
-}) {
-  const accent = TONE_COLORS[tone];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative overflow-hidden rounded-lg border border-[#D9E1EC] bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="absolute left-0 right-0 top-0 h-1" style={{ background: accent }} />
-      <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: TONE_TINTS[tone], color: accent }}>
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-bold uppercase tracking-[0.4px] text-[#0C233C]">{title}</h3>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {metrics.map(metric => (
-              <div key={metric.label}>
-                <p className="text-[22px] font-bold leading-none" style={{ color: accent }}>{metric.value}</p>
-                <p className="mt-1 text-[11px] text-[#8492A6]">{metric.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </button>
   );
 }
 
@@ -639,7 +550,22 @@ export default function DashboardPage() {
     { label: "Risk Assessments", value: formatNumber(assessments.length), subLabel: "assessment sessions in scope", badge: `${formatNumber(riskCount)} risks recorded`, tone: "purple" as const, onClick: () => setLocation("/risk-assessment") },
     { label: "Reports", value: formatNumber(reports.length), subLabel: "generated report records", badge: `${formatNumber(reportOutputCount)} output files`, tone: "green" as const, onClick: () => setLocation("/reports") },
   ];
-
+  const libraryKpis: LibraryKpiItem[] = [
+    { label: "Regulations", value: formatNumber(regDocs.length), subLabel: "regulatory source documents", badge: `${formatNumber(totalObligations)} obligations`, tone: "blue", onClick: () => setLocation("/regulatory-library") },
+    { label: "Controls", value: formatNumber(totalControls), subLabel: "library controls extracted", badge: `${formatNumber(allControls.length)} indexed`, tone: "green", onClick: () => setLocation("/controls-library") },
+    { label: "Frameworks", value: formatNumber(frameworkDocs.length), subLabel: "framework source documents", badge: `${formatNumber(frameworkElements.length)} elements`, tone: "teal", onClick: () => setLocation("/frameworks-library") },
+    {
+      label: "Quality Score",
+      value: `${avgMatchScore.toFixed(2)}/1`,
+      subLabel: "average match score",
+      badge: `${formatPercent(lowQualityPct)} low quality`,
+      tone: "purple",
+      onClick: () => {
+        setPendingQualityAnalysis(true);
+        setLocation("/controls-library");
+      },
+    },
+  ];
   return (
       <div data-dashboard-page="DASHBOARD" className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
       <HeroSubSection title={"Dashboard"} subtitle="Monitor APEX libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
@@ -736,109 +662,68 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "libraries" ? (
-          <div className="animate-[fadeUp_0.35s_ease_both] space-y-5">
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiMetricCard label="Regulations" value={formatNumber(regDocs.length)} subLabel="regulatory source documents" badge={`${formatNumber(totalObligations)} obligations`} tone="blue" onClick={() => setLocation("/regulatory-library")} />
-              <KpiMetricCard label="Controls" value={formatNumber(totalControls)} subLabel="library controls extracted" badge={`${formatNumber(allControls.length)} indexed`} tone="green" onClick={() => setLocation("/controls-library")} />
-              <KpiMetricCard label="Frameworks" value={formatNumber(frameworkDocs.length)} subLabel="framework source documents" badge={`${formatNumber(frameworkElements.length)} elements`} tone="teal" onClick={() => setLocation("/frameworks-library")} />
-              <KpiMetricCard label="Quality Score" value={`${avgMatchScore.toFixed(2)}/1`} subLabel="average match score" badge={`${formatPercent(lowQualityPct)} low quality`} tone="purple" onClick={() => {
-                setPendingQualityAnalysis(true);
-                setLocation("/controls-library");
-              }} />
-            </section>
-
-            <section className="grid gap-5 xl:grid-cols-2">
-              <ChartCard title="Domain Coverage" footerLabel="Obligation Coverage" footerValue={formatPercent(oblCoveragePct)}>
-                {barChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -2, bottom: 50 }} barCategoryGap="18%">
-                      <CartesianGrid {...GRID_STYLE} />
-                      <XAxis
-                        dataKey="domain"
-                        tick={{ ...AXIS_STYLE, fontSize: 10 }}
-                        angle={-28}
-                        textAnchor="end"
-                        height={82}
-                        tickMargin={14}
-                        interval={0}
-                        tickFormatter={value => shortenAxisLabel(String(value), 18)}
-                      />
-                      <YAxis tick={{ ...AXIS_STYLE, fontSize: 10 }} width={30} allowDecimals={false} />
-                      <Tooltip contentStyle={CHART_TOOLTIP_STYLE} itemStyle={CHART_TOOLTIP_ITEM_STYLE} labelStyle={CHART_TOOLTIP_LABEL_STYLE} cursor={{ fill: "var(--osint-glow)" }} />
-                      <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 11, fontFamily: "Arial, sans-serif", paddingBottom: 8 }} />
-                      <Bar dataKey="Regulations" fill="#00338D" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={900} animationEasing="ease-out" />
-                      <Bar dataKey="Controls" fill="#1E49E2" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={980} animationEasing="ease-out" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <EmptyChart />}
-              </ChartCard>
-              <ChartCard title="Obligations By Domain" footerLabel="Total Obligations" footerValue={formatNumber(totalObligations)}>
-                <DonutChartPanel data={obligationPieData} />
-              </ChartCard>
-              <ChartCard title="Framework Elements By Category" footerLabel="Total Elements" footerValue={formatNumber(frameworkElements.length)}>
-                <BarChartPanel data={frameworkCategoryData} labelMode="rotate" height={242} />
-              </ChartCard>
-              <ChartCard title="Assets By Status" footerLabel="Operational Assets" footerValue={formatNumber(activeAssets)}>
-                <BarChartPanel data={assetsByStatus} labelMode="compact" />
-              </ChartCard>
-            </section>
-          </div>
+          <DashboardLibraries
+            kpis={libraryKpis}
+            domainCoverage={barChartData}
+            obligationCoverage={formatPercent(oblCoveragePct)}
+            obligationsByDomain={obligationPieData}
+            totalObligations={formatNumber(totalObligations)}
+            frameworkElementsByCategory={frameworkCategoryData}
+            totalFrameworkElements={formatNumber(frameworkElements.length)}
+            assetsByStatus={assetsByStatus}
+            operationalAssets={formatNumber(activeAssets)}
+          />
         ) : null}
 
         {activeTab === "workflows" ? (
           <div className="animate-[fadeUp_0.35s_ease_both] space-y-5">
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <ModuleMetricCard title="Risk Assessment" tone="purple" icon={<ClipboardList className="h-5 w-5" />} onClick={() => setLocation("/risk-assessment")} metrics={[
-                { label: "assessments", value: formatNumber(assessments.length) },
-                { label: "risks", value: formatNumber(riskCount) },
-                { label: "critical", value: formatNumber(criticalRiskCount) },
-                { label: "controls", value: formatNumber(appliedControlCount) },
-              ]} />
-              <ModuleMetricCard title="Control Testing" tone="green" icon={<TestTube className="h-5 w-5" />} onClick={() => setLocation("/control-testing")} metrics={[
-                { label: "sessions", value: formatNumber(testingSessions.length) },
-                { label: "controls", value: formatNumber(testingControls.length) },
-                { label: "evidence", value: formatNumber(controlWithEvidenceCount) },
-                { label: "reports", value: formatNumber(testingReportsReady + controlTestingReports) },
-              ]} />
-              <ModuleMetricCard title="Regulatory Testing" tone="blue" icon={<Scale className="h-5 w-5" />} onClick={() => setLocation("/regulatory-testing")} metrics={[
-                { label: "reports", value: formatNumber(regulatoryTestingReports) },
-                { label: "obligations", value: formatNumber(totalObligations) },
-                { label: "coverage", value: formatPercent(oblCoveragePct) },
-                { label: "gaps", value: formatNumber(gapObligations) },
-              ]} />
-              <ModuleMetricCard title="Final Reporting" tone="navy" icon={<FileBarChart className="h-5 w-5" />} onClick={() => setLocation("/evidence-assessment")} metrics={[
-                { label: "reports", value: formatNumber(finalReportingReports) },
-                { label: "all reports", value: formatNumber(reports.length) },
-                { label: "outputs", value: formatNumber(reportOutputCount) },
-                { label: "testing", value: formatNumber(controlTestingReports) },
-              ]} />
-              <ModuleMetricCard title="SOP Uplift" tone="teal" icon={<Workflow className="h-5 w-5" />} onClick={() => setLocation("/sop-uplift")} metrics={[
-                { label: "cases", value: formatNumber(sopCases.length) },
-                { label: "suggestions", value: formatNumber(sopSuggestionCount) },
-                { label: "outputs", value: formatNumber(sopOutputCount) },
-                { label: "reports", value: formatNumber(sopReports) },
-              ]} />
+              <RiskAssessmentBox
+                assessments={formatNumber(assessments.length)}
+                risks={formatNumber(riskCount)}
+                critical={formatNumber(criticalRiskCount)}
+                controls={formatNumber(appliedControlCount)}
+                onClick={() => setLocation("/risk-assessment")}
+              />
+              <ControlTestingBox
+                sessions={formatNumber(testingSessions.length)}
+                controls={formatNumber(testingControls.length)}
+                evidence={formatNumber(controlWithEvidenceCount)}
+                reports={formatNumber(testingReportsReady + controlTestingReports)}
+                onClick={() => setLocation("/control-testing")}
+              />
+              <RegulatoryTestingBox
+                reports={formatNumber(regulatoryTestingReports)}
+                obligations={formatNumber(totalObligations)}
+                coverage={formatPercent(oblCoveragePct)}
+                gaps={formatNumber(gapObligations)}
+                onClick={() => setLocation("/regulatory-testing")}
+              />
+              <FinalReportingBox
+                reports={formatNumber(finalReportingReports)}
+                allReports={formatNumber(reports.length)}
+                outputs={formatNumber(reportOutputCount)}
+                testing={formatNumber(controlTestingReports)}
+                onClick={() => setLocation("/evidence-assessment")}
+              />
+              <SopUpliftBox
+                cases={formatNumber(sopCases.length)}
+                suggestions={formatNumber(sopSuggestionCount)}
+                outputs={formatNumber(sopOutputCount)}
+                reports={formatNumber(sopReports)}
+                onClick={() => setLocation("/sop-uplift")}
+              />
             </section>
 
             <section className="grid gap-5 xl:grid-cols-2">
-              <ChartCard title="Assessments By Status" footerLabel="Assessment Subjects" footerValue={formatNumber(subjectAssetCount)}>
-                <BarChartPanel data={assessmentsByStatus} labelMode="rotate" height={226} />
-              </ChartCard>
-              <ChartCard title="Testing Sessions By Status" footerLabel="Total Sessions" footerValue={formatNumber(testingSessions.length)}>
-                <SegmentedStatusPanel data={testingByStatus} />
-              </ChartCard>
+              <AssessmentsByStatusPanel data={assessmentsByStatus} subjects={formatNumber(subjectAssetCount)} />
+              <TestingSessionsByStatusPanel data={testingByStatus} total={formatNumber(testingSessions.length)} />
             </section>
 
             <section className="grid gap-5 xl:grid-cols-3">
-              <ChartCard title="Control Test Results" footerLabel="Controls In Sessions" footerValue={formatNumber(testingControls.length)}>
-                <BarChartPanel data={controlResults} />
-              </ChartCard>
-              <ChartCard title="SOP Cases By Status" footerLabel="Total Cases" footerValue={formatNumber(sopCases.length)}>
-                <BarChartPanel data={sopByStatus} />
-              </ChartCard>
-              <ChartCard title="Reports By Type" footerLabel="Generated Reports" footerValue={formatNumber(reports.length)}>
-                <DonutChartPanel data={reportsByType} />
-              </ChartCard>
+              <ControlTestResultsPanel data={controlResults} total={formatNumber(testingControls.length)} />
+              <SopCasesByStatusPanel data={sopByStatus} total={formatNumber(sopCases.length)} />
+              <ReportsByTypePanel data={reportsByType} total={formatNumber(reports.length)} />
             </section>
           </div>
         ) : null}
