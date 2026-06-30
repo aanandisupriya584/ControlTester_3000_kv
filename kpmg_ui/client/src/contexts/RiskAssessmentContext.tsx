@@ -189,6 +189,7 @@ interface Ctx {
   isSuggestingQuestions: boolean;
   updateContextProfile: (raId: string, profile: ContextProfile) => Promise<void>;
   uploadContextFile: (raId: string, file: File, sourceType?: string) => Promise<RiskAssessment | null>;
+  deleteContextFile: (raId: string, sourceId: string) => Promise<RiskAssessment | null>;
   suggestContextQuestions: (raId: string) => Promise<void>;
   answerContextQuestion: (raId: string, questionId: string, answer: AnswerType, details: string) => Promise<void>;
 }
@@ -406,6 +407,18 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     return ra;
   }, []);
 
+  const deleteContextFile = useCallback(async (raId: string, sourceId: string): Promise<RiskAssessment | null> => {
+    const r = await fetch(`/api/risk-assessment/${raId}/context-files/${sourceId}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("Failed to delete context file");
+    const body = await r.json();
+    const ra: RiskAssessment | null = body.assessment ?? null;
+    if (ra) {
+      setSelectedAssessment(ra);
+      setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+    }
+    return ra;
+  }, []);
+
   const suggestContextQuestions = useCallback(async (raId: string): Promise<void> => {
     setIsSuggestingQuestions(true);
     try {
@@ -442,7 +455,7 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
       fetchSections, submitResponse, submitResponseBatch, analyzeAssessment,
       addHumanRisk, applyControl, fetchResidual,
       suggestControls, generateReport,
-      updateContextProfile, uploadContextFile, suggestContextQuestions, answerContextQuestion,
+      updateContextProfile, uploadContextFile, deleteContextFile, suggestContextQuestions, answerContextQuestion,
     }}>
       {children}
     </RiskAssessmentContext.Provider>

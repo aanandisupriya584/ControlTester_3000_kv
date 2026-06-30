@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { AnimatePresence, motion } from 'framer-motion';
 import StatusCard from '../../src/components/custom_ui/cards/StatusCard.tsx';
 import {
+  ArrowLeft,
   ArrowRight,
   FileText,
   CheckCircle2,
@@ -29,6 +30,7 @@ import {
   Sparkles,
   SearchCheck,
   Trash2,
+  X,
   type LucideIcon, NotepadText, Layers, ChartSpline, MoveDownRight,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
@@ -1299,6 +1301,7 @@ export default function RiskAssessmentPage() {
     deleteAssessment,
     updateContextProfile,
     uploadContextFile,
+    deleteContextFile,
     suggestContextQuestions,
     answerContextQuestion,
   } = useRiskAssessment();
@@ -1378,6 +1381,7 @@ export default function RiskAssessmentPage() {
   const [contextProfile, setContextProfile] = useState<ContextProfile>(EMPTY_CONTEXT_PROFILE);
   const [savingContext, setSavingContext] = useState(false);
   const [contextFileUploading, setContextFileUploading] = useState(false);
+  const [showNoDocsConfirm, setShowNoDocsConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
 
@@ -1866,6 +1870,18 @@ export default function RiskAssessmentPage() {
 
   async function handleSaveContextAndSuggest() {
     if (!selectedAssessment) return;
+
+    const hasDocuments = (selectedAssessment.context_sources ?? []).length > 0;
+    const hasContextText = Object.values(contextProfile).some((v) => v.trim() !== "");
+    if (!hasDocuments && !hasContextText) {
+      toast({
+        title: "No context provided",
+        description: "Please upload a document or fill in at least one context field before generating AI questions.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSavingContext(true);
     try {
       await updateContextProfile(selectedAssessment.id, contextProfile);
@@ -1904,6 +1920,16 @@ export default function RiskAssessmentPage() {
     } finally {
       setContextFileUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteContextFile(sourceId: string) {
+    if (!selectedAssessment) return;
+    try {
+      await deleteContextFile(selectedAssessment.id, sourceId);
+      toast({ title: "Document removed" });
+    } catch {
+      toast({ title: "Failed to remove document", variant: "destructive" });
     }
   }
 
@@ -2544,7 +2570,23 @@ export default function RiskAssessmentPage() {
                 action={
                   <div className="flex flex-wrap gap-2">
                     <button className={SECONDARY_BUTTON} onClick={() => setShowContextStep(false)}>
+                      <ArrowLeft className="h-4 w-4" />
                       Back
+                    </button>
+                    <button
+                      className={SECONDARY_BUTTON}
+                      onClick={() => {
+                        if ((selectedAssessment.context_sources ?? []).length === 0) {
+                          setShowNoDocsConfirm(true);
+                        } else {
+                          setShowContextStep(false);
+                          setWizardStep(1);
+                          setExpandedSection(sections[0]?.id ?? null);
+                        }
+                      }}
+                    >
+                      Skip — Go to Questionnaire
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
                       className={PRIMARY_BUTTON}
@@ -2605,8 +2647,15 @@ export default function RiskAssessmentPage() {
                             key={src.id ?? idx}
                             className="inline-flex items-center gap-2 rounded-full border border-[#BFE7D1] bg-white px-3 py-1.5 text-[11px] font-bold text-[#009A44]"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
                             {src.filename ?? "document"}
+                            <button
+                              onClick={() => void handleDeleteContextFile(src.id)}
+                              className="ml-1 rounded-full p-0.5 text-[#009A44] hover:bg-[#BFE7D1] hover:text-[#006B2F]"
+                              title="Remove document"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </span>
                         ))}
                       </div>
@@ -2615,6 +2664,24 @@ export default function RiskAssessmentPage() {
                 </div>
 
                 {/* Context Fields */}
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">Context Fields</p>
+                  {Object.values(contextProfile).some((v) => v.trim() !== "") && (
+                    <button
+                      className="inline-flex items-center justify-center gap-2 rounded-[16px] border border-[#DCE3EE] bg-white px-4 py-2 text-[13px] font-bold text-[#0C233C] transition-colors hover:border-[#F3C6CF] hover:bg-[#FEEBED] hover:text-[#E5001B]"
+                      onClick={() => {
+                        setContextProfile(EMPTY_CONTEXT_PROFILE);
+                        if (selectedAssessment) {
+                          void updateContextProfile(selectedAssessment.id, EMPTY_CONTEXT_PROFILE);
+                        }
+                        toast({ title: "Context fields cleared" });
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Clear all fields
+                    </button>
+                  )}
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {[
                     { key: "project_context" as const, label: "Project Context", placeholder: "Describe the system architecture, tech stack, and deployment environment…" },
@@ -2647,17 +2714,41 @@ export default function RiskAssessmentPage() {
                   </p>
                 </div>
 
-                <div className="mt-4 flex justify-end">
-                  <button
-                    className={SECONDARY_BUTTON}
-                    onClick={() => { setShowContextStep(false); setWizardStep(1); setExpandedSection(sections[0]?.id ?? null); }}
-                  >
-                    Skip — Go to Questionnaire
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
               </SurfaceSection>
             ) : null}
+
+            {/* No-documents confirmation dialog */}
+            <Dialog open={showNoDocsConfirm} onOpenChange={setShowNoDocsConfirm}>
+              <DialogContent className="max-w-[440px] rounded-[20px] border border-[#DCE3EE] bg-white p-6 shadow-[0_20px_60px_-20px_rgba(12,35,60,0.35)]">
+                <DialogHeader>
+                  <DialogTitle className="text-[18px] font-bold tracking-[-0.02em] text-[#0C233C]">
+                    No Documents Uploaded
+                  </DialogTitle>
+                  <DialogDescription className="mt-2 text-[13px] leading-6 text-[#5A6478]">
+                    No project documentation or asset documentation has been provided. Only static questions will be generated. Would you like to continue?
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-4 flex gap-2">
+                  <button
+                    className={SECONDARY_BUTTON}
+                    onClick={() => setShowNoDocsConfirm(false)}
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    className={PRIMARY_BUTTON}
+                    onClick={() => {
+                      setShowNoDocsConfirm(false);
+                      setShowContextStep(false);
+                      setWizardStep(1);
+                      setExpandedSection(sections[0]?.id ?? null);
+                    }}
+                  >
+                    Continue Anyway
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {wizardStep === 1 && !showContextStep && suggestedQuestions.length > 0 ? (
               <SurfaceSection

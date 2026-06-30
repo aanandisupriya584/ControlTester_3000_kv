@@ -315,6 +315,15 @@ class MongoRiskAssessmentStore:
         )
         return result.modified_count == 1
 
+    def remove_context_source(self, ra_id: str, source_id: str) -> bool:
+        now = datetime.now(dt.timezone.utc).isoformat()
+        self._context_chunks.delete_many({"ra_id": ra_id, "source_id": source_id})
+        result = self._col.update_one(
+            {"_id": ra_id},
+            {"$pull": {"context_sources": {"id": source_id}}, "$set": {"updated_at": now}},
+        )
+        return result.modified_count == 1
+
     def get_context_chunks(self, ra_id: str, limit: int = 30) -> list[dict]:
         return list(self._context_chunks.find({"ra_id": ra_id}, {"_id": 0}).limit(limit))
 
@@ -584,7 +593,7 @@ def _tokenize_match_text(text: str) -> set[str]:
     return {token for token in _re.findall(r"[a-z0-9]+", cleaned) if len(token) > 2}
 
 
-_CONTEXT_PROFILE_FIELDS = frozenset({"project_context", "business_impact", "overall_project_summary", "regulatory_context", "security_requirements"})
+_CONTEXT_PROFILE_FIELDS = frozenset({"project_context", "business_impact", "overall_project_summary", "regulatory_context", "security_requirements", "jira_context", "free_text_context"})
 _DOC_METADATA_FIELDS = frozenset({"document_type", "technologies", "regulations", "data_types", "third_parties", "risk_flags"})
 
 
@@ -622,32 +631,35 @@ def _extract_context_text(filename: str, content: bytes, source_type: str = "doc
 def _llm_extract_context_from_document(markdown: str) -> dict:
     from langchain.schema import HumanMessage
     from utils.llm_provider import get_llm
-    doc_excerpt = markdown[:10000]
-    prompt = f"""You are a senior security risk assessor. Analyse this document and extract structured information for a risk assessment.
+    doc_excerpt = markdown[:18000]
+    prompt = f"""You are a senior technology risk assessor performing a thorough document analysis to populate a risk assessment context. Read the entire document carefully and extract rich, detailed information for every field that has relevant evidence.
 
 Document content:
 {doc_excerpt}
 
-Return ONLY a valid JSON object with ALL of these exact fields:
+Return ONLY a valid JSON object with ALL of these exact fields. Populate each field as richly as possible from the document. Leave a field as "" or [] ONLY if the document contains absolutely no relevant evidence for it.
+
 {{
-  "project_context": "Technical description: what the project/system is, its architecture, tech stack, deployment environment, and in-scope components",
-  "business_impact": "Business criticality, data sensitivity, types of users affected, and financial/reputational impact of a breach or outage",
-  "overall_project_summary": "2-3 sentence executive summary of this project suitable for a risk assessment header",
-  "regulatory_context": "Applicable regulations, compliance frameworks, or standards detected (e.g. GDPR, DPDP Act 2023, RBI PA Guidelines, PCI-DSS, ISO 27001, SOC 2, HIPAA)",
-  "security_requirements": "Key security requirements, constraints, or controls explicitly mentioned or strongly implied",
+  "project_context": "Detailed technical description covering: what the system/project is, its full architecture (components, layers, integrations), the complete tech stack (languages, frameworks, databases, cloud services), deployment environment (on-prem/cloud/hybrid, regions, containerisation), and all in-scope components. Write at least 3-4 sentences if evidence exists.",
+  "business_impact": "Detailed description covering: business criticality and why this system matters, all categories of data it processes/stores/transmits and their sensitivity, the full range of users and stakeholders affected, and the financial, operational, and reputational impact of a breach, outage, or compliance failure. Write at least 3-4 sentences if evidence exists.",
+  "overall_project_summary": "A 3-5 sentence executive summary written for a risk assessment report header. Cover: what the system does, who uses it, what data it handles, and why it is being assessed now.",
+  "regulatory_context": "All applicable regulations, compliance frameworks, standards, and clauses found or strongly implied in the document (e.g. GDPR, DPDP Act 2023, RBI PA Guidelines, PCI-DSS, ISO 27001, SOC 2, HIPAA, SEBI, IRDAI, NIST CSF). Explain briefly why each applies based on the document content.",
+  "security_requirements": "All security requirements, control objectives, constraints, and obligations explicitly mentioned or strongly implied. Include authentication requirements, encryption standards, access control policies, logging/monitoring mandates, patch management obligations, and any stated security SLAs.",
+  "jira_context": "If the document contains Jira tickets, sprint data, delivery risks, open defects, incidents, or project management artefacts — summarise the open items, high-priority tickets, delivery risks, and any defects or incidents relevant to security or risk. Leave empty if no Jira or delivery context is present.",
+  "free_text_context": "Any additional risk-relevant context from the document that does not fit the fields above: threat actors mentioned, past incidents described, audit findings, pen test observations, known vulnerabilities, architectural debt, third-party risks, or any other material that an assessor should know.",
   "document_type": "One of: architecture_doc | security_policy | vapt_report | data_flow_diagram | jira_export | compliance_doc | vendor_assessment | threat_model | sow | incident_report | other",
-  "technologies": ["List every specific technology, service, tool, or platform explicitly named"],
-  "regulations": ["List every regulation, standard, or clause explicitly named"],
-  "data_types": ["List every category of data processed, stored, or transmitted"],
-  "third_parties": ["List every external vendor, SaaS tool, cloud provider, or integration mentioned"],
-  "risk_flags": ["List specific risk concerns, control gaps, or vulnerabilities identified"]
+  "technologies": ["Every specific technology, framework, language, database, cloud service, or platform explicitly named in the document"],
+  "regulations": ["Every regulation, standard, directive, or clause explicitly named"],
+  "data_types": ["Every category of data processed, stored, or transmitted — be specific (e.g. PII, payment card data, health records, credentials, audit logs)"],
+  "third_parties": ["Every external vendor, SaaS provider, cloud provider, payment gateway, or integration partner mentioned"],
+  "risk_flags": ["Every specific risk concern, control gap, vulnerability, open finding, or red flag identified — be concrete and name the specific issue"]
 }}
 
-Rules:
-- Use "" for string fields where the document has no evidence
-- Use [] for list fields where nothing was found
-- Do NOT invent items not present or strongly implied in the document
-- Be specific - generic phrases are not useful"""
+Critical rules:
+- Be SPECIFIC and DETAILED — generic one-liners are not useful. Longer, richer content is always preferred.
+- Do NOT invent items not present or strongly implied in the document.
+- Use "" for string fields and [] for list fields where the document has no evidence.
+- Preserve specific names, version numbers, clause references, and technical details exactly as they appear."""
     try:
         llm = get_llm()
         response = llm.invoke([HumanMessage(content=prompt)])
@@ -1160,7 +1172,14 @@ async def upload_assessment_context_file(
             existing_dict = existing if isinstance(existing, dict) else (existing.model_dump() if hasattr(existing, "model_dump") else dict(existing))
             merged = {
                 **existing_dict,
-                **{k: extracted[k] for k in _CONTEXT_PROFILE_FIELDS if k in extracted and isinstance(extracted[k], str) and extracted[k].strip() and not str(existing_dict.get(k, "")).strip()},
+                **{
+                    k: extracted[k]
+                    for k in _CONTEXT_PROFILE_FIELDS
+                    if k in extracted
+                    and isinstance(extracted[k], str)
+                    and extracted[k].strip()
+                    and len(extracted[k].strip()) > len(str(existing_dict.get(k, "")).strip())
+                },
             }
             get_store().update_context_profile(ra_id, merged)
     source = {
@@ -1177,6 +1196,18 @@ async def upload_assessment_context_file(
     get_store().add_context_source(ra_id, source, chunks)
     updated = get_store().get(ra_id)
     return {"ok": True, "source": source, "chunks_created": len(chunks), "assessment": updated}
+
+
+@router.delete("/{ra_id}/context-files/{source_id}", status_code=200)
+def delete_assessment_context_file(ra_id: str, source_id: str):
+    ra = get_store().get(ra_id)
+    if not ra:
+        raise HTTPException(404, "Assessment not found")
+    ok = get_store().remove_context_source(ra_id, source_id)
+    if not ok:
+        raise HTTPException(404, "Context source not found")
+    updated = get_store().get(ra_id)
+    return {"ok": True, "assessment": updated}
 
 
 @router.post("/{ra_id}/historical-context")
