@@ -1320,12 +1320,12 @@ function ReviewTab({
           />
         </div>
 
-        <aside className="flex min-h-0 relative flex-col rounded-2xl border border-[#E2E6EF] bg-white shadow-sm">
+        <aside className="flex min-h-0 flex-col rounded-2xl border border-[#E2E6EF] bg-white shadow-sm" style={{position:'sticky', top:'0px'}}>
           <div className="shrink-0 border-b border-[#E2E6EF] p-3">
             <div className="text-[11px] font-bold uppercase tracking-[2.5px] text-[#00338D]">Suggestions ({filteredSuggestions.length})</div>
             <h3 className="mt-1 text-[18px] font-bold tracking-tight text-[#0C233C]">Decision Queue</h3>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3" >
             <div className="space-y-3">
               {filteredSuggestions.map((suggestion) => (
                 <button
