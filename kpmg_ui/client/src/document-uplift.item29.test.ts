@@ -1,11 +1,11 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import * as assert from "assert";
+import fs from "fs";
+import path from "path";
 
-const appSource = fs.readFileSync(path.resolve("client/src/App.tsx"), "utf8");
-const layoutSource = fs.readFileSync(path.resolve("client/src/components/AppLayout.tsx"), "utf8");
-const pagePath = path.resolve("client/src/pages/document-uplift.tsx");
-const casePagePath = path.resolve("client/src/pages/document-uplift-case.tsx");
+const appSource = fs.readFileSync(path.resolve(__dirname, "App.tsx"), "utf8");
+const layoutSource = fs.readFileSync(path.resolve(__dirname, "components", "AppLayout.tsx"), "utf8");
+const pagePath = path.resolve(__dirname, "pages", "document-uplift.tsx");
+const casePagePath = path.resolve(__dirname, "pages", "document-uplift-case.tsx");
 
 assert.match(appSource, /DocumentUpliftPage/, "App must import the Document Uplift page");
 assert.match(appSource, /path:\s*"\/document-uplift"/, "App must expose the /document-uplift route");

@@ -810,7 +810,7 @@ function NativeDocumentViewer({
         {(hasCorruptText || conversionFailed || conversionWarnings.length > 0) && (
           <div className="mb-3 rounded-md border border-[#F5D58A] bg-[#FFF8E1] p-4 text-sm text-[#7A4D00]">
             <p className="font-semibold">Text extraction needs attention.</p>
-            <p className="mt-1 text-xs leading-5">TRACE is showing extracted review text only and excluding corrupt Office package text from the review body.</p>
+            <p className="mt-1 text-xs leading-5">APEX is showing extracted review text only and excluding corrupt Office package text from the review body.</p>
             {conversionWarnings.slice(0, 3).map((warning) => <p key={warning} className="mt-1 text-xs leading-5">{warning}</p>)}
           </div>
         )}
@@ -1595,10 +1595,9 @@ export default function SopUpliftPage() {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {/* Bug fix: use the progress bar only, avoiding duplicate spinner + bar loading indicators. */}
           <div className="flex items-center gap-3 rounded-md border border-[#D8E0ED] bg-[#F8FCFF] p-4">
             <span className={`grid h-10 w-10 place-items-center rounded-full ${failed ? "bg-[#FFF1F2] text-[#E5001B]" : "bg-[#E8F8FD] text-[#005EB8]"}`}>
-              {failed ? <AlertTriangle className="h-5 w-5" /> : <Workflow className="h-5 w-5" />}
+              {failed ? <AlertTriangle className="h-5 w-5" /> : <RefreshCw className="h-5 w-5 animate-spin" />}
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[#0C233C]">{message}</p>
@@ -1632,9 +1631,8 @@ export default function SopUpliftPage() {
   };
 
   const renderCaseHub = () => (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F0F2F7] text-[#0C233C]">
-      {/* Bug fix: keep SOP Uplift scrolling bounded inside the page shell. */}
-      <div className="relative min-h-0 flex-1 overflow-auto">
+    // <div className="flex h-full flex-col bg-[#F5F7FB] text-[#0C233C]">
+      <div className={`relative h-full overflow-auto bg-[#F0F2F7] `}>
       <HeroSubSection
         title="SOP Uplift"
         subtitle="Create, reopen, and govern SOP uplift work from one controlled case portfolio."
@@ -1648,7 +1646,7 @@ export default function SopUpliftPage() {
           </div>
         }
       />
-      <TracePageBody width="wide" contentClassName="space-y-5 py-5 pb-8">
+      <TracePageBody width="wide" contentClassName="space-y-5 py-5">
         <SopUpliftHeader className="overflow-hidden rounded-md border border-[#D8E0ED] bg-white">
           <div className="grid divide-y divide-[#E6ECF5] md:grid-cols-5 md:divide-x md:divide-y-0">
             {[
@@ -1776,7 +1774,6 @@ export default function SopUpliftPage() {
       </TracePageBody>
       {renderCaseDeleteDialog()}
       {renderExtractionDialog()}
-    </div>
     </div>
   );
 
@@ -1988,8 +1985,7 @@ export default function SopUpliftPage() {
             {isStageReadOnly("upload") && <Button variant="outline" className="h-8 text-xs" onClick={() => setEditableStages((current) => ({ ...current, upload: true }))}>Edit uploads</Button>}
           </div>
           <div className="mb-4 rounded-md border border-[#C8D8F0] bg-[#FAFCFF] p-4">
-            {/* Bug fix: prevent the upload context field from covering the upload button on narrow layouts. */}
-            <div className="grid items-end gap-3 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,220px)_minmax(0,1fr)_160px]">
+            <div className="grid items-end gap-3 lg:grid-cols-[200px_minmax(0,1fr)_150px]">
               <label className="block min-w-0">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Document bucket</span>
                 <select
@@ -2002,7 +1998,7 @@ export default function SopUpliftPage() {
                 </select>
               </label>
               <label className="block min-w-0">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Additional context for this upload</span>
+                <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Additional context for this upload</span>
                 <Input
                   className={`mt-1 h-9 text-xs ${lightFieldClass}`}
                   disabled={isStageReadOnly("upload")}
@@ -2011,7 +2007,7 @@ export default function SopUpliftPage() {
                   onChange={(event) => setUploadContext(event.target.value)}
                 />
               </label>
-              <label className={`inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md bg-[#005EB8] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#00338D] md:col-span-2 xl:col-span-1 ${isStageReadOnly("upload") ? "pointer-events-none opacity-60" : ""}`}>
+              <label className={`inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md bg-[#005EB8] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#00338D] ${isStageReadOnly("upload") ? "pointer-events-none opacity-60" : ""}`}>
                 <UploadCloud className="mr-2 h-3.5 w-3.5" />
                 Upload files
                 <input type="file" multiple className="sr-only" disabled={!caseId || isStageReadOnly("upload") || busy === `upload-${selectedUploadBucket}`} onChange={(event) => uploadFile(selectedUploadBucket, event)} />
@@ -2237,8 +2233,7 @@ export default function SopUpliftPage() {
 
   const renderOpenDocumentView = () => (
     <Dialog open={documentViewOpen} onOpenChange={setDocumentViewOpen}>
-      {/* Bug fix: hide the default dialog close control so it does not crowd the custom header action. */}
-      <DialogContent className="h-[94vh] max-w-[94vw] gap-0 overflow-hidden border-[#D8E0ED] bg-white p-0 [&>button]:hidden">
+      <DialogContent className="h-[94vh] max-w-[94vw] gap-0 overflow-hidden border-[#D8E0ED] bg-white p-0">
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-[#D8E0ED] px-5 py-3">
             <div>
