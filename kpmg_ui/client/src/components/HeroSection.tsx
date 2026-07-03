@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import TraceNavBar from "./TraceNavBar";
 
 interface HeroSectionProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   icon?: LucideIcon;
   actions?: React.ReactNode;

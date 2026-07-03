@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import {
-  MessageSquare,
-  FileSearch,
   Settings,
-  TestTube,
-  Scale,
-  Library,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  LayoutDashboard,
-  FileBarChart,
-  BookOpen,
-  AlertTriangle,
-  Database,
   FilePenLine,
   FileStack, ShieldOff,
 } from "lucide-react";
@@ -24,31 +14,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import Footer from "@/components/Footer";
 import KPMGImg from '../assets/Picture1.png';
 import HeroSection from "@/components/HeroSection.tsx";
+import {
+  HIDEABLE_TABS as SHARED_HIDEABLE_TABS,
+  normalizeAppPath,
+  resolveAppNavigation,
+  type AppNavigationTab,
+} from "@/components/app-layout.helpers";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-interface TraceTab {
-  title: string;
-  fullTitle: string;
-  path: string;
-  icon: React.ComponentType<{ className?: string }>;
+interface TraceTab extends AppNavigationTab {
   badge?: string;
   tooltip?: string;
 }
 
 export const HIDEABLE_TABS: TraceTab[] = [
-  { title: "Dashboard", fullTitle: "Dashboard", path: "/", icon: LayoutDashboard },
-  { title: "Regulatory Library", fullTitle: "Regulatory Library", path: "/regulatory-library", icon: Library },
-  { title: "Controls Library", fullTitle: "Controls Library", path: "/controls-library", icon: ShieldCheck },
-  { title: "Frameworks Library", fullTitle: "Frameworks Library", path: "/frameworks-library", icon: BookOpen },
-  { title: "Regulatory Testing", fullTitle: "Regulatory Testing", path: "/regulatory-testing", icon: Scale },
-  { title: "Reports", fullTitle: "Reports", path: "/reports", icon: FileBarChart },
-  { title: "Asset Registry", fullTitle: "Asset Registry", path: "/asset-registry", icon: Database },
-  { title: "Risk Assessment", fullTitle: "Risk Assessment", path: "/risk-assessment", icon: FileSearch },
-  { title: "Final Report", fullTitle: "Final Report", path: "/evidence-assessment", icon: FileSearch },
-  { title: "Control Testing", fullTitle: "Control Testing", path: "/control-testing", icon: TestTube },
+  ...SHARED_HIDEABLE_TABS,
   { title: "Controls Assurance", fullTitle: "Controls Assurance", path: "/controls-assurance", icon: ShieldCheck, badge: "NEW" },
   {
     title: "SOP Uplift",
@@ -58,8 +41,6 @@ export const HIDEABLE_TABS: TraceTab[] = [
     tooltip: "SOP Uplift - Superseded by Document Uplift. Migrate when ready.",
   },
   { title: "Document Uplift", fullTitle: "Document Uplift", path: "/document-uplift", icon: FileStack, badge: "NEW" },
-  { title: "Chat", fullTitle: "AI Chat", path: "/chat", icon: MessageSquare },
-  { title: "Issue Management", fullTitle: "Issue Management", path: "/issue-management", icon: AlertTriangle },
 ];
 
 const COMING_SOON_TABS: TraceTab[] = [];
@@ -68,7 +49,8 @@ const NAV_HIDDEN_KEY = "nav_hidden_pages";
 
 function readHiddenPages(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(NAV_HIDDEN_KEY) || "[]");
+    const pages = JSON.parse(localStorage.getItem(NAV_HIDDEN_KEY) || "[]");
+    return Array.isArray(pages) ? pages.filter((page): page is string => typeof page === "string") : [];
   } catch {
     return [];
   }
@@ -100,7 +82,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return;
-        const pages: string[] = data.hidden_pages ?? [];
+        const pages: string[] = Array.isArray(data.hidden_pages)
+          ? data.hidden_pages.filter((page: unknown): page is string => typeof page === "string")
+          : [];
         localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(pages));
         setHiddenPages(pages);
         window.dispatchEvent(new Event(NAV_HIDDEN_KEY));
@@ -108,8 +92,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       .catch(() => {});
   }, [user?.email]);
 
-  const visibleTabs = HIDEABLE_TABS.filter((tab) => !hiddenPages.includes(tab.path));
+  const visibleTabs = HIDEABLE_TABS.filter((tab) => !tab.path || !hiddenPages.includes(tab.path));
   const allTabs = [...visibleTabs, ...COMING_SOON_TABS, SETTINGS_TAB];
+  const navigation = resolveAppNavigation(location, [...HIDEABLE_TABS, SETTINGS_TAB]);
 
   return (
     <div className="kpmg-shell flex h-screen bg-background">
@@ -144,17 +129,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
         >
           <div className="space-y-0.5">
             {allTabs.map((tab) => {
-              const comingSoon = COMING_SOON_TABS.some((candidate) => candidate.path === tab.path);
-              const isActive = location === tab.path && !comingSoon;
+              const tabPath = tab.path ? normalizeAppPath(tab.path) : undefined;
+              const comingSoon = !!tabPath && COMING_SOON_TABS.some((candidate) => candidate.path === tabPath);
+              const isActive = !!tabPath && navigation.workspacePath === tabPath && !comingSoon;
 
               const button = (
                 <button
-                  key={tab.path}
+                  key={tabPath ?? tab.title ?? "navigation-item"}
                   onClick={() => {
-                    if (!comingSoon) setLocation(tab.path);
+                    if (!comingSoon && tabPath) setLocation(tabPath);
                   }}
-                  data-testid={`tab-${tab.path.replace(/\//g, "-").replace(/^-/, "") || "dashboard"}`}
-                  disabled={comingSoon}
+                  data-testid={`tab-${(tabPath ?? "unavailable").replace(/\//g, "-").replace(/^-/, "") || "dashboard"}`}
+                  disabled={comingSoon || !tabPath}
                   data-active={isActive}
                   className={`kpmg-sidebar-link w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 ${
                     collapsed ? "justify-center px-0 py-3" : "gap-3 px-3.5 py-2.5"
@@ -167,7 +153,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   }`}
                 >
                   <tab.icon className="h-4 w-4 flex-shrink-0 z-[100]" />
-                  {!collapsed && <span className="flex-1 text-left text-[13px] leading-5">{tab.title}</span>}
+                  {!collapsed && <span className="flex-1 text-left text-[13px] leading-5">{tab.title?.trim() || tab.fullTitle?.trim() || "Untitled page"}</span>}
                   {!collapsed && tab.badge && !comingSoon && (
                     <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-[#1E49E2] text-white flex-shrink-0">
                       {tab.badge}
@@ -181,10 +167,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </button>
               );
 
-              const tooltipLabel = comingSoon ? `${tab.fullTitle} - Coming Soon` : (tab.tooltip ?? tab.fullTitle);
+              const safeTitle = tab.fullTitle?.trim() || tab.title?.trim() || "Page unavailable";
+              const tooltipLabel = comingSoon ? `${safeTitle} - Coming Soon` : (tab.tooltip ?? safeTitle);
 
               return collapsed ? (
-                <Tooltip key={tab.path} delayDuration={0}>
+                <Tooltip key={tabPath ?? safeTitle} delayDuration={0}>
                   <TooltipTrigger asChild>{button}</TooltipTrigger>
                   <TooltipContent side="right" className="text-xs">
                     {tooltipLabel}
@@ -232,11 +219,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="trace-shell-main flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         <HeroSection
             collapsed={collapsed}
-            title={
-                HIDEABLE_TABS.find(
-                    (tab) => tab.path === location
-                )?.fullTitle ?? "Exception Management"
-            }
+            title={navigation.title}
             // subtitle="Log, review, and disposition control exceptions and waivers"
             icon={ShieldOff}
         />
