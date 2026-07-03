@@ -15,3 +15,15 @@ assert.match(
   /location\.split\(\/\[\?#\]\/,\s*1\)/,
   "Query-string workflow changes should not reset the active detail workspace",
 );
+
+assert.match(
+  source,
+  /PAGES\.find\(\(\{ path \}\) => path === workspaceKeyFromLocation\(location\)\)/,
+  "The router should resolve one active base page from the current URL",
+);
+
+assert.doesNotMatch(
+  source,
+  /PAGES\.map\(/,
+  "Inactive workspaces should not remain mounted with stale page state",
+);

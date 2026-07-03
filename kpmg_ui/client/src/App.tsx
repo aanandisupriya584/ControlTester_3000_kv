@@ -46,9 +46,8 @@ import { IssueManagementProvider } from "@/contexts/IssueManagementContext";
 import RiskReport from "@/pages/RiskAssessment/RiskReport.tsx";
 import ViewAllAssessmentsPage from "@/pages/RiskAssessment/ViewAllRiskAssessment.tsx";
 
-// All pages are kept permanently mounted and CSS-hidden when inactive.
-// This prevents remount on every tab switch, so useEffect runs only once per
-// session and local state (loading, filters, results) is preserved.
+// Base pages are resolved from one route table so navigation behaves consistently
+// across every workspace.
 const PAGES = [
   { path: "/",                     Page: DashboardPage           },
   { path: "/regulatory-testing",   Page: RegulatoryTestingPage   },
@@ -74,6 +73,7 @@ const PAGES = [
 function Router() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
+  const matchedPage = PAGES.find(({ path }) => path === workspaceKeyFromLocation(location));
 
   // Sync URL with auth state
   useEffect(() => {
@@ -131,12 +131,12 @@ function Router() {
         <div className="h-full min-h-0 overflow-hidden">
           <ControlsAssuranceDetailPage />
         </div>
+      ) : matchedPage ? (
+        <div key={matchedPage.path} className="h-full min-h-0 overflow-hidden">
+          <matchedPage.Page />
+        </div>
       ) : (
-        PAGES.map(({ path, Page }) => (
-          <div key={path} className={location === path ? "h-full min-h-0 overflow-hidden" : "hidden"}>
-            <Page />
-          </div>
-        ))
+        null
       )}
     </AppLayout>
   );
@@ -149,8 +149,7 @@ export function workspaceKeyFromLocation(location: string): string {
 
 function WorkspaceProviders() {
   const [location] = useLocation();
-  // Start each page with a clean workspace when users switch routes. We ignore the
-  // query string so moving between steps on the same page does not reset their work.
+  // Start each page with a clean workspace when users switch routes. We ignore the query string so moving between steps on the same page does not reset their work.
   const workspaceKey = workspaceKeyFromLocation(location);
 
   return (
