@@ -353,7 +353,6 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-
           <aside className="kpmg-summary-panel rounded-[18px] p-6 text-white self-start mt-1">
             <p className="text-[9.5px] font-bold uppercase tracking-[0.34em] text-[#ACEAFF]">Operating summary</p>
             <h2 className="mt-2.5 text-[22px] font-bold leading-tight text-white">Solutions Overview</h2>

@@ -43,6 +43,8 @@ import SopUpliftBox from "@/pages/Dashboard/Component/Workflow/SopUpliftBox";
 import SopCasesByStatusPanel from "@/pages/Dashboard/Component/Workflow/SopCasesByStatusPanel";
 import AssessmentsByStatusPanel from "@/pages/Dashboard/Component/Workflow/AssessmentsByStatusPanel";
 import TestingSessionsByStatusPanel from "@/pages/Dashboard/Component/Workflow/TestingSessionsByStatusPanel";
+import DashboardExceptions from "@/pages/Dashboard/Component/Exceptions/DashboardExceptions";
+import type { ExceptionKpiItem } from "@/pages/Dashboard/Component/Exceptions/exceptions.types";
 
 type DashboardTab = "overview" | "libraries" | "workflows" | "exceptions";
 
@@ -566,6 +568,32 @@ export default function DashboardPage() {
       },
     },
   ];
+  const exceptionKpis: ExceptionKpiItem[] = [
+    { label: "Gap Obligations", value: formatNumber(gapObligations), subLabel: "uncovered obligations", tone: gapObligations > 0 ? "amber" : "green", onClick: () => setLocation("/regulatory-library") },
+    { label: "Orphaned Controls", value: formatNumber(orphanedCtrlCount), subLabel: "unmapped controls", tone: orphanedCtrlCount > 0 ? "amber" : "green", onClick: () => setLocation("/controls-library") },
+    {
+      label: "Low Quality Controls",
+      value: formatPercent(lowQualityPct),
+      subLabel: "below target",
+      tone: lowQualityPct > 0 ? "red" : "green",
+      onClick: () => {
+        setPendingQualityAnalysis(true);
+        setLocation("/controls-library");
+      },
+    },
+    { label: "Potential Duplicates", value: formatNumber(potentialDuplicates), subLabel: "control records to review", badge: `${formatNumber(confirmedDuplicates)} likely confirmed`, tone: potentialDuplicates > 0 ? "amber" : "green", onClick: () => setLocation("/controls-library") },
+    { label: "Open Issues", value: formatNumber(openIssues), subLabel: "issues not closed", tone: openIssues > 0 ? "red" : "green", onClick: () => setLocation("/issue-management") },
+    { label: "High Severity Issues", value: formatNumber(criticalIssues), subLabel: "high or critical", tone: criticalIssues > 0 ? "red" : "green", onClick: () => setLocation("/issue-management") },
+    { label: "Pending Queue", value: formatNumber(pendingQueue), subLabel: "validation findings", tone: pendingQueue > 0 ? "amber" : "green", onClick: () => setLocation("/issue-management") },
+    { label: "Failed Controls", value: formatNumber(failedControlCount), subLabel: "testing failures", tone: failedControlCount > 0 ? "red" : "green", onClick: () => setLocation("/control-testing") },
+  ];
+  const exceptionSignals = withColors([
+    { name: "Gaps", value: gapObligations },
+    { name: "Duplicates", value: potentialDuplicates },
+    { name: "Open Issues", value: openIssues },
+    { name: "Queue", value: pendingQueue },
+    { name: "Failed Controls", value: failedControlCount },
+  ], 2);
   return (
       <div data-dashboard-page="DASHBOARD" className={`relative h-full overflow-auto bg-[#F0F2F7] ${allPageLoading ? "cursor-wait" : ""}`}>
       <HeroSubSection title={"Dashboard"} subtitle="Monitor APEX libraries, workflows, issues, and generated outputs." icon={Grid2X2} />
@@ -729,48 +757,21 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "exceptions" ? (
-          <div className="animate-[fadeUp_0.35s_ease_both] space-y-5">
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiMetricCard label="Gap Obligations" value={formatNumber(gapObligations)} subLabel="uncovered obligations" tone={gapObligations > 0 ? "amber" : "green"} onClick={() => setLocation("/regulatory-library")} />
-              <KpiMetricCard label="Orphaned Controls" value={formatNumber(orphanedCtrlCount)} subLabel="unmapped controls" tone={orphanedCtrlCount > 0 ? "amber" : "green"} onClick={() => setLocation("/controls-library")} />
-              <KpiMetricCard label="Low Quality Controls" value={formatPercent(lowQualityPct)} subLabel="below target" tone={lowQualityPct > 0 ? "red" : "green"} onClick={() => {
-                setPendingQualityAnalysis(true);
-                setLocation("/controls-library");
-              }} />
-              <KpiMetricCard label="Potential Duplicates" value={formatNumber(potentialDuplicates)} subLabel="control records to review" badge={`${formatNumber(confirmedDuplicates)} likely confirmed`} tone={potentialDuplicates > 0 ? "amber" : "green"} onClick={() => setLocation("/controls-library")} />
-              <KpiMetricCard label="Open Issues" value={formatNumber(openIssues)} subLabel="issues not closed" tone={openIssues > 0 ? "red" : "green"} onClick={() => setLocation("/issue-management")} />
-              <KpiMetricCard label="High Severity Issues" value={formatNumber(criticalIssues)} subLabel="high or critical" tone={criticalIssues > 0 ? "red" : "green"} onClick={() => setLocation("/issue-management")} />
-              <KpiMetricCard label="Pending Queue" value={formatNumber(pendingQueue)} subLabel="validation findings" tone={pendingQueue > 0 ? "amber" : "green"} onClick={() => setLocation("/issue-management")} />
-              <KpiMetricCard label="Failed Controls" value={formatNumber(failedControlCount)} subLabel="testing failures" tone={failedControlCount > 0 ? "red" : "green"} onClick={() => setLocation("/control-testing")} />
-            </section>
-
-            <section className="grid gap-5 xl:grid-cols-2">
-              <ChartCard title="Issues By Severity" footerLabel="Total Issues" footerValue={formatNumber(issues.length)}>
-                <BarChartPanel data={issuesBySeverity} />
-              </ChartCard>
-              <ChartCard title="Issues By Status" footerLabel="Open Issues" footerValue={formatNumber(openIssues)}>
-                <BarChartPanel data={issuesByStatus} />
-              </ChartCard>
-              <ChartCard title="Validation Queue By Status" footerLabel="Pending Queue" footerValue={formatNumber(pendingQueue)}>
-                <BarChartPanel data={queueByStatus} />
-              </ChartCard>
-              <ChartCard title="Risk Bands" footerLabel="Risks Recorded" footerValue={formatNumber(riskCount)}>
-                <BarChartPanel data={riskBands} />
-              </ChartCard>
-              <ChartCard title="Control Test Results" footerLabel="Failed Controls" footerValue={formatNumber(failedControlCount)}>
-                <BarChartPanel data={controlResults} />
-              </ChartCard>
-              <ChartCard title="Exception Signals" footerLabel="Total Signals" footerValue={formatNumber(exceptionTotal)}>
-                <SegmentedStatusPanel data={withColors([
-                  { name: "Gaps", value: gapObligations },
-                  { name: "Duplicates", value: potentialDuplicates },
-                  { name: "Open Issues", value: openIssues },
-                  { name: "Queue", value: pendingQueue },
-                  { name: "Failed Controls", value: failedControlCount },
-                ], 2)} />
-              </ChartCard>
-            </section>
-          </div>
+          <DashboardExceptions
+            kpis={exceptionKpis}
+            issuesBySeverity={issuesBySeverity}
+            issuesByStatus={issuesByStatus}
+            queueByStatus={queueByStatus}
+            riskBands={riskBands}
+            controlResults={controlResults}
+            exceptionSignals={exceptionSignals}
+            totalIssues={formatNumber(issues.length)}
+            openIssues={formatNumber(openIssues)}
+            pendingQueue={formatNumber(pendingQueue)}
+            riskCount={formatNumber(riskCount)}
+            failedControls={formatNumber(failedControlCount)}
+            totalSignals={formatNumber(exceptionTotal)}
+          />
         ) : null}
 
         <style>{`

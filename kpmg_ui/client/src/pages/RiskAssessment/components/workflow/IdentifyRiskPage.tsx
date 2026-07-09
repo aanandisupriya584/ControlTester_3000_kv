@@ -84,9 +84,14 @@ function RunningRiskAnalysis() {
           <p className="mx-auto mt-3 max-w-[520px] text-[15px] leading-7 text-[#7388A8]">
             Applying rule-based scoring and the current risk assessment analysis flow to turn questionnaire responses into structured risk candidates.
           </p>
-          <div className="mx-auto mt-7 max-w-[420px] overflow-hidden rounded-full bg-[#DCE3EE]">
-            <div className="h-3 w-[58%] rounded-full bg-[linear-gradient(90deg,#1E49E2_0%,#00B8F5_100%)]" />
-          </div>
+          {/*
+            Horizontal loading bar retained for reference but intentionally not rendered.
+            Keep only the circular spinner below as the active loading indicator.
+
+            <div className="mx-auto mt-7 max-w-[420px] overflow-hidden rounded-full bg-[#DCE3EE]">
+              <div className="h-3 w-[58%] rounded-full bg-[linear-gradient(90deg,#1E49E2_0%,#00B8F5_100%)]" />
+            </div>
+          */}
           <div className="mt-5 flex items-center justify-center gap-2 text-[13px] font-bold text-[#1E49E2]">
             <Loader2 className="h-4 w-4 animate-spin" />
             Analysis in progress
