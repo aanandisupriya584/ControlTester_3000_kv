@@ -142,32 +142,48 @@ function Router() {
   );
 }
 
+export function workspaceKeyFromLocation(location: string): string {
+  const pathname = location.split(/[?#]/, 1)[0].replace(/\/+$/, "");
+  return pathname || "/";
+}
+
+function WorkspaceProviders() {
+  const [location] = useLocation();
+  // Start each page with a clean workspace when users switch routes. We ignore the
+  // query string so moving between steps on the same page does not reset their work.
+  const workspaceKey = workspaceKeyFromLocation(location);
+
+  return (
+    <ChatProvider key={workspaceKey}>
+      <EvidenceProvider>
+        <ControlTestingProvider>
+          <RegulatoryTestingProvider>
+            <CrossNavProvider>
+              <LibraryMetricsProvider>
+                <AssetRegistryProvider>
+                  <RiskAssessmentProvider>
+                    <IssueManagementProvider>
+                      <Toaster />
+                      <Router />
+                    </IssueManagementProvider>
+                  </RiskAssessmentProvider>
+                </AssetRegistryProvider>
+              </LibraryMetricsProvider>
+            </CrossNavProvider>
+          </RegulatoryTestingProvider>
+        </ControlTestingProvider>
+      </EvidenceProvider>
+    </ChatProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
           <TooltipProvider>
-            <ChatProvider>
-              <EvidenceProvider>
-                <ControlTestingProvider>
-                  <RegulatoryTestingProvider>
-                    <CrossNavProvider>
-                      <LibraryMetricsProvider>
-                        <AssetRegistryProvider>
-                          <RiskAssessmentProvider>
-                            <IssueManagementProvider>
-                              <Toaster />
-                              <Router />
-                            </IssueManagementProvider>
-                          </RiskAssessmentProvider>
-                        </AssetRegistryProvider>
-                      </LibraryMetricsProvider>
-                    </CrossNavProvider>
-                  </RegulatoryTestingProvider>
-                </ControlTestingProvider>
-              </EvidenceProvider>
-            </ChatProvider>
+            <WorkspaceProviders />
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>

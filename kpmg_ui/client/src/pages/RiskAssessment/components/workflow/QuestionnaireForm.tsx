@@ -286,7 +286,7 @@ export default function QuestionnaireForm({
                 <button
                   className={primaryButtonClassName}
                   onClick={onContinue}
-                  disabled={submittingQa}
+                  disabled={submittingQa || !allQuestionsAnswered}
                   aria-disabled={!allQuestionsAnswered}
                   title={allQuestionsAnswered ? "Continue to the next step" : "Answer every question before continuing"}
                 >

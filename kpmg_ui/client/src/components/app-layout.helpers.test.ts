@@ -4,10 +4,10 @@ import {
   ACTIVE_PAGE_CLASSNAME,
   APP_LAYOUT_CONTENT_CLASSNAME,
   APP_LAYOUT_MAIN_CLASSNAME,
-} from "./app-layout.helpers";
-import {
   HIDEABLE_TABS,
-} from "./AppLayout";
+  normalizeAppPath,
+  resolveAppNavigation,
+} from "./app-layout.helpers";
 
 assert.equal(
   HIDEABLE_TABS.some((tab) => tab.path === "/asset-registry" && tab.title === "Asset Registry"),
@@ -31,4 +31,20 @@ assert.equal(
   ACTIVE_PAGE_CLASSNAME.includes("min-h-0"),
   true,
   "The active page wrapper must not force scrollable pages taller than the viewport",
+);
+
+assert.equal(normalizeAppPath("/risk-report?status=open"), "/risk-report");
+assert.deepEqual(resolveAppNavigation("/risk-report"), {
+  title: "Risk Assessment / Risk Report",
+  workspacePath: "/risk-assessment",
+});
+assert.deepEqual(resolveAppNavigation("/risk-assessment/assessment-123?step=findings"), {
+  title: "Risk Assessment / Assessment 123",
+  workspacePath: "/risk-assessment",
+});
+assert.deepEqual(
+  resolveAppNavigation("/custom-detail", [
+    { title: null, fullTitle: undefined, path: null, icon: HIDEABLE_TABS[0].icon },
+  ]),
+  { title: "Custom Detail", workspacePath: undefined },
 );
