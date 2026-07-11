@@ -5,13 +5,16 @@ import {
   ChevronDown,
   ChevronRight,
   HelpCircle,
+  Info,
   Loader2,
   Lock,
   Save,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import CompletionChecklist from "@/pages/RiskAssessment/components/CompletionChecklist";
-import type { AnswerType, RiskAssessment, Section } from "@/contexts/RiskAssessmentContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { AnswerType, RiskAssessment, Section, SuggestedQuestion } from "@/contexts/RiskAssessmentContext";
 
 interface LocalAnswer {
   answer: AnswerType;
@@ -29,8 +32,10 @@ interface QuestionnaireFormProps {
   submittingQa: boolean;
   primaryButtonClassName: string;
   secondaryButtonClassName: string;
+  suggestedQuestions?: SuggestedQuestion[];
   onExpandedSectionChange: (sectionId: string | null) => void;
   onAnswer: (assetId: string, sectionId: string, questionId: string, answer: AnswerType, details?: string) => void;
+  onAnswerContextQuestion?: (questionId: string, answer: AnswerType) => void;
   onSaveProgress: () => void;
   onContinue: () => void;
 }
@@ -92,13 +97,16 @@ export default function QuestionnaireForm({
   submittingQa,
   primaryButtonClassName,
   secondaryButtonClassName,
+  suggestedQuestions = [],
   onExpandedSectionChange,
   onAnswer,
+  onAnswerContextQuestion,
   onSaveProgress,
   onContinue,
 }: QuestionnaireFormProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, AnswerType>>({});
   const [openNaDetails, setOpenNaDetails] = useState<Record<string, boolean>>({});
+  const [aiSectionExpanded, setAiSectionExpanded] = useState(false);
   const allQuestionsAnswered = currentTotalQuestions > 0 && currentAnsweredCount >= currentTotalQuestions;
 
   useEffect(() => {
@@ -148,6 +156,124 @@ export default function QuestionnaireForm({
           </div>
         ) : (
           <div className="space-y-3">
+            {/* AI Enabled Context — top of list, before static sections */}
+            {suggestedQuestions.length > 0 ? (() => {
+              const aiCompleted = suggestedQuestions.filter((q) => q.status === "answered").length;
+              const aiTotal = suggestedQuestions.length;
+              return (
+                <div
+                  className={`risk-questionnaire-glass-section overflow-hidden rounded-[8px] border ${
+                    aiSectionExpanded ? "border-[#1E49E2] shadow-[0_18px_34px_-30px_rgba(30,73,226,0.36)]" : "border-[#D8E0ED]"
+                  }`}
+                >
+                  <button
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                    onClick={() => setAiSectionExpanded((prev) => !prev)}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EEF2FF] text-[#1E49E2]">
+                        <Sparkles className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-[16px] font-bold text-[#0C233C]">AI Enabled Context</span>
+                          <HelpCircle className="h-3.5 w-3.5 flex-shrink-0 text-[#8492A6]" />
+                        </div>
+                        <p className="mt-1 text-[12px] text-[#5A6478]">Questions generated from your uploaded documents — specific to this assessment.</p>
+                      </div>
+                    </div>
+                    <div className="flex w-full flex-shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${
+                          aiCompleted === aiTotal
+                            ? "bg-[#EDFBF5] text-[#009A44]"
+                            : aiCompleted > 0
+                              ? "bg-[#FFF4E8] text-[#AB5C00]"
+                              : "bg-[#FEEBED] text-[#E5001B]"
+                        }`}
+                      >
+                        {aiCompleted} / {aiTotal} answered
+                      </span>
+                      {aiSectionExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-[#7E91AE]" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-[#7E91AE]" />
+                      )}
+                    </div>
+                  </button>
+
+                  {aiSectionExpanded ? (
+                    <div className="border-t border-[#E8EDF5] px-5 py-4">
+                      <div className="space-y-5">
+                        {suggestedQuestions.map((q, idx) => {
+                          const selectedAnswer = q.answer as AnswerType | undefined;
+                          return (
+                            <div key={q.question_id} className="border-t border-[#EFF2F7] pt-4 first:border-t-0 first:pt-0">
+                              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_32px_230px]">
+                                <div className="flex gap-3">
+                                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[#C9D7FF] bg-[#EEF2FF] text-[12px] font-bold text-[#1E49E2]">
+                                    {idx + 1}
+                                  </span>
+                                  <p className="flex-1 text-[14px] font-semibold leading-6 text-[#0C233C]">{q.text}</p>
+                                </div>
+                                {/* ℹ column — fixed 32 px so all info buttons form a straight vertical line */}
+                                <div className="flex items-start justify-center pt-1">
+                                  {q.rationale ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-full text-[#8492A6] transition-colors hover:bg-[#EEF2FF] hover:text-[#1E49E2]">
+                                          <Info className="h-4 w-4" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-[320px] rounded-[12px] border border-[#D8E0ED] bg-white px-4 py-3 text-[#0C233C] shadow-[0_18px_42px_-28px_rgba(12,35,60,0.36)]">
+                                        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#00338D]">Why this question?</p>
+                                        <p className="text-[12px] leading-5 text-[#5A6478]">{q.rationale}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="h-7 w-7" />
+                                  )}
+                                </div>
+                                <div className="grid min-w-0 grid-cols-3 gap-3">
+                                  {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
+                                    <button
+                                      type="button"
+                                      key={answer}
+                                      className={`risk-question-answer-button h-11 rounded-[8px] border text-[12px] font-bold transition-all duration-150 cursor-pointer active:translate-y-px ${
+                                        selectedAnswer === answer
+                                          ? answer === "yes"
+                                            ? "border-[#009A44] bg-[#009A44] text-white shadow-sm"
+                                            : answer === "no"
+                                              ? "border-[#E5001B] bg-[#E5001B] text-white shadow-sm"
+                                              : "border-[#1E49E2] bg-[#1E49E2] text-white shadow-sm"
+                                          : "border-[#D6E0EF] bg-white text-[#33415C] hover:border-[#1E49E2] hover:bg-[#F8FBFF]"
+                                      }`}
+                                      onClick={() => onAnswerContextQuestion?.(q.question_id, answer)}
+                                      style={
+                                        selectedAnswer === answer
+                                          ? {
+                                              backgroundColor: answer === "yes" ? "#009A44" : answer === "no" ? "#E5001B" : "#1E49E2",
+                                              borderColor: answer === "yes" ? "#009A44" : answer === "no" ? "#E5001B" : "#1E49E2",
+                                              color: "#FFFFFF",
+                                            }
+                                          : undefined
+                                      }
+                                    >
+                                      <span className="relative z-10 block text-current">{ANSWER_LABEL[answer]}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })() : null}
+
             {sections.map((section) => {
               const completed = sectionProgress(answers, currentAssetId, section);
               const total = section.questions.length;
@@ -201,15 +327,15 @@ export default function QuestionnaireForm({
                           const showNaDetails = openNaDetails[questionKey] || selectedAnswer === "na";
                           return (
                             <div key={question.id} className="border-t border-[#EFF2F7] pt-4 first:border-t-0 first:pt-0">
-                              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
+                              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_32px_230px]">
                                 <div className="flex gap-3">
                                   <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[#AFC1F8] bg-white text-[12px] font-bold text-[#1E49E2]">
                                     {questionIndex + 1}
                                   </span>
-                                  <div className="min-w-0">
-                                    <p className="text-[14px] font-semibold leading-6 text-[#0C233C]">{question.text}</p>
-                                  </div>
+                                  <p className="flex-1 text-[14px] font-semibold leading-6 text-[#0C233C]">{question.text}</p>
                                 </div>
+                                {/* Empty placeholder keeps the column consistent with AI questions */}
+                                <span className="h-7 w-7" />
                                 <div className="grid min-w-0 grid-cols-3 gap-3">
                                   {(["yes", "no", "na"] as AnswerType[]).map((answer) => (
                                     <button
@@ -246,7 +372,7 @@ export default function QuestionnaireForm({
                                   ))}
                                 </div>
                               </div>
-                              {/* Bug fix: show the free-text rationale field when NA is selected. */}
+                              {/* Show the free-text rationale field when NA is selected. */}
                               {showNaDetails ? (
                                 <div className="mt-3 lg:ml-10">
                                   <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#5A6478]">
@@ -286,9 +412,8 @@ export default function QuestionnaireForm({
                 <button
                   className={primaryButtonClassName}
                   onClick={onContinue}
-                  disabled={submittingQa || !allQuestionsAnswered}
-                  aria-disabled={!allQuestionsAnswered}
-                  title={allQuestionsAnswered ? "Continue to the next step" : "Answer every question before continuing"}
+                  disabled={submittingQa}
+                  title="Continue to the next step"
                 >
                   {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Continue

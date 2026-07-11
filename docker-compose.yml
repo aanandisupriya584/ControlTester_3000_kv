@@ -188,6 +188,59 @@ services:
     networks:
       - appnet
 
+  ra_worker:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: ra_worker_Trace_KV
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - utils.ra_celery_app
+      - worker
+      - --loglevel=INFO
+      - -Q
+      - ra_pipeline
+      - --concurrency=2
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_LLM_MODEL=${GOOGLE_LLM_MODEL:-gemini-3-flash-preview}
+      - GOOGLE_EMBEDDING_MODEL=${GOOGLE_EMBEDDING_MODEL:-models/text-embedding-004}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-llama3:latest}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_LLM_MODEL=${OPENAI_LLM_MODEL:-gpt-5.5}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - KIMI_API_KEY=${KIMI_API_KEY}
+      - KIMI_BASE_URL=${KIMI_BASE_URL:-https://api.moonshot.ai/v1}
+      - KIMI_LLM_MODEL=${KIMI_LLM_MODEL:-kimi-k2.6}
+      - KIMI_TEMPERATURE=${KIMI_TEMPERATURE:-0.2}
+      - KIMI_THINKING=${KIMI_THINKING:-disabled}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - DEEPSEEK_LLM_MODEL=${DEEPSEEK_LLM_MODEL:-deepseek-v4-pro}
+      - DEEPSEEK_TEMPERATURE=${DEEPSEEK_TEMPERATURE:-0.2}
+      - DEEPSEEK_THINKING=${DEEPSEEK_THINKING:-enabled}
+      - DEEPSEEK_REASONING_EFFORT=${DEEPSEEK_REASONING_EFFORT:-high}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_LLM_MODEL=${ANTHROPIC_LLM_MODEL:-claude-opus-4-7}
+      - MONGO_URI=mongodb://mongodb:27017
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - PYTHONPATH=/app
+    depends_on:
+      mongodb:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - appnet
+
   web_ui_agent:
     build:
       context: ./kpmg_ui

@@ -11,8 +11,6 @@ export interface ContextProfile {
   project_context: string;
   business_impact: string;
   overall_project_summary: string;
-  regulatory_context: string;
-  security_requirements: string;
   jira_context: string;
   free_text_context: string;
 }
@@ -29,6 +27,8 @@ export interface SuggestedQuestion {
   status: "suggested" | "answered";
   answer: AnswerType | null;
   details: string;
+  is_ai_generated: boolean;
+  source_agent: string;
 }
 
 export interface Question {
@@ -68,6 +68,10 @@ export interface Risk {
   source: string;
   human_rationale: string;
   status: string;
+  // Agent-generated fields — populated when source === "agentic_pipeline"
+  source_questions?: string[];
+  applicable_regulations?: string[];
+  recommended_control_domain?: string;
 }
 
 export interface AppliedControl {
@@ -188,10 +192,11 @@ interface Ctx {
   generateReport: (raId: string) => Promise<void>;
   isSuggestingQuestions: boolean;
   updateContextProfile: (raId: string, profile: ContextProfile) => Promise<void>;
-  uploadContextFile: (raId: string, file: File, sourceType?: string) => Promise<RiskAssessment | null>;
+  uploadContextFile: (raId: string, file: File, sourceType?: string) => Promise<{ assessment: RiskAssessment | null; classification: any | null; processing_strategy: any | null }>;
   deleteContextFile: (raId: string, sourceId: string) => Promise<RiskAssessment | null>;
   suggestContextQuestions: (raId: string) => Promise<void>;
   answerContextQuestion: (raId: string, questionId: string, answer: AnswerType, details: string) => Promise<void>;
+  recomputeContextProfile: (raId: string) => Promise<RiskAssessment | null>;
 }
 
 const RiskAssessmentContext = createContext<Ctx | null>(null);
@@ -296,20 +301,52 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
   }, []);
 
+  // Poll pipeline-status until the given phase reaches "complete" or "failed".
+  // Resolves with the final status string; rejects on network error or timeout.
+  // MUST be defined before analyzeAssessment and suggestContextQuestions which depend on it.
+  const pollPipelineStatus = useCallback(async (
+    raId: string,
+    phase: "phase1" | "phase2",
+    intervalMs = 3000,
+    timeoutMs = 720_000,  // 12 min — matches Celery hard limit
+  ): Promise<string> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, intervalMs));
+      const r = await fetch(`/api/risk-assessment/${raId}/pipeline-status`);
+      if (!r.ok) continue;
+      const data = await r.json();
+      const status: string = data[`pipeline_${phase}_status`] ?? "idle";
+      if (status === "complete" || status === "failed") {
+        // Sync the full assessment into state so callers get fresh data
+        const ra2 = await fetch(`/api/risk-assessment/${raId}`);
+        if (ra2.ok) {
+          const ra: RiskAssessment = await ra2.json();
+          setSelectedAssessment(ra);
+          setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+        }
+        if (status === "failed") throw new Error(data[`pipeline_${phase}_error`] || "Pipeline failed");
+        return status;
+      }
+    }
+    throw new Error("Pipeline timed out waiting for completion");
+  }, []);
+
   const analyzeAssessment = useCallback(async (raId: string): Promise<void> => {
     setIsAnalyzing(true);
     try {
-      const r = await fetch(`/api/risk-assessment/${raId}/analyze`, { method: "POST" });
-      if (!r.ok) throw new Error("Analysis failed");
-      const data = await r.json();
-      setSelectedAssessment(prev => prev ? { ...prev, risks: data.risks, status: "risks_identified" } : prev);
-      setAssessments(prev => prev.map(a => a.id === raId ? { ...a, risks: data.risks, status: "risks_identified" } : a));
+      // POST returns 202 — Celery ra_worker runs the agentic pipeline in background
+      const r = await fetch(`/api/risk-assessment/${raId}/identify-risks-agentic`, { method: "POST" });
+      if (!r.ok) throw new Error("Failed to queue risk analysis");
+      // Poll until phase2 complete — worker writes agentic_risks back to MongoDB
+      await pollPipelineStatus(raId, "phase2");
+      // After polling resolves, selectedAssessment is already refreshed by pollPipelineStatus
     } catch (e: any) {
       setError(e.message);
     } finally {
       setIsAnalyzing(false);
     }
-  }, []);
+  }, [pollPipelineStatus]);
 
   const addHumanRisk = useCallback(async (raId: string, risk: any): Promise<void> => {
     const r = await fetch(`/api/risk-assessment/${raId}/risks`, {
@@ -389,7 +426,7 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
   }, []);
 
-  const uploadContextFile = useCallback(async (raId: string, file: File, sourceType = "document"): Promise<RiskAssessment | null> => {
+  const uploadContextFile = useCallback(async (raId: string, file: File, sourceType = "document"): Promise<{ assessment: RiskAssessment | null; classification: any | null; content_relevant: boolean; processing_strategy: any | null }> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("source_type", sourceType);
@@ -400,11 +437,19 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     if (!r.ok) throw new Error("Failed to upload context file");
     const body = await r.json();
     const ra: RiskAssessment | null = body.assessment ?? null;
-    if (ra) {
+    // Only update assessment state when the document was accepted — rejected files
+    // are not stored so the assessment is unchanged and must not trigger a re-render
+    // that would repopulate fields or add the file to the uploaded list.
+    if (body.accepted && ra) {
       setSelectedAssessment(ra);
       setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
     }
-    return ra;
+    return {
+      assessment: ra,
+      classification: body.classification ?? null,
+      content_relevant: body.content_relevant ?? true,
+      processing_strategy: body.processing_strategy ?? null,
+    };
   }, []);
 
   const deleteContextFile = useCallback(async (raId: string, sourceId: string): Promise<RiskAssessment | null> => {
@@ -419,21 +464,30 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
     return ra;
   }, []);
 
+  const recomputeContextProfile = useCallback(async (raId: string): Promise<RiskAssessment | null> => {
+    const r = await fetch(`/api/risk-assessment/${raId}/recompute-context-profile`, { method: "POST" });
+    if (!r.ok) throw new Error("Failed to recompute context profile");
+    const body = await r.json();
+    const ra: RiskAssessment | null = body.assessment ?? null;
+    if (ra) {
+      setSelectedAssessment(ra);
+      setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
+    }
+    return ra;
+  }, []);
+
   const suggestContextQuestions = useCallback(async (raId: string): Promise<void> => {
     setIsSuggestingQuestions(true);
     try {
+      // POST returns 202 immediately — the Celery ra_worker runs the pipeline
       const r = await fetch(`/api/risk-assessment/${raId}/suggest-questions`, { method: "POST" });
-      if (!r.ok) throw new Error("Failed to suggest questions");
-      const updated = await fetch(`/api/risk-assessment/${raId}`);
-      if (updated.ok) {
-        const ra: RiskAssessment = await updated.json();
-        setSelectedAssessment(ra);
-        setAssessments(prev => prev.map(a => a.id === raId ? ra : a));
-      }
+      if (!r.ok) throw new Error("Failed to queue question generation");
+      // Poll until the background worker marks phase1 complete
+      await pollPipelineStatus(raId, "phase1");
     } finally {
       setIsSuggestingQuestions(false);
     }
-  }, []);
+  }, [pollPipelineStatus]);
 
   const answerContextQuestion = useCallback(async (raId: string, questionId: string, answer: AnswerType, details: string): Promise<void> => {
     const r = await fetch(`/api/risk-assessment/${raId}/suggest-questions/${questionId}/respond`, {
@@ -455,7 +509,7 @@ export function RiskAssessmentProvider({ children }: { children: ReactNode }) {
       fetchSections, submitResponse, submitResponseBatch, analyzeAssessment,
       addHumanRisk, applyControl, fetchResidual,
       suggestControls, generateReport,
-      updateContextProfile, uploadContextFile, deleteContextFile, suggestContextQuestions, answerContextQuestion,
+      updateContextProfile, uploadContextFile, deleteContextFile, suggestContextQuestions, answerContextQuestion, recomputeContextProfile,
     }}>
       {children}
     </RiskAssessmentContext.Provider>

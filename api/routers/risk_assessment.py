@@ -18,417 +18,76 @@ from typing import Any, Literal, Optional
 
 import pymongo
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel, Field, field_validator, model_validator
-
 from utils.assessment_questions import get_sections
-from utils.risk_scorer import compute_cia_total, compute_criticality
+from utils.risk_scorer import compute_criticality
+
+# Domain models and store — defined in utils/ so the Celery worker can import
+# them without depending on api/.  Re-exported here for backward compatibility.
+from utils.ra_models import (
+    AdHocApplication,
+    RiskAssessmentContextProfile,
+    RiskAssessmentContextUpdate,
+    SuggestedQuestion,
+    SuggestedQuestionAnswer,
+    RiskAssessmentCreate,
+    ResponseSubmit,
+    RiskOverride,
+    ControlApplication,
+    ResponseBatch,
+    RiskAssessment,
+    StatusType,
+    RiskBand,
+    AnswerType,
+)
+from utils.ra_store import MongoRiskAssessmentStore, get_store
+from utils.ra_context_builder import (
+    _clean_report_text,
+    _tokenize_match_text,
+    _cia_band_from_values,
+    _LLM_CONTEXT_WINDOWS,
+    _DEFAULT_CONTEXT_WINDOW,
+    _CHARS_PER_TOKEN,
+    _get_active_context_window,
+    _compute_per_doc_text_budget,
+    _build_ra_context_pack,
+    _fallback_suggested_questions,
+    _resolve_subject_profile,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/risk-assessment", tags=["risk-assessment"])
 
-StatusType = Literal["draft", "in_progress", "risks_identified", "controls_applied", "complete"]
-RiskBand = Literal["Low", "Medium", "High", "Critical"]
-AnswerType = Literal["yes", "no", "na"]
 
+# ── Audit trail ─────────────────────────────────────────────────────────────
 
-# ── Pydantic models ──────────────────────────────────────────────────────────
+def _record_user_event(ra_id: str, event: str, details: dict | None = None) -> None:
+    """Write a user action to the agent_decision_trail collection.
 
-class AdHocApplication(BaseModel):
-    id: str = ""
-    name: str
-    description: str = ""
-    assessment_context: str = ""
-    business_context: str = ""
-    purpose: str = ""
-    use: str = ""
-    confidentiality: int = Field(default=3, ge=1, le=5)
-    integrity: int = Field(default=3, ge=1, le=5)
-    availability: int = Field(default=3, ge=1, le=5)
-    hosting_type: Optional[str] = None
-    support_type: Optional[str] = None
-    owner: str = ""
-    custodian: str = ""
-    jurisdiction: str = ""
-    classification: str = ""
-    internet_exposure: bool = False
-    data_sensitivity_summary: str = ""
-    primary_users: str = ""
-    key_integrations: str = ""
-
-
-class RiskAssessmentContextProfile(BaseModel):
-    project_context: str = ""
-    business_impact: str = ""
-    overall_project_summary: str = ""
-    regulatory_context: str = ""
-    security_requirements: str = ""
-    jira_context: str = ""
-    free_text_context: str = ""
-
-
-class RiskAssessmentContextUpdate(BaseModel):
-    context_profile: RiskAssessmentContextProfile
-
-
-class SuggestedQuestion(BaseModel):
-    question_id: str
-    section_id: str = "dynamic_context"
-    section_title: str = "Context Driven Questions"
-    text: str
-    question_type: Literal["Exposure", "Control", "Context"] = "Context"
-    priority: Literal["low", "medium", "high"] = "medium"
-    source: str = "context"
-    rationale: str = ""
-    status: Literal["suggested", "answered"] = "suggested"
-    answer: Optional[Literal["yes", "no", "na"]] = None
-    details: str = ""
-
-
-class SuggestedQuestionAnswer(BaseModel):
-    answer: Literal["yes", "no", "na"]
-    details: str = ""
-
-
-class RiskAssessmentCreate(BaseModel):
-    title: str
-    description: str
-    asset_ids: list[str] = []
-    ad_hoc_applications: list[AdHocApplication] = []
-    context_profile: RiskAssessmentContextProfile = Field(default_factory=RiskAssessmentContextProfile)
-    project_context: str = ""
-    business_impact: str = ""
-    overall_project_summary: str = ""
-    regulatory_context: str = ""
-    security_requirements: str = ""
-    jira_context: str = ""
-    free_text_context: str = ""
-
-    @model_validator(mode="after")
-    def _at_least_one_subject(self) -> "RiskAssessmentCreate":
-        if not self.asset_ids and not self.ad_hoc_applications:
-            raise ValueError("At least one asset_id or ad_hoc_application is required")
-        return self
-
-
-class ResponseSubmit(BaseModel):
-    asset_id: str
-    section_id: str
-    question_id: str
-    answer: AnswerType
-    details: str = ""
-
-
-class RiskOverride(BaseModel):
-    asset_id: str
-    title: str
-    description: str
-    risk_category: str
-    likelihood_score: int
-    impact_score: int
-    human_rationale: str
-
-
-class ControlApplication(BaseModel):
-    risk_id: str
-    control_id: str
-    source: str
-    human_rationale: str = ""
-
-
-class ResponseBatch(BaseModel):
-    responses: list[ResponseSubmit]
-    save_as_draft: bool = False
-
-
-class RiskAssessment(BaseModel):
-    id: str
-    title: str
-    description: str
-    status: StatusType
-    asset_ids: list[str]
-    ad_hoc_applications: list[dict] = []
-    responses: list[dict]
-    risks: list[dict]
-    applied_controls: list[dict]
-    suggested_controls: list[dict] = []
-    report_markdown: Optional[str] = None
-    suggested_questions: list[dict] = []
-    context_profile: dict = {}
-    context_sources: list[dict] = []
-    historical_matches: list[dict] = []
-    created_at: str
-    updated_at: str
-
-
-# ── MongoDB store ────────────────────────────────────────────────────────────
-
-def _context_profile_from_create(data: RiskAssessmentCreate) -> dict[str, str]:
-    profile = data.context_profile.model_dump()
-    for key in ("project_context", "business_impact", "overall_project_summary",
-                 "regulatory_context", "security_requirements", "jira_context", "free_text_context"):
-        value = str(getattr(data, key, "") or "").strip()
-        if value:
-            profile[key] = value
-    return profile
-
-
-class MongoRiskAssessmentStore:
-    def __init__(self, mongo_uri: str | None = None):
-        uri = mongo_uri or os.environ.get("MONGO_URI", "mongodb://localhost:27017")
-        client = pymongo.MongoClient(uri)
-        db = client["trace_db"]
-        self._col = db["risk_assessments"]
-        self._col.create_index("status")
-        self._col.create_index("created_at")
-        self._context_chunks = db["risk_assessment_context_chunks"]
-        self._context_chunks.create_index("ra_id")
-        self._context_chunks.create_index("source_id")
-        self._col.create_index("context_profile.regulatory_context")
-        self._col.create_index("context_profile.security_requirements")
-
-    def _to_ra(self, doc: dict) -> RiskAssessment:
-        doc = dict(doc)
-        doc["id"] = str(doc.pop("_id"))
-        doc.setdefault("responses", [])
-        doc.setdefault("risks", [])
-        doc.setdefault("applied_controls", [])
-        doc.setdefault("suggested_controls", [])
-        doc.setdefault("report_markdown", None)
-        doc.setdefault("ad_hoc_applications", [])
-        doc.setdefault("asset_ids", [])
-        doc.setdefault("suggested_questions", [])
-        doc.setdefault("context_profile", {})
-        doc.setdefault("context_sources", [])
-        doc.setdefault("historical_matches", [])
-        return RiskAssessment(**doc)
-
-    def create(self, data: RiskAssessmentCreate) -> RiskAssessment:
-        now = datetime.utcnow().isoformat()
-        # Assign generated IDs to ad hoc applications
-        ad_hoc = []
-        for app in data.ad_hoc_applications:
-            d = app.model_dump()
-            if not d.get("id"):
-                d["id"] = str(uuid.uuid4())
-            ad_hoc.append(d)
-        # Merge ad hoc IDs into asset_ids so questionnaire loop covers them uniformly
-        all_asset_ids = list(data.asset_ids) + [a["id"] for a in ad_hoc]
-        doc: dict[str, Any] = {
+    All user-triggered events (create, answer question, upload document, start
+    pipeline, add risk, apply control, generate report, etc.) are recorded here
+    so the full lifecycle of an assessment is visible in one chronological trail.
+    """
+    try:
+        _mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+        col = pymongo.MongoClient(_mongo_uri)["trace_db"]["agent_decision_trail"]
+        col.insert_one({
             "_id": str(uuid.uuid4()),
-            "title": data.title,
-            "description": data.description,
-            "status": "draft",
-            "asset_ids": all_asset_ids,
-            "ad_hoc_applications": ad_hoc,
-            "responses": [],
-            "risks": [],
-            "applied_controls": [],
-            "suggested_controls": [],
-            "report_markdown": None,
-            "suggested_questions": [],
-            "context_profile": _context_profile_from_create(data),
-            "context_sources": [],
-            "historical_matches": [],
-            "created_at": now,
-            "updated_at": now,
-        }
-        self._col.insert_one(doc)
-        return self._to_ra(dict(doc))
-
-    def list(self, status_f: str | None = None) -> list[RiskAssessment]:
-        q: dict = {}
-        if status_f:
-            q["status"] = status_f
-        return [self._to_ra(d) for d in self._col.find(q).sort("created_at", -1)]
-
-    def get(self, ra_id: str) -> RiskAssessment | None:
-        doc = self._col.find_one({"_id": ra_id})
-        return self._to_ra(doc) if doc else None
-
-    def delete(self, ra_id: str) -> bool:
-        result = self._col.delete_one({"_id": ra_id})
-        return result.deleted_count == 1
-
-    def add_response(self, ra_id: str, response: dict) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$push": {"responses": response},
-             "$set": {"status": "in_progress", "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def set_risks(self, ra_id: str, risks: list[dict], status: str = "risks_identified") -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"risks": risks, "status": status, "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def add_risk(self, ra_id: str, risk: dict) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$push": {"risks": risk}, "$set": {"updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def add_control(self, ra_id: str, control: dict) -> bool:
-        # Bug fix: make control application idempotent for each risk/control pair.
-        result = self._col.update_one(
-            {
-                "_id": ra_id,
-                "applied_controls": {
-                    "$not": {
-                        "$elemMatch": {
-                            "risk_id": control.get("risk_id"),
-                            "control_id": control.get("control_id"),
-                        }
-                    }
-                },
-            },
-            {"$push": {"applied_controls": control},
-             "$set": {"status": "controls_applied", "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def set_suggested_controls(self, ra_id: str, suggestions: list[dict]) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"suggested_controls": suggestions, "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def update_context_profile(self, ra_id: str, context_profile: dict) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"context_profile": context_profile, "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def add_context_source(self, ra_id: str, source: dict, chunks: list[dict]) -> bool:
-        now = datetime.utcnow().isoformat()
-        source = {**source, "uploaded_at": now}
-        if chunks:
-            self._context_chunks.insert_many([
-                {**chunk, "ra_id": ra_id, "source_id": source["id"], "created_at": now}
-                for chunk in chunks
-            ])
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$push": {"context_sources": source}, "$set": {"updated_at": now}},
-        )
-        return result.modified_count == 1
-
-    def remove_context_source(self, ra_id: str, source_id: str) -> bool:
-        now = datetime.now(dt.timezone.utc).isoformat()
-        self._context_chunks.delete_many({"ra_id": ra_id, "source_id": source_id})
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$pull": {"context_sources": {"id": source_id}}, "$set": {"updated_at": now}},
-        )
-        return result.modified_count == 1
-
-    def get_context_chunks(self, ra_id: str, limit: int = 30) -> list[dict]:
-        return list(self._context_chunks.find({"ra_id": ra_id}, {"_id": 0}).limit(limit))
-
-    def set_suggested_questions(self, ra_id: str, questions: list[dict]) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"suggested_questions": questions, "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def set_historical_matches(self, ra_id: str, matches: list[dict]) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"historical_matches": matches, "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def answer_suggested_question(self, ra_id: str, question_id: str, answer: str, details: str = "") -> bool:
-        ra = self.get(ra_id)
-        if not ra:
-            return False
-        questions: list[dict] = []
-        changed = False
-        for question in ra.suggested_questions:
-            item = dict(question)
-            if item.get("question_id") == question_id:
-                item["answer"] = answer
-                item["details"] = details
-                item["status"] = "answered"
-                changed = True
-            questions.append(item)
-        if not changed:
-            return False
-        return self.set_suggested_questions(ra_id, questions)
-
-    def find_similar_assessments(self, ra: "RiskAssessment", limit: int = 5) -> list[dict]:
-        query_text = " ".join([
-            ra.title,
-            ra.description,
-            json.dumps(ra.context_profile, sort_keys=True),
-            json.dumps(ra.ad_hoc_applications, sort_keys=True),
-        ])
-        query_tokens = _tokenize_match_text(query_text)
-        if not query_tokens:
-            return []
-        matches: list[dict] = []
-        cursor = self._col.find({"_id": {"$ne": ra.id}}).sort("created_at", -1).limit(100)
-        for doc in cursor:
-            candidate_text = " ".join([
-                str(doc.get("title", "")),
-                str(doc.get("description", "")),
-                json.dumps(doc.get("context_profile", {}), sort_keys=True),
-                json.dumps(doc.get("ad_hoc_applications", []), sort_keys=True),
-                json.dumps(doc.get("risks", []), sort_keys=True),
-                json.dumps(doc.get("suggested_questions", []), sort_keys=True),
-            ])
-            candidate_tokens = _tokenize_match_text(candidate_text)
-            if not candidate_tokens:
-                continue
-            overlap = query_tokens.intersection(candidate_tokens)
-            score = len(overlap) / max(len(query_tokens), 1)
-            if score <= 0:
-                continue
-            matches.append({
-                "ra_id": str(doc.get("_id")),
-                "title": doc.get("title", ""),
-                "similarity_score": round(score, 3),
-                "matched_terms": sorted(overlap)[:20],
-                "prior_risks": doc.get("risks", [])[:5],
-                "prior_questions": doc.get("suggested_questions", [])[:10],
-            })
-        return sorted(matches, key=lambda item: item["similarity_score"], reverse=True)[:limit]
-
-    def add_responses_batch(self, ra_id: str, asset_id: str, new_responses: list[dict], status: str = "in_progress") -> bool:
-        ra = self.get(ra_id)
-        if not ra:
-            return False
-        existing_other = [r for r in ra.responses if r.get("asset_id") != asset_id]
-        all_responses = existing_other + new_responses
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"responses": all_responses, "status": status,
-                      "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-    def set_report(self, ra_id: str, markdown: str) -> bool:
-        result = self._col.update_one(
-            {"_id": ra_id},
-            {"$set": {"report_markdown": markdown, "status": "complete", "updated_at": datetime.utcnow().isoformat()}},
-        )
-        return result.modified_count == 1
-
-
-_store: MongoRiskAssessmentStore | None = None
-
-
-def get_store() -> MongoRiskAssessmentStore:
-    global _store
-    if _store is None:
-        _store = MongoRiskAssessmentStore()
-    return _store
+            "ra_id": ra_id,
+            "phase": "user_action",
+            "step": None,
+            "round": None,
+            "agent": None,
+            "role": "user_action",
+            "event": event,
+            "timestamp": datetime.now(dt.timezone.utc).isoformat(),
+            "details": details or {},
+            "prompt": None,
+            "raw_response": None,
+            "parsed_output": None,
+            "error": None,
+        })
+    except Exception as exc:
+        logger.warning(f"[Audit] Failed to record user event '{event}' for {ra_id}: {exc}")
 
 
 # ── Risk scoring helpers ─────────────────────────────────────────────────────
@@ -474,88 +133,6 @@ def _format_calendar_date(value: str | datetime | None) -> str:
         return "Unknown"
 
 
-def _cia_band_from_values(confidentiality: int, integrity: int, availability: int) -> tuple[int, str]:
-    total = compute_cia_total(confidentiality, integrity, availability)
-    return total, compute_criticality(total)
-
-
-def _resolve_subject_profile(asset_store: Any, asset_id: str, ad_hoc_map: dict[str, dict]) -> dict[str, Any]:
-    asset = asset_store.get(asset_id)
-    ad_hoc = ad_hoc_map.get(asset_id)
-    if asset:
-        return {
-            "id": asset_id,
-            "name": asset.name,
-            "description": getattr(asset, "description", ""),
-            "type": getattr(asset, "type", "Registered Asset"),
-            "owner": getattr(asset, "owner", ""),
-            "support_type": getattr(asset, "support_type", None),
-            "hosting_type": getattr(asset, "hosting_type", None),
-            "classification": getattr(asset, "classification", ""),
-            "jurisdiction": getattr(asset, "jurisdiction", ""),
-            "confidentiality": getattr(asset, "confidentiality", 0),
-            "integrity": getattr(asset, "integrity", 0),
-            "availability": getattr(asset, "availability", 0),
-            "cia_total": getattr(asset, "cia_total", 0),
-            "criticality": getattr(asset, "criticality", "Unknown"),
-        }
-    if ad_hoc:
-        cia_total, criticality = _cia_band_from_values(
-            ad_hoc.get("confidentiality", 3),
-            ad_hoc.get("integrity", 3),
-            ad_hoc.get("availability", 3),
-        )
-        return {
-            "id": asset_id,
-            "name": ad_hoc.get("name", asset_id),
-            "description": ad_hoc.get("description", ""),
-            "type": "Ad hoc application",
-            "owner": ad_hoc.get("owner", ""),
-            "support_type": ad_hoc.get("support_type", None),
-            "hosting_type": ad_hoc.get("hosting_type", None),
-            "classification": ad_hoc.get("classification", ""),
-            "jurisdiction": ad_hoc.get("jurisdiction", ""),
-            "confidentiality": ad_hoc.get("confidentiality", 3),
-            "integrity": ad_hoc.get("integrity", 3),
-            "availability": ad_hoc.get("availability", 3),
-            "cia_total": cia_total,
-            "criticality": criticality,
-        }
-    return {
-        "id": asset_id,
-        "name": asset_id,
-        "description": "",
-        "type": "Unknown subject",
-        "owner": "",
-        "support_type": None,
-        "hosting_type": None,
-        "classification": "",
-        "jurisdiction": "",
-        "confidentiality": 0,
-        "integrity": 0,
-        "availability": 0,
-        "cia_total": 0,
-        "criticality": "Unknown",
-    }
-
-
-def _clean_report_text(value: str) -> str:
-    replacements = {
-        "â€”": "-",
-        "â€“": "-",
-        "—": "-",
-        "–": "-",
-        "â€™": "'",
-        "’": "'",
-        "â€œ": '"',
-        "â€\x9d": '"',
-        "“": '"',
-        "”": '"',
-    }
-    for old, new in replacements.items():
-        value = value.replace(old, new)
-    return value
-
 
 _RISK_CATEGORY_DOMAIN_HINTS: dict[str, list[str]] = {
     "Operational": ["access_control", "system_security", "cyber_operations", "business_continuity", "governance"],
@@ -591,18 +168,20 @@ _RISK_KEYWORD_DOMAIN_HINTS: dict[str, list[str]] = {
 }
 
 
-def _tokenize_match_text(text: str) -> set[str]:
-    cleaned = _clean_report_text(str(text or "")).lower()
-    return {token for token in _re.findall(r"[a-z0-9]+", cleaned) if len(token) > 2}
-
-
-_CONTEXT_PROFILE_FIELDS = frozenset({"project_context", "business_impact", "overall_project_summary", "regulatory_context", "security_requirements", "jira_context", "free_text_context"})
+# regulatory_context and security_requirements are intentionally excluded:
+# they flow from asset jurisdiction + questionnaire answers + controls library (Phase 2),
+# NOT from document extraction.
+_CONTEXT_PROFILE_FIELDS = frozenset({"project_context", "business_impact", "overall_project_summary", "jira_context", "free_text_context"})
 _DOC_METADATA_FIELDS = frozenset({"document_type", "technologies", "regulations", "data_types", "third_parties", "risk_flags"})
 
 
 def _extract_context_text(filename: str, content: bytes, source_type: str = "document") -> tuple[str, dict]:
     suffix = os.path.splitext(filename.lower())[1]
     clean_suffix = suffix.lstrip(".").lower()
+    # Image files have no extractable text — vision LLM handles them entirely.
+    # Returning empty here prevents the binary fallback from injecting garbage into the vision prompt.
+    if clean_suffix in _VISION_IMAGE_SUFFIXES:
+        return "", {"extractor": "vision-only", "suffix": suffix}
     if clean_suffix in {"pdf", "docx", "doc", "xlsx", "xls"}:
         try:
             from utils.services.conversion import convert_document
@@ -750,6 +329,182 @@ def _render_document_to_images(filename: str, content: bytes) -> list[bytes]:
     return []
 
 
+# ── Visual content signal words — presence suggests vision adds value ─────────
+_VISUAL_CONTENT_SIGNALS = frozenset({
+    "diagram", "architecture", "topology", "flowchart", "swimlane", "network",
+    "data flow", "dfd", "uml", "er diagram", "entity relationship",
+    "chart", "graph", "heatmap", "dashboard", "screenshot", "figure",
+    "table", "matrix", "spreadsheet", "schematic", "blueprint",
+    "visio", "draw.io", "lucidchart", "miro",
+})
+
+# Format reasons why vision is/isn't chosen
+_FORMAT_VISION_RATIONALE: dict[str, tuple[bool, str]] = {
+    # (vision_valuable, justification)
+    "pdf":  (True,  "PDF may contain diagrams, charts, or complex layouts not captured by text extraction"),
+    "docx": (True,  "Word document may contain embedded diagrams, tables, or SmartArt"),
+    "doc":  (True,  "Word document may contain embedded diagrams, tables, or SmartArt"),
+    "pptx": (True,  "Presentation likely contains diagrams, slides, and visual architecture content"),
+    "ppt":  (True,  "Presentation likely contains diagrams, slides, and visual architecture content"),
+    "xlsx": (True,  "Spreadsheet may contain embedded charts, pivot tables, or visual dashboards not captured by text extraction"),
+    "xls":  (True,  "Spreadsheet may contain embedded charts, pivot tables, or visual dashboards not captured by text extraction"),
+    "ods":  (True,  "OpenDocument spreadsheet may contain embedded charts or visual content"),
+    "odt":  (True,  "OpenDocument text may contain embedded diagrams or visual elements"),
+    "odp":  (True,  "OpenDocument presentation likely contains diagrams and visual content"),
+    "png":  (True,  "Image file requires vision — no text content to extract"),
+    "jpg":  (True,  "Image file requires vision — no text content to extract"),
+    "jpeg": (True,  "Image file requires vision — no text content to extract"),
+    "webp": (True,  "Image file requires vision — no text content to extract"),
+    "bmp":  (True,  "Image file requires vision — no text content to extract"),
+    "tiff": (True,  "Image file requires vision — no text content to extract"),
+    "gif":  (True,  "Image file requires vision — no text content to extract"),
+    "txt":  (False, "Plain text — all content available via markdown extraction"),
+    "md":   (False, "Markdown — all content available via text extraction"),
+    "json": (False, "JSON — fully structured, no visual content"),
+    "csv":  (False, "CSV — tabular text, no visual content"),
+    "tsv":  (False, "TSV — tabular text, no visual content"),
+    "log":  (False, "Log file — plain text, no visual content"),
+}
+
+
+def _decide_processing_strategy(
+    filename: str,
+    text: str,
+    images_available: int,
+) -> dict:
+    """Evaluate whether vision, text-only, or hybrid processing is appropriate.
+
+    Returns a dict with:
+      strategy       — "vision" | "text_only" | "hybrid" | "vision_failed"
+      justification  — human-readable reason for the decision
+      visual_signals — list of visual content keywords found in text
+      image_count    — number of page images extracted
+      llm_supports_vision — bool (checked via model metadata)
+    """
+    suffix = os.path.splitext(filename.lower())[1].lstrip(".")
+    text_lower = text.lower()
+
+    # Check if active LLM likely supports vision
+    try:
+        from utils.llm_provider import get_llm
+        llm = get_llm()
+        model_id = getattr(llm, "model", "") or getattr(llm, "model_name", "") or ""
+        # Known vision-capable model patterns
+        _VISION_MODELS = {
+            "gemini", "gpt-4o", "gpt-4-vision", "claude-3", "claude-sonnet",
+            "claude-opus", "claude-haiku", "llava", "minicpm", "bakllava",
+            "moondream", "cogvlm", "internvl", "yi-vl",
+        }
+        llm_supports_vision = any(v in model_id.lower() for v in _VISION_MODELS)
+    except Exception:
+        llm_supports_vision = False
+
+    # Detect visual content signals in extracted text
+    visual_signals = [sig for sig in _VISUAL_CONTENT_SIGNALS if sig in text_lower]
+
+    # Look up format-level rationale
+    format_vision_valuable, format_reason = _FORMAT_VISION_RATIONALE.get(
+        suffix, (True, f"Unknown format '{suffix}' — attempting vision as fallback")
+    )
+
+    if not llm_supports_vision:
+        return {
+            "strategy": "text_only",
+            "justification": (
+                f"Active LLM ({model_id or 'unknown'}) does not support vision input. "
+                f"Using MarkItDown text extraction only. "
+                + (f"Note: document contains visual signals ({', '.join(visual_signals[:5])}) "
+                   f"that vision processing could enrich — consider switching to a vision-capable model."
+                   if visual_signals else "")
+            ),
+            "visual_signals": visual_signals,
+            "image_count": images_available,
+            "llm_supports_vision": False,
+        }
+
+    if not format_vision_valuable:
+        return {
+            "strategy": "text_only",
+            "justification": (
+                f"{format_reason}. MarkItDown extraction used — vision processing skipped as it adds no value for this format."
+            ),
+            "visual_signals": visual_signals,
+            "image_count": 0,
+            "llm_supports_vision": llm_supports_vision,
+        }
+
+    if images_available == 0:
+        fallback_reason = (
+            "LibreOffice conversion unavailable or failed — could not render to page images. "
+            if suffix in _OFFICE_SUFFIXES else
+            "pdf2image/poppler not available — could not render PDF pages to images. "
+            if suffix == "pdf" else
+            "Image rendering produced no output. "
+        )
+        return {
+            "strategy": "text_only",
+            "justification": (
+                fallback_reason
+                + f"Falling back to MarkItDown text extraction. "
+                + (f"Visual signals detected in text ({', '.join(visual_signals[:5])}) suggest this document may contain diagrams — "
+                   f"install poppler/LibreOffice for vision processing."
+                   if visual_signals else "")
+            ),
+            "visual_signals": visual_signals,
+            "image_count": 0,
+            "llm_supports_vision": llm_supports_vision,
+        }
+
+    # Vision is available and valuable
+    if visual_signals:
+        strategy = "vision"
+        justification = (
+            f"{format_reason}. "
+            f"Visual content signals detected in text: {', '.join(visual_signals[:8])}. "
+            f"Vision processing applied across {images_available} page image(s) to capture diagrams, "
+            f"tables, and architectural content that text extraction may miss."
+        )
+    elif suffix in _VISION_IMAGE_SUFFIXES:
+        strategy = "vision"
+        justification = f"{format_reason}. Vision is the primary (and only) extraction method for image files."
+    else:
+        strategy = "hybrid"
+        justification = (
+            f"{format_reason}. "
+            f"No strong visual signals detected in extracted text, but vision applied to all {images_available} page(s) "
+            f"as a precaution — the document may contain embedded diagrams or charts not referenced in text. "
+            f"Results from both MarkItDown (text) and vision are merged; the richer content per field wins."
+        )
+
+    return {
+        "strategy": strategy,
+        "justification": justification,
+        "visual_signals": visual_signals,
+        "image_count": images_available,
+        "llm_supports_vision": llm_supports_vision,
+    }
+
+
+def _log_processing_strategy(ra_id: str, filename: str, strategy_result: dict) -> None:
+    """Log the vision vs. text processing decision to agent_decision_trail."""
+    try:
+        uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+        client = pymongo.MongoClient(uri)
+        client["trace_db"]["agent_decision_trail"].insert_one({
+            "ra_id": ra_id,
+            "event_type": "document_processing_strategy",
+            "filename": filename,
+            "strategy": strategy_result.get("strategy"),
+            "justification": strategy_result.get("justification"),
+            "visual_signals": strategy_result.get("visual_signals", []),
+            "image_count": strategy_result.get("image_count", 0),
+            "llm_supports_vision": strategy_result.get("llm_supports_vision"),
+            "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+        })
+    except Exception as exc:
+        logger.warning(f"Failed to log processing strategy for {filename}: {exc}")
+
+
 _VISION_BATCH_SIZE = 10  # pages per LLM call — keeps each call within token limits
 
 _VISION_LIST_FIELDS  = {"technologies", "regulations", "data_types", "third_parties", "risk_flags"}
@@ -758,14 +513,12 @@ _VISION_FIRST_FIELDS = {"document_type"}
 _EXTRACTION_SCHEMA = """{
   "project_context": "Detailed technical description: system/project purpose, full architecture (all components and connections), complete tech stack, deployment environment, all in-scope components. 3-4 sentences minimum.",
   "business_impact": "Business criticality, all data categories processed/stored/transmitted and their sensitivity, full user and stakeholder range, financial/operational/reputational impact of breach or outage. 3-4 sentences minimum.",
-  "overall_project_summary": "3-5 sentence executive summary for a risk assessment report header: what the system does, who uses it, what data it handles, and why it is being assessed.",
-  "regulatory_context": "All regulations, compliance frameworks, standards, and clauses found or strongly implied (GDPR, PCI-DSS, ISO 27001, SOC 2, HIPAA, RBI PA Guidelines, DPDP Act, NIST CSF, etc.). Explain briefly why each applies.",
-  "security_requirements": "All security requirements, control objectives, encryption standards, access control policies, logging/monitoring mandates, patch management obligations, and security SLAs explicitly mentioned or strongly implied.",
+  "overall_project_summary": "3-5 sentence executive summary for a risk assessment report header: what the system does, who uses it, what data it handles, its business criticality, the sensitivity of that data, the range of users affected, and why it is being assessed.",
   "jira_context": "If the document contains Jira tickets, sprints, open defects, incidents, or delivery risks — summarise them. Empty string if none present.",
-  "free_text_context": "Any additional risk-relevant content not captured above: threat actors, past incidents, audit findings, pen-test observations, vulnerabilities, architectural debt, third-party risks, or any other material an assessor should know.",
+  "free_text_context": "Any additional risk-relevant content: threat actors, past incidents, audit findings, pen-test observations, vulnerabilities, architectural debt, third-party risks, or any other material an assessor should know.",
   "document_type": "architecture_doc | security_policy | vapt_report | data_flow_diagram | jira_export | compliance_doc | vendor_assessment | threat_model | sow | incident_report | other",
   "technologies": ["Every specific technology, framework, language, database, cloud service, or platform named"],
-  "regulations": ["Every regulation, standard, directive, or clause named"],
+  "regulations": ["Every regulation, standard, directive, or clause named — for metadata only, not auto-populated into regulatory_context"],
   "data_types": ["Every data category processed, stored, or transmitted — be specific (e.g. PII, payment card data, health records, credentials, audit logs)"],
   "third_parties": ["Every external vendor, SaaS provider, cloud provider, payment gateway, or integration partner mentioned"],
   "risk_flags": ["Every specific risk concern, control gap, vulnerability, open finding, or red flag — be concrete and name the specific issue"]
@@ -829,6 +582,26 @@ def _merge_vision_results(results: list[dict]) -> dict:
     return merged
 
 
+def _image_mime_type(img_bytes: bytes) -> str:
+    """Detect image MIME type from magic bytes so the data-URI is correct for every format.
+
+    Falls back to image/png when the format is unrecognised — most LLMs accept it.
+    """
+    if img_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if img_bytes[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if img_bytes[:4] == b"RIFF" and img_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if img_bytes[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if img_bytes[:2] == b"BM":
+        return "image/bmp"
+    if img_bytes[:4] in (b"II*\x00", b"MM\x00*"):
+        return "image/tiff"
+    return "image/png"
+
+
 def _llm_extract_context_with_vision(text: str, images: list[bytes]) -> dict:
     """Process ALL pages of a document — no fixed page cap.
 
@@ -870,9 +643,10 @@ def _llm_extract_context_with_vision(text: str, images: list[bytes]) -> dict:
 
         content_parts: list[dict] = [{"type": "text", "text": prompt}]
         for img_bytes in batch:
+            mime = _image_mime_type(img_bytes)
             content_parts.append({
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_bytes).decode()}"},
+                "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"},
             })
 
         try:
@@ -894,6 +668,52 @@ def _llm_extract_context_with_vision(text: str, images: list[bytes]) -> dict:
     return _merge_vision_results(all_results)
 
 
+def _merge_extraction_dicts(text_result: dict, vision_result: dict) -> dict:
+    """Merge text-only and vision extraction results into one richer combined dict.
+
+    When a document contains both prose AND diagrams/tables, each extractor captures
+    complementary information — text extraction reads the full written content (up to
+    18 000 chars of prose), while vision reads the visual layer (component diagrams,
+    data-flow arrows, table cell values).  Neither is a superset of the other.
+
+    Strategy per field type:
+      - String fields: concatenate both with labelled sections so downstream agents
+        see the textual explanation AND the visual interpretation side by side.
+        Empty contributions are skipped so we don't add blank sections.
+      - List fields: union of both, deduplicated, order-preserving.
+      - document_type: vision wins when non-empty (cover-page layout is more reliable).
+    """
+    merged: dict = {}
+    all_keys = set(text_result) | set(vision_result)
+    for key in all_keys:
+        t_val = text_result.get(key)
+        v_val = vision_result.get(key)
+
+        if key == "document_type":
+            merged[key] = (v_val or t_val or "")
+
+        elif key in _VISION_LIST_FIELDS:
+            combined: list = []
+            seen: set = set()
+            for item in list(t_val or []) + list(v_val or []):
+                s = str(item).strip()
+                if s and s not in seen:
+                    combined.append(s)
+                    seen.add(s)
+            merged[key] = combined
+
+        else:
+            # String fields — concatenate complementary content
+            t_str = str(t_val).strip() if isinstance(t_val, str) else ""
+            v_str = str(v_val).strip() if isinstance(v_val, str) else ""
+            if t_str and v_str and t_str != v_str:
+                merged[key] = f"{t_str}\n\n[Visual content from diagrams/tables]\n{v_str}"
+            else:
+                merged[key] = v_str or t_str
+
+    return merged
+
+
 def _llm_extract_context_from_document(markdown: str) -> dict:
     from langchain.schema import HumanMessage
     from utils.llm_provider import get_llm
@@ -908,9 +728,7 @@ Return ONLY a valid JSON object with ALL of these exact fields. Populate each fi
 {{
   "project_context": "Detailed technical description covering: what the system/project is, its full architecture (components, layers, integrations), the complete tech stack (languages, frameworks, databases, cloud services), deployment environment (on-prem/cloud/hybrid, regions, containerisation), and all in-scope components. Write at least 3-4 sentences if evidence exists.",
   "business_impact": "Detailed description covering: business criticality and why this system matters, all categories of data it processes/stores/transmits and their sensitivity, the full range of users and stakeholders affected, and the financial, operational, and reputational impact of a breach, outage, or compliance failure. Write at least 3-4 sentences if evidence exists.",
-  "overall_project_summary": "A 3-5 sentence executive summary written for a risk assessment report header. Cover: what the system does, who uses it, what data it handles, and why it is being assessed now.",
-  "regulatory_context": "All applicable regulations, compliance frameworks, standards, and clauses found or strongly implied in the document (e.g. GDPR, DPDP Act 2023, RBI PA Guidelines, PCI-DSS, ISO 27001, SOC 2, HIPAA, SEBI, IRDAI, NIST CSF). Explain briefly why each applies based on the document content.",
-  "security_requirements": "All security requirements, control objectives, constraints, and obligations explicitly mentioned or strongly implied. Include authentication requirements, encryption standards, access control policies, logging/monitoring mandates, patch management obligations, and any stated security SLAs.",
+  "overall_project_summary": "A 3-5 sentence executive summary written for a risk assessment report header. Cover: what the system does, who uses it, what data it handles, its business criticality and the financial/operational/reputational impact of a breach or outage, and why it is being assessed now.",
   "jira_context": "If the document contains Jira tickets, sprint data, delivery risks, open defects, incidents, or project management artefacts — summarise the open items, high-priority tickets, delivery risks, and any defects or incidents relevant to security or risk. Leave empty if no Jira or delivery context is present.",
   "free_text_context": "Any additional risk-relevant context from the document that does not fit the fields above: threat actors mentioned, past incidents described, audit findings, pen test observations, known vulnerabilities, architectural debt, third-party risks, or any other material that an assessor should know.",
   "document_type": "One of: architecture_doc | security_policy | vapt_report | data_flow_diagram | jira_export | compliance_doc | vendor_assessment | threat_model | sow | incident_report | other",
@@ -946,80 +764,6 @@ def _chunk_context_text(text: str, chunk_size: int = 2500) -> list[str]:
     if not clean:
         return []
     return [clean[i:i + chunk_size] for i in range(0, len(clean), chunk_size) if clean[i:i + chunk_size].strip()]
-
-
-def _build_ra_context_pack(ra: "RiskAssessment", chunks: list[dict]) -> str:
-    context_profile = json.dumps(ra.context_profile or {}, indent=2, sort_keys=True)
-    doc_sections: list[str] = []
-    covered_chunk_ids: set[str] = set()
-    for source in (ra.context_sources or [])[:5]:
-        meta = source.get("doc_metadata") or {}
-        src_id = source.get("id", "")
-        lines = [f"=== {source.get('filename', 'document')} (type: {meta.get('document_type', 'unknown')}) ==="]
-        if meta.get("technologies"):
-            lines.append(f"  Technologies/services: {', '.join(meta['technologies'])}")
-        if meta.get("regulations"):
-            lines.append(f"  Regulations & standards: {', '.join(meta['regulations'])}")
-        if meta.get("data_types"):
-            lines.append(f"  Data categories: {', '.join(meta['data_types'])}")
-        if meta.get("third_parties"):
-            lines.append(f"  Third parties/integrations: {', '.join(meta['third_parties'])}")
-        if meta.get("risk_flags"):
-            lines.append(f"  RISK FLAGS - specific gaps found: {'; '.join(meta['risk_flags'])}")
-        full_text = source.get("full_text", "").strip()
-        if full_text:
-            lines.append(f"  Extracted content:\n{full_text[:4000]}")
-            for chunk in chunks:
-                if chunk.get("source_id") == src_id:
-                    covered_chunk_ids.add(chunk.get("id", ""))
-        elif source.get("summary"):
-            lines.append(f"  Summary: {source['summary'][:400]}")
-        doc_sections.append("\n".join(lines))
-    docs_block = "\n\n".join(doc_sections) if doc_sections else "No documents uploaded yet."
-    extra_chunks = [c for c in chunks if c.get("id", "") not in covered_chunk_ids]
-    chunk_supplement = "\n".join(f"- {str(chunk.get('text', ''))[:1500]}" for chunk in extra_chunks[:15])
-    historical_summary = "\n".join(
-        f"- {match.get('title', '')} ({match.get('similarity_score', 0)}): {', '.join(match.get('matched_terms', [])[:8])}"
-        for match in (ra.historical_matches or [])[:5]
-    )
-    supplement_block = ("\n=== ADDITIONAL DOCUMENT EXCERPTS (supplementary) ===\n" + chunk_supplement if chunk_supplement.strip() else "")
-    return f"""=== CONTEXT PROFILE (AI-extracted + user-edited) ===
-{context_profile}
-
-=== UPLOADED DOCUMENTS ===
-{docs_block}
-{supplement_block}
-=== SIMILAR HISTORICAL ASSESSMENTS ===
-{historical_summary or "None"}""".strip()
-
-
-def _fallback_suggested_questions(ra: "RiskAssessment", chunks: list[dict]) -> list[dict]:
-    context_text = " ".join([
-        ra.title, ra.description,
-        json.dumps(ra.context_profile or {}, sort_keys=True),
-        " ".join(str(chunk.get("text", "")) for chunk in chunks[:10]),
-    ]).lower()
-    questions: list[dict] = []
-
-    def add(question_id: str, section_id: str, text: str, question_type: str, priority: str, rationale: str) -> None:
-        questions.append({"question_id": question_id, "section_id": section_id, "section_title": "Context Driven Questions",
-                          "text": text, "question_type": question_type, "priority": priority,
-                          "source": "context_rule", "rationale": rationale, "status": "suggested"})
-
-    if any(t in context_text for t in ["gdpr", "personal data", "pii", "data subject", "privacy"]):
-        add("dyn_gdpr_001", "privacy_regulatory", "Does the project process personal data for EU or UK data subjects?", "Exposure", "high", "Privacy or GDPR context was detected.")
-        add("dyn_gdpr_002", "privacy_regulatory", "Has the lawful basis for personal data processing been documented?", "Control", "high", "GDPR requires a documented lawful basis.")
-        add("dyn_gdpr_003", "privacy_regulatory", "Are data retention, subprocessors, and cross-border transfers documented?", "Control", "high", "GDPR obligations may apply to retention and third-party processing.")
-    if any(t in context_text for t in ["jira", "ticket", "defect", "bug", "incident", "backlog"]):
-        add("dyn_jira_001", "delivery_risk", "Are unresolved high-priority Jira items relevant to security, privacy, or availability?", "Exposure", "medium", "Jira or delivery issue context was detected.")
-        add("dyn_jira_002", "delivery_risk", "Are owners and due dates assigned for open remediation or security tickets?", "Control", "medium", "Open delivery items may affect the current risk posture.")
-    if any(t in context_text for t in ["mfa", "encryption", "logging", "vulnerability", "secrets", "iam", "authentication"]):
-        add("dyn_sec_001", "security_requirements", "Are explicit security requirements mapped to implemented controls and evidence?", "Control", "high", "Security requirements were detected in the context.")
-        add("dyn_sec_002", "security_requirements", "Are logging, monitoring, encryption, secrets management, and access controls covered by the design?", "Control", "high", "Core security-control topics were detected.")
-    if not questions:
-        add("dyn_context_001", "business_context", "What business outcome would be impacted if this project or application failed?", "Context", "medium", "Additional impact context improves risk scoring.")
-        add("dyn_context_002", "business_context", "Are there regulatory, privacy, security, or contractual requirements that must be considered?", "Context", "medium", "No specific compliance trigger was detected yet.")
-    return questions
 
 
 def _normalize_controls_for_suggestion(raw_controls: list[dict]) -> list[dict]:
@@ -1383,7 +1127,13 @@ def get_assessment_sections():
 
 @router.post("", status_code=201, response_model=RiskAssessment)
 def create_assessment(body: RiskAssessmentCreate):
-    return get_store().create(body)
+    created = get_store().create(body)
+    _record_user_event(
+        created.id,
+        "assessment_created",
+        {"title": body.title, "asset_ids": body.asset_ids},
+    )
+    return created
 
 
 @router.get("", response_model=list[RiskAssessment])
@@ -1405,10 +1155,40 @@ def update_assessment_context(ra_id: str, body: RiskAssessmentContextUpdate):
     if not ra:
         raise HTTPException(404, "Assessment not found")
     get_store().update_context_profile(ra_id, body.context_profile.model_dump())
+    _record_user_event(ra_id, "context_profile_updated", {"fields_set": list(body.context_profile.model_fields_set)})
     updated = get_store().get(ra_id)
     if not updated:
         raise HTTPException(404, "Assessment not found")
     return updated
+
+
+def _is_extraction_meaningful(extracted: dict) -> bool:
+    """Return True if the extraction result contains risk-relevant content.
+
+    Technologies alone are NOT sufficient — a resume lists Python/Java as skills but is
+    irrelevant. We require at least one strong risk signal:
+
+      1. Named document_type (not "other") — LLM recognised it as a specific technical doc
+      2. risk_flags present — explicit findings/vulnerabilities cited
+      3. regulations present — compliance obligations identified
+      4. data_types present — sensitive data categories identified (PII, PCI, PHI, etc.)
+      5. Two or more substantial narrative fields (>80 chars each) — enough context to be
+         useful; one long field could still be a biography or CV work history
+
+    Everything else (technologies only, third_parties only, all-empty) is rejected.
+    """
+    doc_type = extracted.get("document_type", "other")
+    if doc_type and doc_type != "other":
+        return True
+    if extracted.get("risk_flags"):
+        return True
+    if extracted.get("regulations"):
+        return True
+    if extracted.get("data_types"):
+        return True
+    _NARRATIVE = ("project_context", "business_impact", "overall_project_summary", "free_text_context")
+    substantial = [f for f in _NARRATIVE if len(str(extracted.get(f, "")).strip()) > 80]
+    return len(substantial) >= 2
 
 
 @router.post("/{ra_id}/context-files", status_code=201)
@@ -1432,14 +1212,60 @@ async def upload_assessment_context_file(
     # Vision extraction: render document pages / images and send to multimodal LLM.
     # Falls back to text-only automatically if vision is unavailable or fails.
     page_images = _render_document_to_images(filename, content)
+    processing_strategy = _decide_processing_strategy(filename, text, len(page_images))
+    _log_processing_strategy(ra_id, filename, processing_strategy)
     doc_metadata: dict = {}
+    content_relevant: bool = True
     if text.strip() or page_images:
-        extracted = _llm_extract_context_with_vision(text, page_images)
+        strategy = processing_strategy.get("strategy", "vision")
+        if strategy == "hybrid" and text.strip() and page_images:
+            # True hybrid: run both extractors concurrently and merge complementary content.
+            # Text extraction captures the full prose (up to 18 000 chars);
+            # vision extraction captures diagrams, tables, and visual layouts.
+            # Both run in parallel via ThreadPoolExecutor — they read from independent data
+            # (text string vs image bytes) so there is no shared mutable state.
+            # Results are merged field-by-field so nothing is lost.
+            # The merged doc_llm_extraction is stored in MongoDB and later included in
+            # context_pack, which both SA and RA agents receive unchanged.
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=2) as _ex:
+                _fut_text   = _ex.submit(_llm_extract_context_from_document, text)
+                _fut_vision = _ex.submit(_llm_extract_context_with_vision, text, page_images)
+                text_extracted   = _fut_text.result()
+                vision_extracted = _fut_vision.result()
+            extracted = _merge_extraction_dicts(text_extracted, vision_extracted)
+            logger.info(f"Hybrid extraction complete for {filename} — merged text + vision results (parallel)")
+        elif strategy == "text_only":
+            # Plain text formats (txt, md, json, csv) and fallback when no images are available
+            # or the active LLM does not support vision.  Avoids an unnecessary vision call.
+            extracted = _llm_extract_context_from_document(text)
+        else:
+            extracted = _llm_extract_context_with_vision(text, page_images)
+        content_relevant = True
+        if extracted and not _is_extraction_meaningful(extracted):
+            logger.warning(
+                f"Extracted context from '{filename}' appears unrelated to risk assessment "
+                f"(document_type='{extracted.get('document_type', '')}', all substantive fields empty). "
+                f"File stored but excluded from risk assessment context."
+            )
+            extracted = {}
+            content_relevant = False
+        doc_llm_extraction: dict = {}
+        merged_profile: dict | None = None
         if extracted:
             doc_metadata = {k: extracted[k] for k in _DOC_METADATA_FIELDS if k in extracted}
+            # Preserve full per-document vision/text extraction on the source record.
+            # Narrative fields (project_context, business_impact, free_text_context) capture
+            # diagram, table, and chart interpretations that may not appear in raw full_text.
+            # Stored here so _build_ra_context_pack can show them even if full_text is short.
+            doc_llm_extraction = {
+                k: extracted[k]
+                for k in (_CONTEXT_PROFILE_FIELDS | _DOC_METADATA_FIELDS)
+                if k in extracted and extracted[k]
+            }
             existing = ra.context_profile or {}
             existing_dict = existing if isinstance(existing, dict) else (existing.model_dump() if hasattr(existing, "model_dump") else dict(existing))
-            merged = {
+            merged_profile = {
                 **existing_dict,
                 **{
                     k: extracted[k]
@@ -1450,21 +1276,73 @@ async def upload_assessment_context_file(
                     and len(extracted[k].strip()) > len(str(existing_dict.get(k, "")).strip())
                 },
             }
-            get_store().update_context_profile(ra_id, merged)
+            # Do NOT write to MongoDB yet — wait until classification confirms relevance.
+            # Writing here and rolling back on rejection is not atomic; deferred write is safer.
+    # Document Classification Agent — determine relevance and type before storing
+    from utils.agentic_pipeline import classify_document_for_risk_assessment
+    classification = classify_document_for_risk_assessment(
+        ra_id=ra_id,
+        filename=filename,
+        text_excerpt=text[:3000],
+        doc_metadata=doc_metadata,
+        user_tag=source_type if source_type != "document" else None,
+    )
+
+    # Reject irrelevant documents immediately — do not store them anywhere.
+    # The user should not have to manually remove files the LLM determined are irrelevant.
+    document_accepted = content_relevant and classification["relevant"]
+    if not document_accepted:
+        return {
+            "ok": False,
+            "accepted": False,
+            "source": None,
+            "chunks_created": 0,
+            "classification": classification,
+            "content_relevant": content_relevant,
+            "processing_strategy": processing_strategy,
+            "assessment": get_store().get(ra_id),
+        }
+
+    # Document accepted — now safe to write the extracted context profile to MongoDB.
+    if merged_profile:
+        get_store().update_context_profile(ra_id, merged_profile)
+
     source = {
         "id": str(uuid.uuid4()),
         "filename": filename,
         "content_type": file.content_type,
-        "source_type": source_type,
+        "source_type": classification["classified_type"],
+        "user_tag": source_type if source_type != "document" else None,
+        "tag_overridden": classification["overrides_user_tag"],
+        "relevance": "accepted",
+        "relevance_reasoning": classification["reasoning"],
+        "rejection_reason": "",
+        "classification_confidence": classification["confidence"],
         "sha256": hashlib.sha256(content).hexdigest(),
         "summary": _clean_report_text(text)[:500],
         "metadata": metadata,
-        "full_text": text[:12000],
+        "full_text": text[:60000],
         "doc_metadata": doc_metadata,
+        "doc_llm_extraction": doc_llm_extraction,
     }
     get_store().add_context_source(ra_id, source, chunks)
+    _record_user_event(ra_id, "document_uploaded", {
+        "filename": filename,
+        "source_type": classification["classified_type"],
+        "processing_strategy": processing_strategy.get("strategy"),
+        "chunks_created": len(chunks),
+    })
     updated = get_store().get(ra_id)
-    return {"ok": True, "source": source, "chunks_created": len(chunks), "assessment": updated}
+    return {
+        "ok": True,
+        "accepted": True,
+        "source": source,
+        "chunks_created": len(chunks),
+        "classification": classification,
+        "content_relevant": content_relevant,
+        "processing_strategy": processing_strategy,
+        "assessment": updated,
+    }
 
 
 @router.delete("/{ra_id}/context-files/{source_id}", status_code=200)
@@ -1475,6 +1353,68 @@ def delete_assessment_context_file(ra_id: str, source_id: str):
     ok = get_store().remove_context_source(ra_id, source_id)
     if not ok:
         raise HTTPException(404, "Context source not found")
+    _record_user_event(ra_id, "document_deleted", {"source_id": source_id})
+    updated = get_store().get(ra_id)
+    return {"ok": True, "assessment": updated}
+
+
+@router.post("/{ra_id}/recompute-context-profile")
+def recompute_context_profile(ra_id: str):
+    """Re-extract the context profile by reading ALL accepted documents together.
+
+    Called by the frontend after a batch upload completes so the profile fields
+    reflect a holistic reading of every document, not the last-one-wins merge
+    that happens during per-document uploads.
+    """
+    ra = get_store().get(ra_id)
+    if not ra:
+        raise HTTPException(404, "Assessment not found")
+
+    accepted_sources = [s for s in (ra.context_sources or []) if s.get("relevance") != "rejected"]
+    if not accepted_sources:
+        return {"ok": True, "assessment": ra}
+
+    # Build a combined text from all accepted documents.
+    # For image/vision-only docs there is no full_text — use their doc_llm_extraction
+    # narrative fields instead so the LLM still sees what was extracted visually.
+    _NARRATIVE_FIELDS = (
+        "project_context", "business_impact", "overall_project_summary",
+        "jira_context", "free_text_context",
+    )
+    combined_parts: list[str] = []
+    for source in accepted_sources:
+        filename = source.get("filename", "document")
+        full_text = (source.get("full_text") or "").strip()
+        llm_ext = source.get("doc_llm_extraction") or {}
+        parts = [f"=== {filename} ==="]
+        if full_text:
+            parts.append(full_text[:8_000])
+        for field in _NARRATIVE_FIELDS:
+            val = str(llm_ext.get(field) or "").strip()
+            if val:
+                parts.append(f"[{field}]: {val}")
+        combined_parts.append("\n".join(parts))
+
+    combined_text = "\n\n".join(combined_parts)
+    extracted = _llm_extract_context_from_document(combined_text)
+    if extracted and _is_extraction_meaningful(extracted):
+        existing_dict = (ra.context_profile or {})
+        if not isinstance(existing_dict, dict):
+            existing_dict = existing_dict.model_dump() if hasattr(existing_dict, "model_dump") else dict(existing_dict)
+        merged = {
+            **existing_dict,
+            **{
+                k: extracted[k]
+                for k in _CONTEXT_PROFILE_FIELDS
+                if k in extracted and isinstance(extracted[k], str) and extracted[k].strip()
+            },
+        }
+        get_store().update_context_profile(ra_id, merged)
+
+    _record_user_event(ra_id, "context_profile_recomputed", {
+        "document_count": len(accepted_sources),
+        "extraction_meaningful": bool(extracted and _is_extraction_meaningful(extracted)),
+    })
     updated = get_store().get(ra_id)
     return {"ok": True, "assessment": updated}
 
@@ -1489,87 +1429,166 @@ def refresh_historical_context(ra_id: str):
     return {"assessment_id": ra_id, "matches": matches}
 
 
-@router.post("/{ra_id}/suggest-questions")
-def suggest_context_questions(ra_id: str):
-    import json as _json
-    from langchain.schema import HumanMessage
-    from utils.llm_provider import get_llm
+@router.get("/{ra_id}/pipeline-status")
+def get_pipeline_status(ra_id: str):
+    """Poll pipeline progress for Phase 1 or Phase 2."""
+    # Read directly from MongoDB — pipeline_phase1_status etc. are not part of
+    # the RiskAssessment Pydantic model and would be silently dropped by get_store().get().
+    doc = pymongo.MongoClient(
+        os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+    )["trace_db"]["risk_assessments"].find_one({"_id": ra_id})
+    if not doc:
+        raise HTTPException(404, "Assessment not found")
+    return {
+        "assessment_id": ra_id,
+        "pipeline_phase1_status": doc.get("pipeline_phase1_status", "idle"),
+        "pipeline_phase2_status": doc.get("pipeline_phase2_status", "idle"),
+        "pipeline_phase1_error":  doc.get("pipeline_phase1_error", ""),
+        "pipeline_phase2_error":  doc.get("pipeline_phase2_error", ""),
+        "pipeline_updated_at":    doc.get("pipeline_updated_at", ""),
+        "suggested_questions":    doc.get("suggested_questions", []),
+        "agentic_risks":          doc.get("agentic_risks", []),
+    }
 
-    ra = get_store().get(ra_id)
+
+@router.get("/{ra_id}/audit-trail")
+def get_audit_trail(ra_id: str, limit: int = 200):
+    """Return the full agent decision trail for an assessment.
+
+    Includes all logged events in chronological order:
+    - lifecycle: pipeline start / complete events
+    - jurisdiction_filtering: per-framework applicability decisions
+    - routing: orchestrator routing decisions between agents
+    - execution: individual agent LLM calls (prompt, response, duration)
+    - doc_classification: document type classification decisions
+    - processing_strategy: vision/text/hybrid strategy choices per document
+    """
+    import pymongo as _pymongo
+    import os as _os
+    _mongo_uri = _os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+    try:
+        col = _pymongo.MongoClient(_mongo_uri)["trace_db"]["agent_decision_trail"]
+        events = list(
+            col.find({"ra_id": ra_id}, {"_id": 0})
+               .sort("timestamp", 1)
+               .limit(limit)
+        )
+    except Exception as exc:
+        raise HTTPException(500, f"Could not query audit trail: {exc}")
+    return {
+        "assessment_id": ra_id,
+        "event_count": len(events),
+        "events": events,
+    }
+
+
+@router.post("/{ra_id}/suggest-questions", status_code=202)
+def suggest_context_questions(ra_id: str):
+    """Enqueue Phase 1 agentic pipeline and return immediately (HTTP 202).
+
+    All the work — enriching historical matches, building the context pack,
+    fetching all assets in scope, running the Security Architect → Regulatory
+    Analyst → Quality Analyst LangGraph pipeline, normalising and deduplicating
+    question IDs — happens inside the ra_worker Celery task (ra_tasks.run_phase1).
+
+    The frontend should poll GET /{ra_id}/pipeline-status until
+    pipeline_phase1_status == "complete", then reload the assessment to get
+    the suggested_questions list.
+    """
+    store = get_store()
+    ra = store.get(ra_id)
     if not ra:
         raise HTTPException(404, "Assessment not found")
-    matches = get_store().find_similar_assessments(ra)
-    get_store().set_historical_matches(ra_id, matches)
-    ra = get_store().get(ra_id) or ra
-    chunks = get_store().get_context_chunks(ra_id)
-    context_pack = _build_ra_context_pack(ra, chunks)
-    sources = ra.context_sources or []
-    doc_inventory = ", ".join(
-        f"{s.get('filename', 'file')} ({(s.get('doc_metadata') or {}).get('document_type', 'document')})"
-        for s in sources[:5]
-    ) if sources else "no documents uploaded"
 
-    prompt = f"""You are a senior technology risk assessor conducting a formal risk assessment.
+    # Mark queued immediately so the UI spinner starts before the worker picks it up
+    store._col.update_one(
+        {"_id": ra_id},
+        {"$set": {
+            "pipeline_phase1_status": "queued",
+            "pipeline_phase1_error": "",
+            "pipeline_updated_at": datetime.now(dt.timezone.utc).isoformat(),
+        }},
+    )
 
-The assessor has uploaded the following documents: {doc_inventory}
+    from utils.ra_tasks import run_phase1
+    task = run_phase1.apply_async(args=[ra_id], queue="ra_pipeline")
+    _record_user_event(ra_id, "phase1_pipeline_queued", {"task_id": task.id})
 
-YOUR TASK: Generate highly specific, document-derived evidence-request questions.
+    return {
+        "assessment_id": ra_id,
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Phase 1 pipeline queued — poll /pipeline-status for progress",
+    }
 
-CRITICAL RULES:
-1. Every question MUST be grounded in something specific found in the uploaded documents.
-2. Name the specific thing from the document in the question text.
-3. Ask for a concrete, named artefact as evidence.
-4. In the rationale, cite both the specific document finding and the applicable regulation/standard.
-5. Cover different risk areas - do not generate 5 questions all about the same topic.
 
-{context_pack}
+@router.post("/{ra_id}/identify-risks-agentic", status_code=202)
+def identify_risks_agentic(ra_id: str):
+    """Enqueue Phase 2 agentic pipeline and return immediately (HTTP 202).
 
-Return ONLY a valid JSON array of up to 15 questions. Each item:
-{{
-  "question_id": "dyn_<short_snake_case_id>",
-  "section_id": "access_control|data_protection|vulnerability_management|incident_response|third_party_risk|delivery_risk|architecture|compliance|cloud_security|identity_management",
-  "section_title": "Human-readable section name",
-  "text": "Given that [specific finding from the document], please provide [named artefact/evidence] demonstrating [control or requirement].",
-  "question_type": "Exposure|Control|Context",
-  "priority": "low|medium|high",
-  "source": "llm_context",
-  "rationale": "[Document filename + specific finding] - [applicable regulation or standard clause] requires this because [concise reason].",
-  "status": "suggested"
-}}
+    All the work — building the context pack, fetching all assets, flattening
+    questionnaire answers, loading the controls library, running the LangGraph
+    pipeline, and writing the validated risks back to MongoDB — happens inside
+    the ra_worker Celery task (ra_tasks.run_phase2).
 
-If no documents were uploaded, generate questions based on the stated technologies, data types, and business context - but still be specific."""
+    The frontend should poll GET /{ra_id}/pipeline-status until
+    pipeline_phase2_status == "complete", then reload the assessment to get
+    the agentic_risks list.
+    """
+    store = get_store()
+    ra = store.get(ra_id)
+    if not ra:
+        raise HTTPException(404, "Assessment not found")
 
-    try:
-        llm = get_llm()
-        response = llm.invoke([HumanMessage(content=prompt)])
-        content = response.content.strip()
-        content = _re.sub(r"^```[a-zA-Z]*\n?", "", content)
-        content = _re.sub(r"\n?```$", "", content).strip()
-        raw_questions = _json.loads(content)
-        if not isinstance(raw_questions, list):
-            raise ValueError(f"Expected JSON array, got {type(raw_questions).__name__}")
-    except Exception as exc:
-        logger.error(f"Question suggestion failed for {ra_id}: {exc}")
-        raw_questions = _fallback_suggested_questions(ra, chunks)
+    # Mark queued immediately so the UI spinner starts
+    store._col.update_one(
+        {"_id": ra_id},
+        {"$set": {
+            "pipeline_phase2_status": "queued",
+            "pipeline_phase2_error": "",
+            "pipeline_updated_at": datetime.now(dt.timezone.utc).isoformat(),
+        }},
+    )
 
-    normalized: list[dict] = []
-    seen_ids: set[str] = set()
-    for i, item in enumerate(raw_questions[:25], start=1):
-        if not isinstance(item, dict):
-            continue
-        candidate = dict(item)
-        candidate.setdefault("question_id", f"dyn_context_{i:03d}")
-        candidate.setdefault("text", "")
-        if not str(candidate.get("text", "")).strip():
-            continue
-        candidate["question_id"] = str(candidate["question_id"]).strip() or f"dyn_context_{i:03d}"
-        if candidate["question_id"] in seen_ids:
-            candidate["question_id"] = f"{candidate['question_id']}_{i}"
-        seen_ids.add(candidate["question_id"])
-        normalized.append(SuggestedQuestion(**candidate).model_dump())
+    from utils.ra_tasks import run_phase2
+    task = run_phase2.apply_async(args=[ra_id], queue="ra_pipeline")
+    _record_user_event(ra_id, "phase2_pipeline_queued", {"task_id": task.id})
 
-    get_store().set_suggested_questions(ra_id, normalized)
-    return {"assessment_id": ra_id, "suggested_questions": normalized}
+    return {
+        "assessment_id": ra_id,
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Phase 2 pipeline queued — poll /pipeline-status for progress",
+    }
+
+@router.get("/{ra_id}/decision-trail")
+def get_decision_trail(ra_id: str, phase: str | None = None):
+    """Return the full agent decision trail for an assessment.
+
+    Each entry in the trail is either:
+      - An orchestrator routing decision (role='routing'): shows which agent ran,
+        what was next, and why (advance_queue / next_round / pipeline_complete).
+      - An agent execution (role='execution'): includes the full prompt sent to the
+        LLM, the raw LLM response, the parsed output, timing, and success/failure status.
+
+    This provides complete explainability and auditability for every AI decision.
+    Query params:
+      phase: filter by 'phase1' or 'phase2' (optional — returns all phases if omitted)
+    """
+    from utils.agentic_pipeline import _trail_col
+    query: dict = {"ra_id": ra_id}
+    if phase:
+        query["phase"] = phase
+    entries = list(
+        _trail_col()
+        .find(query, {"_id": 0})
+        .sort([("phase", 1), ("step", 1)])
+    )
+    return {
+        "assessment_id": ra_id,
+        "total_steps": len(entries),
+        "trail": entries,
+    }
 
 
 @router.post("/{ra_id}/suggest-questions/{question_id}/respond", status_code=201)
@@ -1580,12 +1599,18 @@ def answer_context_question(ra_id: str, question_id: str, body: SuggestedQuestio
     ok = get_store().answer_suggested_question(ra_id, question_id, body.answer, body.details)
     if not ok:
         raise HTTPException(404, "Suggested question not found")
+    _record_user_event(ra_id, "ai_context_question_answered", {
+        "question_id": question_id,
+        "answer": body.answer,
+        "has_details": bool(body.details),
+    })
     updated = get_store().get(ra_id)
     return {"ok": True, "suggested_questions": updated.suggested_questions if updated else []}
 
 
 @router.delete("/{ra_id}", status_code=204)
 def delete_assessment(ra_id: str):
+    _record_user_event(ra_id, "assessment_deleted", {})
     if not get_store().delete(ra_id):
         raise HTTPException(404, "Assessment not found")
 
@@ -1605,6 +1630,12 @@ def submit_response(ra_id: str, body: ResponseSubmit):
         "submitted_at": datetime.utcnow().isoformat(),
     }
     get_store().add_response(ra_id, response)
+    _record_user_event(ra_id, "question_answered", {
+        "question_id": body.question_id,
+        "section_id": body.section_id,
+        "answer": body.answer,
+        "asset_id": body.asset_id,
+    })
     return {"ok": True, "response_id": response["id"]}
 
 
@@ -1631,6 +1662,11 @@ def submit_response_batch(ra_id: str, body: ResponseBatch):
     ]
     status = "draft" if body.save_as_draft else "in_progress"
     get_store().add_responses_batch(ra_id, asset_id, new_responses, status=status)
+    _record_user_event(ra_id, "questionnaire_batch_submitted", {
+        "asset_id": asset_id,
+        "response_count": len(new_responses),
+        "saved_as_draft": body.save_as_draft,
+    })
     updated = get_store().get(ra_id)
     return updated
 
@@ -1666,6 +1702,13 @@ def add_human_risk(ra_id: str, body: RiskOverride):
         "status": "identified",
     }
     get_store().add_risk(ra_id, risk)
+    _record_user_event(ra_id, "risk_manually_added", {
+        "risk_id": risk["id"],
+        "title": risk["title"],
+        "inherent_risk_band": risk["inherent_risk_band"],
+        "inherent_risk_score": risk["inherent_risk_score"],
+        "asset_id": body.asset_id,
+    })
     return {"ok": True, "risk": risk}
 
 
@@ -1694,6 +1737,11 @@ def apply_control(ra_id: str, body: ControlApplication):
             for existing in refreshed.applied_controls:
                 if existing.get("risk_id") == body.risk_id and existing.get("control_id") == body.control_id:
                     return {"ok": True, "control": existing, "duplicate": True}
+    _record_user_event(ra_id, "control_applied", {
+        "control_id": body.control_id,
+        "risk_id": body.risk_id,
+        "source": body.source,
+    })
     return {"ok": True, "control": control, "duplicate": False}
 
 
@@ -1852,6 +1900,11 @@ Example: [{{"title":"Unauthorised data access","description":"...","risk_categor
             })
 
     get_store().set_risks(ra_id, all_risks)
+    _record_user_event(ra_id, "analysis_completed", {
+        "risks_identified": len(all_risks),
+        "assets_analysed": len(by_asset),
+        "mode": "rule_layer_plus_llm",
+    })
     return {"assessment_id": ra_id, "risks_identified": len(all_risks), "risks": all_risks}
 
 
@@ -1939,6 +1992,7 @@ def generate_report(ra_id: str):
         report_md = f"# Risk Assessment Report\n\n**Report generation failed:** {e}\n\nPlease retry."
 
     get_store().set_report(ra_id, report_md)
+    _record_user_event(ra_id, "report_generated", {"risk_count": len(ra.risks)})
     return {"assessment_id": ra_id, "report_markdown": report_md}
 
 

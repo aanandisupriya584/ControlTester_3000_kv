@@ -7,6 +7,9 @@ pydantic==2.11.5
 pydantic-settings==2.9.1
 mongomock>=4.1.2
 
+# LangGraph — multi-agent orchestration (same ecosystem as LangChain)
+langgraph==0.2.70
+
 # LangChain stack
 langchain==0.3.25
 langchain-community==0.3.24

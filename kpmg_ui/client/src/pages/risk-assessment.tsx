@@ -31,7 +31,7 @@ import {
   SearchCheck,
   Trash2,
   X,
-  type LucideIcon, NotepadText, Layers, ChartSpline, MoveDownRight,
+  type LucideIcon, NotepadText, Layers, ChartSpline, MoveDownRight, Info,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
 import HowItWorks from "@/components/HowItWorks";
@@ -109,12 +109,6 @@ const BAND_CLASS: Record<string, string> = {
   Low: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
 };
 
-const ANSWER_CLASS: Record<AnswerType, string> = {
-  yes: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
-  no: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
-  na: "border-[#DCE3EE] bg-[#F3F6FA] text-[#6A748A]",
-};
-
 // Mirror the reference workflow labels so the progress rail matches the requested UI.
 const WIZARD_STEPS = ["Create", "Assets", "Questionnaire", "Risk Review", "Findings", "Final Report"];
 const WORKFLOW_PROGRESS_STEP_COUNT = 6;
@@ -181,22 +175,8 @@ const SOFT_BUTTON =
 
 const EMPTY_CONTEXT_PROFILE: ContextProfile = {
   project_context: "", business_impact: "", overall_project_summary: "",
-  regulatory_context: "", security_requirements: "", jira_context: "", free_text_context: "",
+  jira_context: "", free_text_context: "",
 };
-
-const PRIORITY_CLASS: Record<string, string> = {
-  high: "border-[#F3C6CF] bg-[#FEEBED] text-[#E5001B]",
-  medium: "border-[#F6D3A0] bg-[#FFF4E8] text-[#AB5C00]",
-  low: "border-[#BFE7D1] bg-[#EDFBF5] text-[#009A44]",
-};
-
-const CONTEXT_Q_ACTIVE: Record<string, string> = {
-  yes: "border-[#009A44] bg-[#009A44] text-white shadow-sm",
-  no: "border-[#E5001B] bg-[#E5001B] text-white shadow-sm",
-  na: "border-[#1E49E2] bg-[#1E49E2] text-white shadow-sm",
-};
-
-const CONTEXT_Q_IDLE = "border-[#D6E0EF] bg-white text-[#33415C] hover:border-[#1E49E2] hover:bg-[#F8FBFF]";
 
 interface LocalAnswer {
   answer: AnswerType;
@@ -554,16 +534,19 @@ function CommandDeckMetric({
   label,
   value,
   detail,
+  accent = "#1E49E2",
 }: {
   label: string;
   value: string | number;
   detail: string;
+  accent?: string;
 }) {
   return (
-    <div className="min-h-[180px] rounded-[8px] border border-[#D6E0EF] bg-[#F8FAFD] px-4 py-4">
-      <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#50627F]">{label}</div>
-      <div className="mt-5 text-[30px] font-bold tracking-[-0.04em] text-[#001B3A]">{value}</div>
-      <div className="mt-4 text-[12px] leading-6 text-[#33415C]">{detail}</div>
+    <div className="relative overflow-hidden rounded-2xl border border-[#E2E6EF] bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+      <div className="absolute left-0 right-0 top-0 h-1 rounded-t-2xl" style={{ background: accent }} />
+      <p className="text-[11px] font-bold uppercase tracking-[2px] text-[#8492A6]">{label}</p>
+      <div className="mt-3 text-[34px] font-bold leading-none tracking-tight text-[#0C233C]">{value}</div>
+      <p className="mt-3 text-[12px] leading-relaxed text-[#5A6478]">{detail}</p>
     </div>
   );
 }
@@ -1304,6 +1287,7 @@ export default function RiskAssessmentPage() {
     deleteContextFile,
     suggestContextQuestions,
     answerContextQuestion,
+    recomputeContextProfile,
   } = useRiskAssessment();
   const { assets, fetchAssets } = useAssetRegistry();
   const { toast } = useToast();
@@ -1381,9 +1365,11 @@ export default function RiskAssessmentPage() {
   const [contextProfile, setContextProfile] = useState<ContextProfile>(EMPTY_CONTEXT_PROFILE);
   const [savingContext, setSavingContext] = useState(false);
   const [contextFileUploading, setContextFileUploading] = useState(false);
-  const [showNoDocsConfirm, setShowNoDocsConfirm] = useState(false);
+  const [docTag, setDocTag] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workflowContentRef = useRef<HTMLDivElement | null>(null);
+  const [showUnansweredWarning, setShowUnansweredWarning] = useState(false);
+  const [pendingUnansweredCount, setPendingUnansweredCount] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1433,8 +1419,6 @@ export default function RiskAssessmentPage() {
       project_context: cp.project_context || "",
       business_impact: cp.business_impact || "",
       overall_project_summary: cp.overall_project_summary || "",
-      regulatory_context: cp.regulatory_context || "",
-      security_requirements: cp.security_requirements || "",
       jira_context: cp.jira_context || "",
       free_text_context: cp.free_text_context || "",
     });
@@ -1543,16 +1527,13 @@ export default function RiskAssessmentPage() {
   const landingAssessment = assessments[0] ?? null;
   const currentAssetId = selectedAssessment?.asset_ids[qaAssetIdx] ?? "";
   const currentReport = report ?? selectedAssessment?.report_markdown ?? null;
-  const currentTotalQuestions = sections.reduce((acc, section) => acc + section.questions.length, 0);
-  const currentAnsweredCount = currentAssetId ? answeredCount(currentAssetId) : 0;
+  const suggestedQuestions: SuggestedQuestion[] = (selectedAssessment?.suggested_questions ?? []) as SuggestedQuestion[];
+  const currentTotalQuestions = sections.reduce((acc, section) => acc + section.questions.length, 0) + suggestedQuestions.length;
+  const currentAnsweredCount = (currentAssetId ? answeredCount(currentAssetId) : 0) + suggestedQuestions.filter((q) => q.status === "answered").length;
   const assetName = (id: string) =>
     assets.find((asset) => asset.id === id)?.name ??
     selectedAssessment?.ad_hoc_applications?.find((app) => app.id === id)?.name ??
     id;
-
-  const suggestedQuestions: SuggestedQuestion[] = (selectedAssessment?.suggested_questions ?? []) as SuggestedQuestion[];
-  const answeredContextQuestions = suggestedQuestions.filter((q) => q.status === "answered").length;
-
   const hasAssetsInScope = Boolean(selectedAssessment && selectedAssessment.asset_ids.length > 0);
   const hasRisksIdentified = Boolean(
     selectedAssessment &&
@@ -1803,29 +1784,29 @@ export default function RiskAssessmentPage() {
 
   async function handleSubmitQa() {
     if (!selectedAssessment || !currentAssetId) return;
-    const unansweredQuestions = sections.reduce(
-      (count, section) =>
-        count +
-        section.questions.filter(
-          (question) => !answers[currentAssetId]?.[section.id]?.[question.id]?.answer,
-        ).length,
-      0,
-    );
+    const unansweredQuestions =
+      sections.reduce(
+        (count, section) =>
+          count +
+          section.questions.filter(
+            (question) => !answers[currentAssetId]?.[section.id]?.[question.id]?.answer,
+          ).length,
+        0,
+      ) + suggestedQuestions.filter((q) => q.status !== "answered").length;
     if (unansweredQuestions > 0) {
-      toast({
-        title: "Please answer all questions",
-        description: `${unansweredQuestions} question${unansweredQuestions === 1 ? "" : "s"} remaining before you can continue.`,
-        variant: "destructive",
-      });
+      setPendingUnansweredCount(unansweredQuestions);
+      setShowUnansweredWarning(true);
       return;
     }
-    setSubmittingQa(true);
+    await doSubmitQa();
+  }
 
+  async function doSubmitQa() {
+    if (!selectedAssessment || !currentAssetId) return;
+    setSubmittingQa(true);
     try {
       const responses = currentAssetResponses();
-
       await submitResponseBatch(selectedAssessment.id, responses);
-
       if (qaAssetIdx < selectedAssessment.asset_ids.length - 1) {
         setQaAssetIdx((prev) => prev + 1);
         setExpandedSection(sections[0]?.id ?? null);
@@ -1870,18 +1851,6 @@ export default function RiskAssessmentPage() {
 
   async function handleSaveContextAndSuggest() {
     if (!selectedAssessment) return;
-
-    const hasDocuments = (selectedAssessment.context_sources ?? []).length > 0;
-    const hasContextText = Object.values(contextProfile).some((v) => v.trim() !== "");
-    if (!hasDocuments && !hasContextText) {
-      toast({
-        title: "No context provided",
-        description: "Please upload a document or fill in at least one context field before generating AI questions.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSavingContext(true);
     try {
       await updateContextProfile(selectedAssessment.id, contextProfile);
@@ -1898,26 +1867,99 @@ export default function RiskAssessmentPage() {
   }
 
   async function handleContextFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    if (!selectedAssessment || !event.target.files?.[0]) return;
+    if (!selectedAssessment || !event.target.files?.length) return;
+    const files = Array.from(event.target.files);
     setContextFileUploading(true);
+
+    type UploadResult = { name: string; relevant: boolean; reason?: string; classified_type?: string };
+    const results: UploadResult[] = [];
+
     try {
-      const updated = await uploadContextFile(selectedAssessment.id, event.target.files[0]);
-      if (updated?.context_profile) {
-        const cp = updated.context_profile;
-        setContextProfile((prev) => ({
-          project_context: cp.project_context || prev.project_context,
-          business_impact: cp.business_impact || prev.business_impact,
-          overall_project_summary: cp.overall_project_summary || prev.overall_project_summary,
-          regulatory_context: cp.regulatory_context || prev.regulatory_context,
-          security_requirements: cp.security_requirements || prev.security_requirements,
-          jira_context: cp.jira_context || prev.jira_context,
-          free_text_context: cp.free_text_context || prev.free_text_context,
-        }));
+      for (const file of files) {
+        try {
+          const { assessment: updated, classification, content_relevant } = await uploadContextFile(
+            selectedAssessment.id,
+            file,
+            docTag || "document",
+          );
+          const docAccepted = content_relevant && classification?.relevant !== false;
+          if (docAccepted && updated?.context_profile) {
+            const cp = updated.context_profile;
+            setContextProfile((prev) => ({
+              project_context: cp.project_context || prev.project_context,
+              business_impact: cp.business_impact || prev.business_impact,
+              overall_project_summary: cp.overall_project_summary || prev.overall_project_summary,
+              jira_context: cp.jira_context || prev.jira_context,
+              free_text_context: cp.free_text_context || prev.free_text_context,
+            }));
+          }
+          results.push({
+            name: file.name,
+            relevant: docAccepted,
+            reason: classification?.rejection_reason,
+            classified_type: classification?.classified_type,
+          });
+        } catch {
+          results.push({ name: file.name, relevant: false, reason: "Upload failed" });
+        }
       }
-      toast({ title: "Document uploaded — context fields auto-filled from document" });
-    } catch {
-      toast({ title: "File upload failed", variant: "destructive" });
+
+      const accepted = results.filter(r => r.relevant);
+      const rejected = results.filter(r => !r.relevant);
+
+      // If at least one document was accepted, re-extract the context profile from
+      // ALL documents together so the fields reflect a holistic read, not per-doc merges.
+      if (accepted.length > 0) {
+        try {
+          const updated = await recomputeContextProfile(selectedAssessment.id);
+          if (updated?.context_profile) {
+            const cp = updated.context_profile;
+            setContextProfile({
+              project_context: cp.project_context || "",
+              business_impact: cp.business_impact || "",
+              overall_project_summary: cp.overall_project_summary || "",
+              jira_context: cp.jira_context || "",
+              free_text_context: cp.free_text_context || "",
+            });
+          }
+        } catch {
+          // Non-fatal — fields retain whatever per-doc extraction populated
+        }
+      }
+
+      if (rejected.length === 0) {
+        // All files accepted
+        const label = accepted.length === 1
+          ? `Document uploaded — classified as ${accepted[0].classified_type?.replace(/_/g, " ") ?? "document"}`
+          : `${accepted.length} documents added to your assessment context`;
+        toast({ title: label });
+      } else if (accepted.length === 0) {
+        // All files rejected
+        toast({
+          title: rejected.length === 1
+            ? "Document not relevant to this risk assessment"
+            : `${rejected.length} documents not relevant to this risk assessment`,
+          description:
+            rejected.map(r => `• ${r.name}${r.reason ? ` — ${r.reason}` : ""}`).join("\n") +
+            "\n\nThese files were not added to your assessment.",
+          variant: "destructive",
+        });
+      } else {
+        // Mixed — some accepted, some rejected
+        toast({
+          title: `${accepted.length} of ${results.length} documents added to your assessment context`,
+          description: `Added: ${accepted.map(r => r.name).join(", ")}`,
+        });
+        toast({
+          title: `${rejected.length} document${rejected.length > 1 ? "s" : ""} not relevant to this risk assessment`,
+          description:
+            rejected.map(r => `• ${r.name}${r.reason ? ` — ${r.reason}` : ""}`).join("\n") +
+            "\n\nThese files were not added to your assessment.",
+          variant: "destructive",
+        });
+      }
     } finally {
+      setDocTag("");
       setContextFileUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -2079,10 +2121,10 @@ export default function RiskAssessmentPage() {
                 <div className="min-h-0 flex-1 overflow-y-auto bg-[#F4F7FB] px-4 py-5 sm:px-6" data-risk-assessment-create="true">
                   <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                     <div className="flex min-h-full flex-col gap-5">
-                      <div className="risk-assessment-setup-glass overflow-hidden rounded-[8px] border p-6">
-                        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[#1E49E2]">Assessment Details</p>
-                        <h3 className="text-[22px] font-bold tracking-[-0.04em] text-[#001B3A]">Define Scope Before We Ask Anything</h3>
-                        <p className="mt-4 max-w-[640px] text-[13px] leading-7 text-[#33415C]">
+                      <div className="overflow-hidden rounded-2xl border border-[#E2E6EF] bg-white p-6 shadow-sm">
+                        <p className="mb-1 text-[11px] font-bold uppercase tracking-[2.5px] text-[#00338D]">Assessment Details</p>
+                        <h3 className="text-[20px] font-bold tracking-tight text-[#0C233C]">Define Scope Before We Ask Anything</h3>
+                        <p className="mt-3 max-w-[640px] text-[13px] leading-7 text-[#5A6478]">
                           Name the session, choose the core applications in scope, and add any ad hoc systems that need to be assessed without touching the wider registry.
                         </p>
                         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -2130,7 +2172,6 @@ export default function RiskAssessmentPage() {
                       <TracePanel
                           title="Applications In Scope"
                           subtitle="Select existing applications from the Asset Registry. These drive the questionnaire path."
-                          className="rounded-[22px] shadow-none"
                       >
                         <div
                             data-risk-assessment-scope-asset-scroll="true"
@@ -2186,7 +2227,6 @@ export default function RiskAssessmentPage() {
                       <TracePanel
                           title="Ad Hoc Applications"
                           subtitle="Add systems not yet in the registry. They remain part of scope without touching other features."
-                          className="rounded-[8px] shadow-none"
                       >
                         <div className="mb-4 flex flex-col items-start gap-3">
                           <div className="text-[13px] text-[#7388A8]">
@@ -2203,7 +2243,7 @@ export default function RiskAssessmentPage() {
                               {adHocApps.map((application, index) => (
                                   <div
                                       key={`${application.name}-${index}`}
-                                      className="flex items-center justify-between gap-3 rounded-[8px] border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3"
+                                      className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E6EF] bg-[#FBFCFE] px-4 py-3 transition-all duration-200 hover:shadow-sm"
                                   >
                                     <div>
                                       <p className="text-[13px] font-bold text-[#0C233C]">{application.name}</p>
@@ -2574,21 +2614,6 @@ export default function RiskAssessmentPage() {
                       Back
                     </button>
                     <button
-                      className={SECONDARY_BUTTON}
-                      onClick={() => {
-                        if ((selectedAssessment.context_sources ?? []).length === 0) {
-                          setShowNoDocsConfirm(true);
-                        } else {
-                          setShowContextStep(false);
-                          setWizardStep(1);
-                          setExpandedSection(sections[0]?.id ?? null);
-                        }
-                      }}
-                    >
-                      Skip — Go to Questionnaire
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
-                    <button
                       className={PRIMARY_BUTTON}
                       onClick={() => void handleSaveContextAndSuggest()}
                       disabled={savingContext || isSuggestingQuestions}
@@ -2598,19 +2623,22 @@ export default function RiskAssessmentPage() {
                       ) : (
                         <Sparkles className="h-4 w-4" />
                       )}
-                      {savingContext || isSuggestingQuestions ? "Generating questions…" : "Save & Generate AI Questions"}
+                      {savingContext || isSuggestingQuestions ? "Generating AI questions…" : "Generate AI Questions"}
                     </button>
                   </div>
                 }
               >
-                <p className="mb-6 text-[13px] leading-6 text-[#5A6478]">
-                  Upload supporting documents and fill in context fields. The AI will generate targeted questions from the content you provide.
-                </p>
+                <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-[#C9D7FF] bg-[#EEF2FF] px-4 py-3">
+                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1E49E2]" />
+                  <p className="text-[13px] font-bold leading-6 text-[#1E49E2]">
+                    Upload documents and fill in the context fields below, then click on Generate AI Questions.
+                  </p>
+                </div>
 
                 {/* Document Upload */}
                 <div className="mb-6">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">Upload Documents</p>
-                  <div className="rounded-[16px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] p-5">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">Upload Documents</p>
+                  <div className="rounded-xl border border-dashed border-[#DCE3EE] bg-[#FBFCFE] p-5">
                     <div className="flex flex-col items-center gap-3 text-center">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EEF2FF]">
                         <FileUp className="h-5 w-5 text-[#1E49E2]" />
@@ -2624,20 +2652,41 @@ export default function RiskAssessmentPage() {
                         type="file"
                         accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odp,.odt,.ods,.txt,.md,.csv,.tsv,.json,.log,.png,.jpg,.jpeg,.webp,.bmp,.tiff,.gif"
                         className="hidden"
+                        multiple
                         onChange={(e) => void handleContextFileUpload(e)}
                       />
-                      <button
-                        className={SOFT_BUTTON}
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={contextFileUploading}
-                      >
-                        {contextFileUploading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <FileUp className="h-4 w-4" />
-                        )}
-                        {contextFileUploading ? "Uploading…" : "Choose File"}
-                      </button>
+                      <div className="flex w-full max-w-xs flex-col gap-2">
+                        <select
+                          value={docTag}
+                          onChange={(e) => setDocTag(e.target.value)}
+                          className="rounded-xl border border-[#DCE3EE] bg-white px-3 py-1.5 text-[12px] text-[#0C233C] focus:outline-none focus:ring-1 focus:ring-[#00B8F5]"
+                        >
+                          <option value="">Let AI decide document type</option>
+                          <option value="architecture_doc">Architecture Document</option>
+                          <option value="project_plan">Project Plan</option>
+                          <option value="jira_export">Jira / Delivery Export</option>
+                          <option value="security_policy">Security Policy</option>
+                          <option value="compliance_doc">Compliance Document</option>
+                          <option value="sow">Statement of Work</option>
+                          <option value="vapt_report">VAPT / Pen Test Report</option>
+                          <option value="threat_model">Threat Model</option>
+                          <option value="incident_report">Incident Report</option>
+                          <option value="data_flow_diagram">Data Flow Diagram</option>
+                          <option value="vendor_assessment">Vendor Assessment</option>
+                        </select>
+                        <button
+                          className={SOFT_BUTTON}
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={contextFileUploading}
+                        >
+                          {contextFileUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileUp className="h-4 w-4" />
+                          )}
+                          {contextFileUploading ? "Uploading & classifying…" : "Choose File"}
+                        </button>
+                      </div>
                     </div>
                     {/* Uploaded files */}
                     {(selectedAssessment.context_sources ?? []).length > 0 ? (
@@ -2663,163 +2712,65 @@ export default function RiskAssessmentPage() {
                   </div>
                 </div>
 
-                {/* Context Fields */}
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">Context Fields</p>
-                  {Object.values(contextProfile).some((v) => v.trim() !== "") && (
-                    <button
-                      className="inline-flex items-center justify-center gap-2 rounded-[16px] border border-[#DCE3EE] bg-white px-4 py-2 text-[13px] font-bold text-[#0C233C] transition-colors hover:border-[#F3C6CF] hover:bg-[#FEEBED] hover:text-[#E5001B]"
-                      onClick={() => {
-                        setContextProfile(EMPTY_CONTEXT_PROFILE);
-                        if (selectedAssessment) {
-                          void updateContextProfile(selectedAssessment.id, EMPTY_CONTEXT_PROFILE);
-                        }
-                        toast({ title: "Context fields cleared" });
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Clear all fields
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {[
-                    { key: "project_context" as const, label: "Project Context", placeholder: "Describe the system architecture, tech stack, and deployment environment…" },
-                    { key: "business_impact" as const, label: "Business Impact", placeholder: "Describe business criticality, data sensitivity, and users affected…" },
-                    { key: "overall_project_summary" as const, label: "Project Summary", placeholder: "2–3 sentence executive summary for this risk assessment…" },
-                    { key: "regulatory_context" as const, label: "Regulatory Context", placeholder: "GDPR, PCI-DSS, ISO 27001, HIPAA, RBI PA Guidelines…" },
-                    { key: "security_requirements" as const, label: "Security Requirements", placeholder: "Key security controls, constraints, or requirements…" },
-                    { key: "jira_context" as const, label: "Jira / Delivery Context", placeholder: "Open tickets, defects, incidents, or delivery risks relevant to this assessment…" },
-                    { key: "free_text_context" as const, label: "Additional Context", placeholder: "Any other information that should inform the risk questions…" },
-                  ].map(({ key, label, placeholder }) => (
-                    <div key={key} className={key === "free_text_context" ? "sm:col-span-2" : ""}>
-                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#7E91AE]">
-                        {label}
-                      </label>
-                      <Textarea
-                        value={contextProfile[key]}
-                        onChange={(e) => setContextProfile((prev) => ({ ...prev, [key]: e.target.value }))}
-                        placeholder={placeholder}
-                        rows={3}
-                        className="rounded-[14px] border-[#DCE3EE] bg-white text-[#0C233C] placeholder:text-[#A4B4C8] focus-visible:ring-[#00B8F5]"
-                      />
+                {/* Context fields — hidden while uploading; shown after AI populates them */}
+                {contextFileUploading ? (
+                  <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-[#C9D7FF] bg-[#EEF2FF] px-4 py-4">
+                    <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-[#1E49E2]" />
+                    <div>
+                      <p className="text-[13px] font-bold text-[#1E49E2]">Analysing documents…</p>
+                      <p className="mt-0.5 text-[11px] text-[#5A6478]">AI is reading your uploaded documents and building project context. This takes a few seconds.</p>
                     </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 flex items-start gap-2.5 rounded-[14px] border border-[#C9D7FF] bg-[#EEF2FF] px-4 py-3">
-                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1E49E2]" />
-                  <p className="text-[12px] leading-6 text-[#1E49E2]">
-                    Click "Save &amp; Generate AI Questions" to create targeted questions from your documents and context. You can also skip this step and go straight to the questionnaire.
-                  </p>
-                </div>
-
-              </SurfaceSection>
-            ) : null}
-
-            {/* No-documents confirmation dialog */}
-            <Dialog open={showNoDocsConfirm} onOpenChange={setShowNoDocsConfirm}>
-              <DialogContent className="max-w-[440px] rounded-[20px] border border-[#DCE3EE] bg-white p-6 shadow-[0_20px_60px_-20px_rgba(12,35,60,0.35)]">
-                <DialogHeader>
-                  <DialogTitle className="text-[18px] font-bold tracking-[-0.02em] text-[#0C233C]">
-                    No Documents Uploaded
-                  </DialogTitle>
-                  <DialogDescription className="mt-2 text-[13px] leading-6 text-[#5A6478]">
-                    No project documentation or asset documentation has been provided. Only static questions will be generated. Would you like to continue?
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="mt-4 flex gap-2">
-                  <button
-                    className={SECONDARY_BUTTON}
-                    onClick={() => setShowNoDocsConfirm(false)}
-                  >
-                    Go Back
-                  </button>
-                  <button
-                    className={PRIMARY_BUTTON}
-                    onClick={() => {
-                      setShowNoDocsConfirm(false);
-                      setShowContextStep(false);
-                      setWizardStep(1);
-                      setExpandedSection(sections[0]?.id ?? null);
-                    }}
-                  >
-                    Continue Anyway
-                  </button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            {wizardStep === 1 && !showContextStep && suggestedQuestions.length > 0 ? (
-              <SurfaceSection
-                eyebrow="AI Context"
-                title="Context-Driven Questions"
-                action={
-                  <span className="inline-flex items-center rounded-full border border-[#C9D7FF] bg-[#EEF2FF] px-3 py-1 text-[11px] font-bold text-[#1E49E2]">
-                    {answeredContextQuestions}/{suggestedQuestions.length} answered
-                  </span>
-                }
-              >
-                <p className="mb-5 text-[13px] leading-6 text-[#5A6478]">
-                  These questions were generated from your uploaded context documents. Answer them to improve risk scoring accuracy.
-                </p>
-                <div className="space-y-4">
-                  {suggestedQuestions.map((q) => (
-                    <div
-                      key={q.question_id}
-                      className="rounded-[18px] border border-[#DCE3EE] bg-[#FBFCFE] p-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${PRIORITY_CLASS[q.priority] ?? PRIORITY_CLASS.medium}`}>
-                              {q.priority}
-                            </span>
-                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#7388A8]">
-                              {q.section_title}
-                            </span>
-                          </div>
-                          <p className="text-[14px] font-semibold leading-6 text-[#0C233C]">{q.text}</p>
-                          {q.rationale ? (
-                            <p className="mt-1.5 text-[12px] leading-5 text-[#7388A8]">{q.rationale}</p>
-                          ) : null}
-                        </div>
-                        {q.status === "answered" ? (
-                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold ${ANSWER_CLASS[q.answer ?? "na"]}`}>
-                            {(q.answer ?? "na").toUpperCase()}
-                          </span>
-                        ) : null}
-                      </div>
-                      {q.status !== "answered" ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {(["yes", "no", "na"] as const).map((opt) => (
-                            <button
-                              key={opt}
-                              className={`inline-flex items-center justify-center rounded-[12px] border px-4 py-2 text-[12px] font-bold transition-all duration-150 active:translate-y-px ${CONTEXT_Q_IDLE}`}
-                              onClick={() => void answerContextQuestion(selectedAssessment.id, q.question_id, opt, "")}
-                            >
-                              {opt.toUpperCase()}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(["yes", "no", "na"] as const).map((opt) => (
-                            <button
-                              key={opt}
-                              className={`inline-flex items-center justify-center rounded-[12px] border px-4 py-2 text-[12px] font-bold transition-all duration-150 active:translate-y-px ${q.answer === opt ? CONTEXT_Q_ACTIVE[opt] : CONTEXT_Q_IDLE}`}
-                              onClick={() => void answerContextQuestion(selectedAssessment.id, q.question_id, opt, "")}
-                            >
-                              {opt.toUpperCase()}
-                            </button>
-                          ))}
-                        </div>
+                  </div>
+                ) : (selectedAssessment.context_sources ?? []).length > 0 || Object.values(contextProfile).some((v) => v.trim() !== "") ? (
+                  <div className="mt-4">
+                    <div className="mb-3 flex items-center justify-end">
+                      {Object.values(contextProfile).some((v) => v.trim() !== "") && (
+                        <button
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DCE3EE] bg-white px-4 py-2 text-[13px] font-bold text-[#0C233C] transition-colors hover:border-[#F3C6CF] hover:bg-[#FEEBED] hover:text-[#E5001B]"
+                          onClick={() => {
+                            setContextProfile(EMPTY_CONTEXT_PROFILE);
+                            if (selectedAssessment) {
+                              void updateContextProfile(selectedAssessment.id, EMPTY_CONTEXT_PROFILE);
+                            }
+                            toast({ title: "Context fields cleared" });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Clear all fields
+                        </button>
                       )}
                     </div>
-                  ))}
-                </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {([
+                        { key: "project_context" as const, label: "Project Context", placeholder: "Describe the system architecture, tech stack, and deployment environment…", span: false },
+                        { key: "overall_project_summary" as const, label: "Project Summary", placeholder: "Overview of the project scope, business criticality, data sensitivity, user impact, and why it is being assessed…", span: false },
+                        { key: "free_text_context" as const, label: "Additional Context", placeholder: "Any other information that should inform the risk questions — past incidents, audit findings, known vulnerabilities…", span: true },
+                      ] as const).map(({ key, label, placeholder, span }) => (
+                        <div key={key} className={span ? "sm:col-span-2" : ""}>
+                          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.22em] text-[#33415C]">
+                            {label}
+                          </label>
+                          <Textarea
+                            value={contextProfile[key]}
+                            onChange={(e) => setContextProfile((prev) => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={placeholder}
+                            rows={3}
+                            className="rounded-xl border-[#DCE3EE] bg-white text-[#0C233C] placeholder:text-[#A4B4C8] focus-visible:ring-[#00B8F5]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[14px] border border-dashed border-[#DCE3EE] bg-[#FBFCFE] px-5 py-6 text-center">
+                    <p className="text-[13px] font-semibold text-[#5A6478]">Upload documents above to auto-populate project context</p>
+                    <p className="mt-1 text-[11px] text-[#9AA8BC]">AI will analyse your documents and automatically fill in the project context, summary, and additional details.</p>
+                  </div>
+                )}
+
               </SurfaceSection>
             ) : null}
+
 
             {wizardStep === 1 ? (
               <QuestionnaireForm
@@ -2833,8 +2784,10 @@ export default function RiskAssessmentPage() {
                 submittingQa={submittingQa}
                 primaryButtonClassName={PRIMARY_BUTTON}
                 secondaryButtonClassName={SECONDARY_BUTTON}
+                suggestedQuestions={suggestedQuestions}
                 onExpandedSectionChange={setExpandedSection}
                 onAnswer={setAnswer}
+                onAnswerContextQuestion={(qId, answer) => void answerContextQuestion(selectedAssessment.id, qId, answer, "")}
                 onSaveProgress={() => void handleSaveQuestionnaireDraft()}
                 onContinue={() => void handleSubmitQa()}
               />
@@ -2919,6 +2872,42 @@ export default function RiskAssessmentPage() {
                 onViewReport={() => setShowReportDialog(true)}
               />
             ) : null}
+
+            {/* Unanswered questions warning — shown when user clicks Continue with gaps */}
+            <Dialog open={showUnansweredWarning} onOpenChange={setShowUnansweredWarning}>
+              <DialogContent className="max-w-[480px] rounded-[20px] border border-[#DCE3EE] bg-white p-0 shadow-[0_30px_80px_-44px_rgba(12,35,60,0.48)]">
+                <DialogHeader className="border-b border-[#E8EDF5] px-6 py-5">
+                  <DialogTitle className="text-[18px] font-bold text-[#0C233C]">
+                    Unanswered Questions
+                  </DialogTitle>
+                  <DialogDescription className="mt-2 text-[13px] leading-6 text-[#5A6478]">
+                    {pendingUnansweredCount} question{pendingUnansweredCount === 1 ? "" : "s"} remain{pendingUnansweredCount === 1 ? "s" : ""} unanswered. Unanswered questions reduce the accuracy of the risk identification output.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="px-6 py-4">
+                  <div className="flex items-start gap-2.5 rounded-[14px] border border-[#F6D3A0] bg-[#FFFBEE] px-4 py-3">
+                    <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8A6A00]" />
+                    <p className="text-[12px] leading-5 text-[#7A5E00]">
+                      The AI risk agents use your answers to determine which risks apply to this application. Gaps in your answers can lead to missed or incomplete risks in the final assessment.
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter className="flex gap-3 border-t border-[#E8EDF5] px-6 py-4">
+                  <button className={SECONDARY_BUTTON} onClick={() => setShowUnansweredWarning(false)}>
+                    Go Back &amp; Answer
+                  </button>
+                  <button
+                    className={PRIMARY_BUTTON}
+                    onClick={() => { setShowUnansweredWarning(false); void doSubmitQa(); }}
+                    disabled={submittingQa}
+                  >
+                    {submittingQa ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Continue Anyway
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <ReportPreviewDialog
               open={showReportDialog}
